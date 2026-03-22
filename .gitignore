@@ -35,6 +35,5 @@ Temporary Items
 ### macOS Patch ###
 # iCloud generated files
 *.icloud
-doc
 .opencode/oh-my-opencode.jsonc
 groundless_veryl_cores.f
