@@ -1,5 +1,9 @@
 # Agent Guidelines
 
+## Response Language
+
+Respond to the user in **Japanese**. Code comments (doc / impl) in Japanese. Identifiers and port names in English.
+
 ## Core Principles
 
 - **Do NOT maintain backward compatibility** unless explicitly requested. Break things boldly.
@@ -7,7 +11,6 @@
 
 ## CONVENTIONS
 
-- Doc comments and implementation comments are Japanese; identifiers/ports are English.
 - Delete dead code immediately
 - **Port naming**: Use `clk` for clock and `rst` for reset ports.
 - **Reserved words**: If `reset` or `clock` names are necessary, escape as `r#reset` or `r#clock`.
@@ -15,17 +18,15 @@
 ## ANTI-PATTERNS (THIS PROJECT)
 
 - Do not edit generated outputs under `target/` or `doc/` by hand.
-- Do not edit vendored stdlib under `dependencies/std/` directly; regenerate upstream.
+- Do not edit vendored stdlib under `dependencies/` directly; regenerate upstream.
+- Do not re-implement basic functions (Synchronizer, EdgeDetector, FIFO, etc.) that are available in [Veryl std](https://github.com/veryl-lang/veryl/tree/master/crates/std/veryl/src).
 
 ## COMMANDS
 
 ```bash
-# Format/build
-veryl fmt
+veryl fmt # format code
 veryl check
 veryl build
-veryl clean
 
-# Simulation + tests
-veryl test
+veryl test # simulation and tests
 ```
