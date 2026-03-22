@@ -1,0 +1,157 @@
+pub module midi_rx #(
+    param CLK_FREQ: u32 = 50_000_000,
+) (
+    i_clk  : input  clock   ,
+    i_rst  : input  reset   ,
+    i_rx   : input  logic   ,
+    o_data : output logic<8>,
+    o_valid: output logic   ,
+) {
+    // 非同期MIDI入力信号を2段FFで同期化
+    // std::synchronizer::synchronizer_basic に準拠: WIDTH=1, INITIAL_VALUE=1, STAGES=2
+    var ff1: logic;
+    var ff2: logic;
+
+    always_ff {
+        if i_rst {
+            ff1 = 1; // Reset to idle (HIGH)
+            ff2 = 1; // Reset to idle (HIGH)
+        } else {
+            ff1 = i_rx; // First flip-flop
+            ff2 = ff1; // Second flip-flop
+        }
+    }
+
+    var rx_synced: logic;
+    assign rx_synced = ff2;
+
+    // 同期済み信号をUART受信モジュールに渡す
+    inst u_uart_rx: uart_rx #(
+        CLK_FREQ  : CLK_FREQ,
+        BAUD_RATE : 31250   ,
+        DATA_WIDTH: 8       ,
+    ) (
+        i_clk  : i_clk    ,
+        i_rst  : i_rst    ,
+        i_rx   : rx_synced,
+        o_data : o_data   ,
+        o_valid: o_valid  ,
+    );
+}
+
+#[test(test_midi_rx)]
+embed (inline) sv{{{
+    module test_midi_rx;
+        // テストパラメータ: CLK_FREQ=50MHz, BAUD_RATE=31250 → CYCLES_PER_BIT=1600
+        localparam int CLK_FREQ = 50_000_000;
+        localparam int BAUD_RATE = 31250;
+        localparam int DATA_WIDTH = 8;
+        localparam int CYCLES_PER_BIT = CLK_FREQ / BAUD_RATE;  // 1600
+        localparam int HALF_PERIOD = 10;  // 50MHz → 20ns period → 10ns half period
+
+        logic clk;
+        logic rst;
+        logic rx;
+        logic [DATA_WIDTH-1:0] data;
+        logic valid;
+
+        // DUT インスタンス化
+        groundless_veryl_cores_midi_rx #(
+            .CLK_FREQ(CLK_FREQ)
+        ) dut (
+            .i_clk(clk),
+            .i_rst(rst),
+            .i_rx(rx),
+            .o_data(data),
+            .o_valid(valid)
+        );
+
+        // クロック生成
+        initial begin
+            clk = 0;
+            forever #(HALF_PERIOD) clk = ~clk;
+        end
+
+        // UART フレーム送信タスク (Start=0, 8データビット, Stop=1)
+        task send_uart_byte(input logic [7:0] byte_data, input logic stop_bit);
+            int i;
+            begin
+                // Start bit (Low)
+                rx = 0;
+                repeat (CYCLES_PER_BIT) @(posedge clk);
+                
+                // Data bits (LSB first)
+                for (i = 0; i < 8; i = i + 1) begin
+                    rx = byte_data[i];
+                    repeat (CYCLES_PER_BIT) @(posedge clk);
+                end
+                
+                // Stop bit (CYCLES_PER_BIT - 1 サイクルだけ待つ、最後の1クロックは外で確認)
+                rx = stop_bit;
+                repeat (CYCLES_PER_BIT - 1) @(posedge clk);
+            end
+        endtask
+
+        // テストメイン
+        initial begin
+            int error_count = 0;
+            
+            $dumpfile("test_midi_rx.vcd");
+            $dumpvars(0, test_midi_rx);
+
+            // 初期化
+            rx = 1;  // Idle state (High)
+            rst = 1;
+            repeat (10) @(posedge clk);
+            rst = 0;
+            repeat (10) @(posedge clk);
+
+            $display("--- Test 1: MIDI Note On 受信 (0x90) ---");
+            send_uart_byte(8'h90, 1'b1);
+            // ストップビットの最後のクロックでvalidが立つはず
+            @(posedge clk);
+            if (valid !== 1'b1 || data !== 8'h90) begin
+                $display("Test 1 FAILED: valid=%b data=%h (expected valid=1 data=90)", valid, data);
+                error_count = error_count + 1;
+            end else begin
+                $display("Test 1 PASSED: Received 0x90, valid asserted");
+            end
+            @(posedge clk);
+            if (valid !== 1'b0) begin
+                $display("Test 1 FAILED: o_valid not deasserted after 1 cycle");
+                error_count = error_count + 1;
+            end
+            rx = 1;  // Idle状態に戻す
+
+            // 間隔
+            repeat (100) @(posedge clk);
+
+            $display("--- Test 2: MIDI データバイト受信 (0x3C = Middle C) ---");
+            send_uart_byte(8'h3C, 1'b1);
+            @(posedge clk);
+            if (valid !== 1'b1 || data !== 8'h3C) begin
+                $display("Test 2 FAILED: valid=%b data=%h (expected valid=1 data=3C)", valid, data);
+                error_count = error_count + 1;
+            end else begin
+                $display("Test 2 PASSED: Received 0x3C, valid asserted");
+            end
+            @(posedge clk);
+            if (valid !== 1'b0) begin
+                $display("Test 2 FAILED: o_valid not deasserted after 1 cycle");
+                error_count = error_count + 1;
+            end
+            rx = 1;  // Idle状態に戻す
+
+            // 終了
+            repeat (100) @(posedge clk);
+            $display("========================================");
+            if (error_count == 0) begin
+                $display("All tests PASSED");
+            end else begin
+                $display("%d test(s) FAILED", error_count);
+            end
+            $display("========================================");
+            $finish;
+        end
+    endmodule
+}}}
