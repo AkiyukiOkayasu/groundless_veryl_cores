@@ -1,0 +1,85 @@
+pub module uart_rx #(
+    param CLK_FREQ  : u32   = 50_000_000,
+    param BAUD_RATE : u32   = 31250     ,
+    param DATA_WIDTH: u8    = 8         ,
+    param PARITY_EN : bbool = false     ,
+    param PARITY_ODD: bbool = false     ,
+) (
+    i_clk  : input  clock            ,
+    i_rst  : input  reset            ,
+    i_rx   : input  logic            ,
+    o_data : output logic<DATA_WIDTH>,
+    o_valid: output logic            ,
+) {
+    const CYCLES_PER_BIT: u32 = CLK_FREQ / BAUD_RATE;
+
+    enum State {
+        idle,
+        start,
+        data,
+        stop,
+    }
+
+    var state  : State            ;
+    var clk_cnt: u32              ;
+    var bit_cnt: u8               ;
+    var rx_reg : logic<DATA_WIDTH>;
+
+    always_ff {
+        if i_rst {
+            state   = State::idle;
+            clk_cnt = 0;
+            bit_cnt = 0;
+            rx_reg  = 0;
+            o_valid = 0;
+            o_data  = 0;
+        } else {
+            // validは1クロックのみアサートする
+            o_valid = 0;
+
+            case state {
+                State::idle: {
+                    // Startビット(Low)を検出
+                    if !i_rx {
+                        state = State::start;
+                        // ビットの中央でサンプリングするため、サイクル数を半分に設定
+                        clk_cnt = CYCLES_PER_BIT / 2;
+                    }
+                }
+                State::start: {
+                    if clk_cnt == 0 {
+                        state   = State::data;
+                        clk_cnt = CYCLES_PER_BIT - 1;
+                        bit_cnt = 0;
+                    } else {
+                        clk_cnt = clk_cnt - 1;
+                    }
+                }
+                State::data: {
+                    if clk_cnt == 0 {
+                        // LSBファーストで受信データをシフトレジスタに格納
+                        rx_reg[bit_cnt] = i_rx;
+                        clk_cnt         = CYCLES_PER_BIT - 1;
+
+                        if bit_cnt == DATA_WIDTH - 1 {
+                            state = State::stop;
+                        } else {
+                            bit_cnt = bit_cnt + 1;
+                        }
+                    } else {
+                        clk_cnt = clk_cnt - 1;
+                    }
+                }
+                State::stop: {
+                    if clk_cnt == 0 {
+                        state   = State::idle;
+                        o_data  = rx_reg;
+                        o_valid = 1; // 受信完了フラグを立てる
+                    } else {
+                        clk_cnt = clk_cnt - 1;
+                    }
+                }
+            }
+        }
+    }
+}
