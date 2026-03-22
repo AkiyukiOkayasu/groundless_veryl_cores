@@ -1,0 +1,40 @@
+[project]
+name = "groundless_veryl_cores"
+version = "0.1.0"
+authors = ["Akiyuki Okayasu"]
+description = "A collection of cores for Groundless, written in Veryl."
+license = "MIT or Apache-2.0"
+repository = "https://github.com/AkiyukiOkayasu/groundless_veryl_cores"
+
+[build]
+sources = ["src"]
+target = { type = "directory", path = "target" }
+
+[test]
+simulator = "verilator"
+waveform_format = "fst"
+
+[test.verilator]
+compile_args = ["-Wno-fatal"]
+
+# Veryl stdと同じルールを適用
+[lint.naming]
+case_enum = "snake"
+case_function = "snake"
+case_instance = "snake"
+case_interface = "snake"
+case_modport = "snake"
+case_module = "snake"
+case_package = "snake"
+case_parameter = "screaming_snake"
+case_port_inout = "snake"
+case_port_input = "snake"
+case_port_modport = "snake"
+case_port_output = "snake"
+case_reg = "snake"
+case_struct = "snake"
+case_union = "snake"
+case_var = "snake"
+case_wire = "snake"
+prefix_port_input = "i"
+prefix_port_output = "o"

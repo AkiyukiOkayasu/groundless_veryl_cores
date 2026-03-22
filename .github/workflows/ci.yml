@@ -1,0 +1,19 @@
+name: CI
+
+on:
+    push:
+        branches: ['main']
+    pull_request:
+        branches: ['main']
+        types: [opened, synchronize, reopened]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v6
+            - uses: veryl-lang/setup-veryl@v1
+            - uses: veryl-lang/setup-verilator@v1
+            - name: Tests
+              run: veryl test
