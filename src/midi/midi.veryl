@@ -1,11 +1,11 @@
 pub module midi_rx #(
     param CLK_FREQ: u32 = 50_000_000,
 ) (
-    i_clk  : input  clock   ,
-    i_rst  : input  reset   ,
-    i_rx   : input  logic   ,
     o_data : output logic<8>,
     o_valid: output logic   ,
+    clk    : input  clock   ,
+    rst    : input  reset   ,
+    i_rx   : input  logic   , // MIDI入力信号 (非同期)
 ) {
     // 非同期MIDI入力信号を2段FFで同期化
     // std::synchronizer::synchronizer_basic に準拠: WIDTH=1, INITIAL_VALUE=1, STAGES=2
@@ -31,11 +31,11 @@ pub module midi_rx #(
         BAUD_RATE : 31250   ,
         DATA_WIDTH: 8       ,
     ) (
-        i_clk  : i_clk    ,
-        i_rst  : i_rst    ,
+        clk               ,
+        rst               ,
         i_rx   : rx_synced,
-        o_data : o_data   ,
-        o_valid: o_valid  ,
+        o_data            ,
+        o_valid           ,
     );
 }
 
@@ -59,8 +59,8 @@ embed (inline) sv{{{
         groundless_veryl_cores_midi_rx #(
             .CLK_FREQ(CLK_FREQ)
         ) dut (
-            .i_clk(clk),
-            .i_rst(rst),
+            .clk(clk),
+            .rst(rst),
             .i_rx(rx),
             .o_data(data),
             .o_valid(valid)

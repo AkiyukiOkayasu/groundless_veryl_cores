@@ -16,7 +16,3 @@ waveform_format = "fst"
 
 [test.verilator]
 compile_args = ["-Wno-fatal"]
-
-[lint.naming]
-prefix_port_input = "i"
-prefix_port_output = "o"

@@ -3,8 +3,8 @@ pub module uart_rx #(
     param BAUD_RATE : u32 = 31250     ,
     param DATA_WIDTH: u8  = 8         ,
 ) (
-    i_clk  : input  clock            ,
-    i_rst  : input  reset            ,
+    clk    : input  clock            ,
+    rst    : input  reset            ,
     i_rx   : input  logic            ,
     o_data : output logic<DATA_WIDTH>,
     o_valid: output logic            ,
@@ -24,7 +24,7 @@ pub module uart_rx #(
     var rx_reg : logic<DATA_WIDTH>;
 
     always_ff {
-        if i_rst {
+        if_reset {
             state   = State::idle;
             clk_cnt = 0;
             bit_cnt = 0;
@@ -115,8 +115,8 @@ embed (inline) sv{{{
             .BAUD_RATE(BAUD_RATE),
             .DATA_WIDTH(DATA_WIDTH)
         ) dut (
-            .i_clk(clk),
-            .i_rst(rst),
+            .clk(clk),
+            .rst(rst),
             .i_rx(rx),
             .o_data(data),
             .o_valid(valid)
