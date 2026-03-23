@@ -1,29 +1,25 @@
 pub module midi_rx #(
     param CLK_FREQ: u32 = 50_000_000,
 ) (
-    o_data : output logic<8>,
-    o_valid: output logic   ,
     clk    : input  clock   ,
     rst    : input  reset   ,
     i_rx   : input  logic   , // MIDI入力信号 (非同期)
+    o_data : output logic<8>, // MIDI data byte
+    o_valid: output logic   , // MIDIデータ受信完了フラグ (1クロックパルス)
 ) {
-    // 非同期MIDI入力信号を2段FFで同期化
-    // std::synchronizer::synchronizer_basic に準拠: WIDTH=1, INITIAL_VALUE=1, STAGES=2
-    var ff1: logic;
-    var ff2: logic;
-
-    always_ff {
-        if i_rst {
-            ff1 = 1; // Reset to idle (HIGH)
-            ff2 = 1; // Reset to idle (HIGH)
-        } else {
-            ff1 = i_rx; // First flip-flop
-            ff2 = ff1; // Second flip-flop
-        }
-    }
-
     var rx_synced: logic;
-    assign rx_synced = ff2;
+
+    // 非同期MIDI入力信号を2段FFで同期化
+    inst sync: $std::synchronizer_basic #(
+        WIDTH        : 1 ,
+        INITIAL_VALUE: '1, // Idle状態はHIGH
+        STAGES       : 2 ,
+    ) (
+        i_clk: clk      ,
+        i_rst: rst      ,
+        i_d  : i_rx     ,
+        o_d  : rx_synced,
+    );
 
     // 同期済み信号をUART受信モジュールに渡す
     inst u_uart_rx: uart_rx #(
