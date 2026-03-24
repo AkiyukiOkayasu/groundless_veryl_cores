@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>uart_rx</title>
+        <title>TriangleOscillator</title>
 
 
         <!-- Custom HTML head -->
@@ -175,28 +175,9 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="uart_rx"><a class="header" href="#uart_rx">uart_rx</a></h2>
-<h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
-<hr />
-<table class="table_list">
-<tbody>
-<tr>
-    <th class="table_list_item">CLK_FREQ</th>
-    <td class="table_list_item"><span class="hljs-type">u32</span></td>
-    <td class="table_list_item"></td>
-</tr>
-<tr>
-    <th class="table_list_item">BAUD_RATE</th>
-    <td class="table_list_item"><span class="hljs-type">u32</span></td>
-    <td class="table_list_item"></td>
-</tr>
-<tr>
-    <th class="table_list_item">DATA_WIDTH</th>
-    <td class="table_list_item"><span class="hljs-type">u8</span></td>
-    <td class="table_list_item"></td>
-</tr>
-</tbody>
-</table>
+                        <h2 id="triangleoscillator"><a class="header" href="#triangleoscillator">TriangleOscillator</a></h2>
+<p>三角波オシレーター
+全て組み合わせ回路で実装しているため遅延ゼロ</p>
 <h3 id="ports"><a class="header" href="#ports">Ports</a></h3>
 <hr />
 <table class="table_list">
@@ -205,31 +186,29 @@
     <th class="table_list_item">clk</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">clock</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> クロック
+</td>
 </tr>
 <tr>
     <th class="table_list_item">rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> リセット 位相ゼロリセット
+</td>
 </tr>
 <tr>
-    <th class="table_list_item">i_rx</th>
+    <th class="table_list_item">phase_increment</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"><span class="hljs-type">Phase freq_type</span></td>
+    <td class="table_list_item"> 周波数: 1クロックあたりの位相増分値
+</td>
 </tr>
 <tr>
-    <th class="table_list_item">o_data</th>
+    <th class="table_list_item">pcm_out</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
-    <td class="table_list_item"></td>
-</tr>
-<tr>
-    <th class="table_list_item">o_valid</th>
-    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
+    <td class="table_list_item"> 出力波形 (Q8.24形式)
+</td>
 </tr>
 </tbody>
 </table>
@@ -238,11 +217,11 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="midi_rx.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="SquareWaveCore.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="proto_modules.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="TriangleWaveCore.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -252,11 +231,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="midi_rx.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="SquareWaveCore.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="proto_modules.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="TriangleWaveCore.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

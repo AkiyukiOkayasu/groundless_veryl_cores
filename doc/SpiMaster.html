@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>uart_rx</title>
+        <title>SpiMaster</title>
 
 
         <!-- Custom HTML head -->
@@ -175,25 +175,24 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="uart_rx"><a class="header" href="#uart_rx">uart_rx</a></h2>
+                        <h2 id="spimaster"><a class="header" href="#spimaster">SpiMaster</a></h2>
+<p>SPI Master モジュール
+Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
 <tr>
-    <th class="table_list_item">CLK_FREQ</th>
-    <td class="table_list_item"><span class="hljs-type">u32</span></td>
-    <td class="table_list_item"></td>
-</tr>
-<tr>
-    <th class="table_list_item">BAUD_RATE</th>
-    <td class="table_list_item"><span class="hljs-type">u32</span></td>
-    <td class="table_list_item"></td>
-</tr>
-<tr>
     <th class="table_list_item">DATA_WIDTH</th>
-    <td class="table_list_item"><span class="hljs-type">u8</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"><span class="hljs-type">u16</span></td>
+    <td class="table_list_item"> 通信ビット数 (8, 16, 24, 32など)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">CLK_DIV</th>
+    <td class="table_list_item"><span class="hljs-type">u16</span></td>
+    <td class="table_list_item"> 分周比 (50MHz入力で50なら1MHzのSCLK)
+</td>
 </tr>
 </tbody>
 </table>
@@ -205,31 +204,78 @@
     <th class="table_list_item">clk</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">clock</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> System Clock (50MHz)
+</td>
 </tr>
 <tr>
     <th class="table_list_item">rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> Reset
+</td>
 </tr>
 <tr>
-    <th class="table_list_item">i_rx</th>
+    <th class="table_list_item">start</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">logic</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> 通信開始トリガー (1パルス)
+</td>
 </tr>
 <tr>
-    <th class="table_list_item">o_data</th>
+    <th class="table_list_item">tx_data</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> 送信データ
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">rx_data</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> 受信データ
+</td>
 </tr>
 <tr>
-    <th class="table_list_item">o_valid</th>
+    <th class="table_list_item">busy</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">logic</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> 通信中フラグ
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">done</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> 完了フラグ (1パルス)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">sclk</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> SPIクロック
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">mosi</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> SPI MOSI
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">miso</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> SPI MISO
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">cs_n</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> SPI Chip select (Active Low)
+</td>
 </tr>
 </tbody>
 </table>
@@ -238,11 +284,11 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="midi_rx.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="SineWaveLerpCore.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="proto_modules.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="SquareWaveCore.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -252,11 +298,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="midi_rx.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="SineWaveLerpCore.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="proto_modules.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="SquareWaveCore.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
