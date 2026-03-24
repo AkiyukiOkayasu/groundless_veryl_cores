@@ -1,0 +1,183 @@
+/// SPI Master モジュール
+/// Mode 0 (CPOL=0, CPHA=0) 固定
+pub module SpiMaster #(
+    param DATA_WIDTH: u16 = 8 , /// 通信ビット数 (8, 16, 24, 32など)
+    param CLK_DIV   : u16 = 50, /// 分周比 (50MHz入力で50なら1MHzのSCLK)
+) (
+    clk: input clock, /// System Clock (50MHz)
+    rst: input reset, /// Reset
+
+    // 制御信号
+    start  : input  logic            , /// 通信開始トリガー (1パルス)
+    tx_data: input  logic<DATA_WIDTH>, /// 送信データ
+    rx_data: output logic<DATA_WIDTH>, /// 受信データ
+    busy   : output logic            , /// 通信中フラグ
+    done   : output logic            , /// 完了フラグ (1パルス)
+
+    // SPI物理ピン
+    sclk: output logic, /// SPIクロック
+    mosi: output logic, /// SPI MOSI
+    miso: input  logic, /// SPI MISO
+    cs_n: output logic, /// SPI Chip select (Active Low)
+) {
+    // ------------------------------------------
+    // 内部ステート定義
+    // ------------------------------------------
+    enum State {
+        Idle, /// 待機
+        Setup, /// CSを下げてデータ準備
+        Sample, /// SCLK立ち上がりとMISOをサンプル
+        HighWait, /// High期間を保持
+        Shift, /// SCLK立ち下がりとシフト＋MOSI更新
+        LowWait, /// Low期間を保持
+        Finish, /// CSを上げて終了、最小アイドル時間確保
+    }
+    var state: State;
+
+    // ------------------------------------------
+    // カウンタ・レジスタ
+    // ------------------------------------------
+    var div_cnt  : u16              ; // 分周用カウンタ
+    var bit_cnt  : u16              ; // 送信ビット数カウント
+    var shift_reg: logic<DATA_WIDTH>; // 送受信兼用シフトレジスタ
+
+    // SCLKの論理（レジスタで保持）
+    var sclk_reg: logic;
+
+    // 内部misoキャプチャ用
+    var miso_reg   : logic;
+    var miso_synced: logic;
+
+    // MISOのメタステーブル対策用2段シンクロナイザ
+    inst miso_sync: $std::synchronizer_basic #(
+        WIDTH : 1,
+        STAGES: 2,
+    ) (
+        i_clk: clk        ,
+        i_rst: rst        ,
+        i_d  : miso       ,
+        o_d  : miso_synced,
+    );
+
+
+    // ------------------------------------------
+    // メインステートマシン
+    // ------------------------------------------
+    always_ff {
+        if_reset {
+            state     = State::Idle;
+            div_cnt   = 0;
+            bit_cnt   = 0;
+            shift_reg = 0;
+            sclk_reg  = 0;
+            busy      = 0;
+            done      = 0;
+            cs_n      = 1; // Idle時はHigh
+            miso_reg  = 0;
+        } else {
+            // デフォルト動作
+            done = 0;
+
+            case state {
+                State::Idle: {
+                    busy     = 0;
+                    cs_n     = 1;
+                    sclk_reg = 0; // Mode 0: Idle Low
+
+                    if start & !busy {
+                        // 通信開始
+                        shift_reg = tx_data; // 送信データロード
+                        state     = State::Setup;
+                        busy      = 1;
+                        div_cnt   = 0;
+                    }
+                }
+
+                State::Setup: {
+                    busy = 1;
+                    cs_n = 0; // CSアサート
+
+                    // 最初のSCLK立ち上がりまでの待ち時間 (t_CSSC)
+                    // とりあえず半周期待つ実装とする
+                    if div_cnt >= CLK_DIV / 2 - 1 {
+                        div_cnt = 0;
+                        bit_cnt = 0;
+                        state   = State::Sample;
+                    } else {
+                        div_cnt += 1;
+                    }
+                }
+
+                State::Sample: {
+                    // SCLK立ち上がりでMISOをサンプル
+                    sclk_reg = 1;
+                    miso_reg = miso_synced;
+                    div_cnt  = 1; //Sampleの1クロック分をカウント
+                    state    = State::HighWait;
+                }
+
+                State::HighWait: {
+                    // SCLK Highを保持
+                    sclk_reg = 1;
+
+                    if div_cnt >= CLK_DIV / 2 - 1 {
+                        div_cnt = 0;
+                        state   = State::Shift;
+                    } else {
+                        div_cnt += 1;
+                    }
+                }
+
+                State::Shift: {
+                    // SCLK立ち下がりエッジでシフトし、次ビットを出力
+                    sclk_reg  = 0;
+                    shift_reg = (shift_reg << 1) | miso_reg; // サンプル結果をLSBへ
+                    div_cnt   = 1; // Shiftの1クロック分をカウント
+                    state     = State::LowWait;
+                }
+
+                State::LowWait: {
+                    // SCLK Lowを保持
+                    sclk_reg = 0;
+
+                    if div_cnt >= CLK_DIV / 2 - 1 {
+                        if bit_cnt >= DATA_WIDTH - 1 {
+                            bit_cnt = 0;
+                            div_cnt = 0;
+                            state   = State::Finish;
+                        } else {
+                            bit_cnt += 1;
+                            state   =  State::Sample;
+                        }
+                    } else {
+                        div_cnt += 1;
+                    }
+                }
+
+                State::Finish: {
+                    cs_n = 1;
+
+                    // 次の通信までの最小アイドル時間 (t_CSHC)を確保
+                    // とりあえず半周期待つ実装とする
+                    if div_cnt >= CLK_DIV / 2 - 1 {
+                        state = State::Idle;
+                        done  = 1;
+                        busy  = 0;
+                    } else {
+                        div_cnt += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------
+    // 出力割り当て
+    // ------------------------------------------
+    assign sclk = sclk_reg;
+
+    // MSB Firstで送信 (最上位ビットをMOSIに出す)
+    assign mosi = shift_reg[msb];
+
+    assign rx_data = shift_reg;
+}
