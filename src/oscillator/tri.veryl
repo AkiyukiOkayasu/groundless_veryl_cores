@@ -1,0 +1,53 @@
+/// 三角波生成コアモジュール
+/// 位相入力から波形を生成する純粋な変換モジュール
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module TriangleWaveCore (
+    phase  : input  Phase::phase_type, /// 位相入力 (0 ~ 2^32-1)
+    pcm_out: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+) {
+    // 三角波シェイピング (Folding)
+    var tri_wave: logic<32>;
+
+    // 位相の後半(MSB=1)のときだけビットを反転させることで、「ノコギリ波」を「ピラミッド型 (0 -> Max -> 0)」に変換
+    // XORでphase[msb]が 1 の時だけ、下位31bitを反転する
+    // 0 -> 2^31-1 -> 0の三角波
+    assign tri_wave = {
+        1'b0, // MSBはゼロ固定
+        phase[msb - 1:0] ^ {
+            phase[msb] repeat 31
+        } // 下位31bitを反転条件付きで反転
+    };
+
+    // 出力スケーリングとオフセット
+    always_comb {
+        // 右シフト 6bit: 31bitフルスケールを Q8.24の "+2.0"にスケール
+        let unipolar_2_0: FixedPoint::q8_24 = $signed(tri_wave >>> 6);
+
+        // オフセット: 0.0～2.0 の範囲を -1.0～1.0 にずらす
+        pcm_out = unipolar_2_0 - FixedPoint::Q8_24_POS_ONE;
+    }
+}
+
+/// 三角波オシレーター
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module TriangleOscillator (
+    clk            : input  clock            , /// クロック
+    rst            : input  reset            , /// リセット 位相ゼロリセット
+    phase_increment: input  Phase::freq_type , /// 周波数: 1クロックあたりの位相増分値
+    pcm_out        : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+) {
+    // 位相生成
+    var phase: Phase::phase_type;
+    inst phaser: Phaser (
+        clk              ,
+        rst              ,
+        phase_increment  ,
+        phase            ,
+    );
+
+    // 三角波生成
+    inst core: TriangleWaveCore (
+        phase    ,
+        pcm_out  ,
+    );
+}

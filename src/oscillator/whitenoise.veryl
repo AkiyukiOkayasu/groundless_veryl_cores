@@ -1,0 +1,43 @@
+/// White Noise Generator (Xorshift32 Algorithm)
+///
+/// Generates high-quality pseudo-random numbers suitable for audio noise.
+/// No reset signal required. Initializes with a non-zero seed on power-up.
+pub module WhiteNoise #(
+    param DIV: u16 = 200, /// クロック分周比
+) (
+    clk    : input  clock            , /// クロック
+    pcm_out: output FixedPoint::q8_24, /// 波形出力 (Q8.24形式)
+) {
+    // Initial value (Seed) must be non-zero.
+    // rng_stateが0の場合、Xorshift32アルゴリズムが停止してしまうため、初期値として非ゼロ値を設定する。
+    var rng_state   : logic<32>;
+    const INITIAL_SEED: u32       = 32'h2463_5345;
+
+    // クロック分周カウンター
+    // たとえばclkが50MHzの場合、100kHz程度でLPFを通すと振幅が小さくなりすぎる。
+    // そのため分周して、エネルギーの分布範囲が広くなりすぎないようにする。
+    var cnt: u16;
+
+    always_ff {
+        // クロック分周
+        if (cnt == DIV - 1) {
+            cnt = 0;
+
+            // Xorshift32 algorithm:
+            // x ^= x << 13;
+            // x ^= x >> 17;
+            // x ^= x << 5;
+            var next: logic<32>;
+            next =  if (rng_state == 0) ? INITIAL_SEED : rng_state;
+            next ^= (next << 13);
+            next ^= (next >> 17);
+            next ^= (next << 5);
+
+            rng_state = next;
+        } else {
+            cnt += 1;
+        }
+    }
+
+    assign pcm_out = FixedPoint::to_q8_24_from_q1_31($signed(rng_state)); // Q1.31 -> Q8.24
+}

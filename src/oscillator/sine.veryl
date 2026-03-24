@@ -1,0 +1,225 @@
+/// サイン波生成コアモジュール (LUTのみ)
+/// 位相入力から波形を生成する純粋な変換モジュール
+/// 第一象限(0~90度)の波形データ10bit分をROMに持っているので、実質的な分解能は12bit相当
+/// レイテンシー: 1クロック (BRAM読み出し分)
+pub module SineWaveCore (
+    clk    : input  clock            , /// クロック
+    phase  : input  Phase::phase_type, /// 位相入力 (0 ~ 2^32-1)
+    pcm_out: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+) {
+    // ----------------------------------------------------
+    // 象限判定とアドレス計算
+    // ----------------------------------------------------
+    // 上位2ビットで象限(Quadrant)を知る
+    // 00: 0~90度, 01: 90~180度, 10: 180~270度, 11: 270~360度
+    var quadrant: logic<2>;
+    assign quadrant = phase[msb:msb - 1];
+
+    // ROMのアドレス幅
+    // phaseの[29:20]の10bitを使用
+    var raw_addr: logic<10>;
+    assign raw_addr = phase[29:20];
+
+    // 象限を反映させた実際にROMに送るアドレス
+    var rom_addr: logic<10>;
+    always_comb {
+        // 第2・第4象限(奇数)のときは、波形が「戻る」のでアドレスを反転する
+        if quadrant[0] {
+            rom_addr = ~raw_addr;
+        } else {
+            rom_addr = raw_addr;
+        }
+    }
+
+    // ----------------------------------------------------
+    // ROM読み出し (0~90度の振幅データ)
+    // ----------------------------------------------------
+    var rom_data: logic<31>; // 符号なしの絶対値 (0 ~ 2^31-1)
+    inst u_rom: SineRomQuarter (
+        clk           ,
+        addr: rom_addr,
+        data: rom_data,
+    );
+
+    // ----------------------------------------------------
+    // 符号処理
+    // ----------------------------------------------------
+    // ROMレイテンシ(1clk)に合わせて象限情報を遅延させる
+    var quadrant_d: logic<2>;
+    always_ff (clk) {
+        quadrant_d = quadrant;
+    }
+
+    always_comb {
+        let s    : FixedPoint::q1_31 = $signed({1'b0, rom_data}); // Q1.31形式に変換
+        let audio: FixedPoint::q8_24 = FixedPoint::to_q8_24_from_q1_31(s); // Q8.24形式にスケール
+
+        // 第3・第4象限はマイナス側
+        // 遅延させた象限情報を使って符号反転
+        if quadrant_d[1] {
+            pcm_out = -audio;
+        } else {
+            pcm_out = audio;
+        }
+    }
+}
+
+/// サイン波生成コアモジュール (LUT + 線形補間)
+/// 位相入力から波形を生成する純粋な変換モジュール
+/// 実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
+/// レイテンシー: 1クロック (BRAM読み出し分)
+pub module SineWaveLerpCore (
+    clk    : input  clock            , /// クロック
+    phase  : input  Phase::phase_type, /// 位相入力 (0 ~ 2^32-1)
+    pcm_out: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+) {
+    // ----------------------------------------------------
+    // 象限判定と「三角波状」位相への変換
+    // ----------------------------------------------------
+    // 上位2ビットが象限、残り30ビットが有効位相
+    var quadrant: logic<2>; //象限
+    assign quadrant = phase[31:30];
+
+    var eff_phase: logic<30>; //三角波状有効位相
+    always_comb {
+        // 第2・第4象限はビット反転して折り返す
+        if quadrant[0] {
+            eff_phase = ~phase[29:0];
+        } else {
+            eff_phase = phase[29:0];
+        }
+    }
+
+    // ----------------------------------------------------
+    // ROMアドレスと補間係数の計算
+    // ----------------------------------------------------
+    // ROMアドレス: 上位10bit (29 down to 20)
+    var idx: logic<10>;
+    assign idx = eff_phase[29:20];
+
+    // 小数部を補間係数とする: 下位20bit (19 down to 0)
+    var frac: logic<20>;
+    assign frac = eff_phase[19:0];
+
+    // ----------------------------------------------------
+    // ROM読み出し
+    // ----------------------------------------------------
+    // 隣り合うROMアドレスの計算
+    var addr_a: logic<10>;
+    var addr_b: logic<10>;
+    always_comb {
+        addr_a = idx;
+        // 1023を超えないようにガード
+        if idx == 10'd1023 {
+            addr_b = 10'd1023;
+        } else {
+            addr_b = idx + 1;
+        }
+    }
+
+    // ROM読み出し
+    // サイン波の第一象限(0~90度)の波形データ10bit分をROMに持っている
+    var val_a: logic<31>; //符号なしの絶対値 (0 ~ 2^31-1)
+    var val_b: logic<31>; //符号なしの絶対値 (0 ~ 2^31-1)
+    inst rom: SineRomQuarterDual (
+        clk          ,
+        addr_a       ,
+        addr_b       ,
+        data_a: val_a,
+        data_b: val_b,
+    );
+
+    // ----------------------------------------------------
+    // 線形補間
+    // ----------------------------------------------------
+    // Formula: Out = A + (B - A) * frac
+    var interp_res: logic       <31>;
+    var diff      : signed logic<32>;
+
+    // Fractionが20bitなので、掛け算結果の桁合わせも変わる
+    // 32bit * 20bit = 52bit
+    var mult: signed logic<52>;
+
+    always_comb {
+        diff = (val_b as 32) - (val_a as 32);
+        mult = diff * (frac as 52);
+
+        // 右シフト 20bit (fracの桁数分戻す)
+        interp_res = (val_a as 32 + (mult >>> 20)) as 31;
+    }
+
+    // ----------------------------------------------------
+    // 符号処理
+    // ----------------------------------------------------
+    // ROMレイテンシ(1clk)に合わせて象限情報を遅延
+    var quadrant_d: logic<2>;
+    always_ff (clk) {
+        quadrant_d = quadrant;
+    }
+
+    always_comb {
+        let s    : FixedPoint::q1_31 = $signed({1'b0, interp_res}); // Q1.31形式に変換
+        let audio: FixedPoint::q8_24 = FixedPoint::to_q8_24_from_q1_31(s); // Q8.24形式にスケール
+
+        // 第3・第4象限はマイナス側
+        // 遅延させた象限情報を使って符号反転
+        if quadrant_d[1] {
+            pcm_out = -audio;
+        } else {
+            pcm_out = audio;
+        }
+    }
+}
+
+/// サイン波オシレーター (LUTのみ)
+/// テーブル引きのサイン波
+/// 第一象限(0~90度)の波形データ10bit分をROMに持っているので、実質的な分解能は12bit相当
+/// レイテンシー: 1クロック (BRAM読み出し分)
+pub module SineOscillator (
+    clk            : input  clock            , /// クロック
+    rst            : input  reset            , /// リセット 位相ゼロリセット
+    phase_increment: input  Phase::freq_type , /// 周波数: 1クロックあたりの位相増分値
+    pcm_out        : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+) {
+    // 位相生成 (Phase Accumulator)
+    var phase: Phase::phase_type;
+    inst phaser: Phaser (
+        clk              ,
+        rst              ,
+        phase_increment  ,
+        phase            ,
+    );
+
+    // サイン波生成
+    inst core: SineWaveCore (
+        clk      ,
+        phase    ,
+        pcm_out  ,
+    );
+}
+
+/// サイン波オシレーター (LUT + 線形補間)
+/// 実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
+/// レイテンシー: 1クロック (BRAM読み出し分)
+pub module SineOscillatorLerp (
+    clk            : input  clock            , /// クロック
+    rst            : input  reset            , /// リセット 位相ゼロリセット
+    phase_increment: input  Phase::freq_type , /// 周波数: 1クロックあたりの位相増分値
+    pcm_out        : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+) {
+    // 位相生成
+    var phase: Phase::phase_type;
+    inst phaser: Phaser (
+        clk              ,
+        rst              ,
+        phase_increment  ,
+        phase            ,
+    );
+
+    // サイン波生成 (線形補間付き)
+    inst core: SineWaveLerpCore (
+        clk      ,
+        phase    ,
+        pcm_out  ,
+    );
+}

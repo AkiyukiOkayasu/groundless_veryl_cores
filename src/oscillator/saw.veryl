@@ -1,0 +1,39 @@
+/// ノコギリ波生成コアモジュール
+/// 位相入力から波形を生成する純粋な変換モジュール
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module SawWaveCore (
+    phase  : input  Phase::phase_type, /// 位相入力 (0 ~ 2^32-1)
+    pcm_out: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+) {
+    // 位相のMSBを反転させることで、Q1.31形式のノコギリ波を生成
+    // 0x0000_0000 (0度)  -> 0x8000_0000 (負の最大 = -1.0)
+    // 0x8000_0000 (180度) -> 0x0000_0000 (0.0)
+    // 0xFFFF_FFFF (360度) -> 0x7FFF_FFFF (正の最大 = +1.0)
+
+    // Q1.31形式→Q8.24形式へ変換して出力
+    assign pcm_out = FixedPoint::to_q8_24_from_q1_31($signed({~phase[msb], phase[msb - 1:0]}));
+}
+
+/// ノコギリ波オシレーター
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module SawOscillator (
+    clk            : input  clock            , /// クロック
+    rst            : input  reset            , /// リセット 位相ゼロリセット
+    phase_increment: input  Phase::freq_type , /// 周波数: 1クロックあたりの位相増分値
+    pcm_out        : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+) {
+    // 位相生成
+    var phase: Phase::phase_type;
+    inst phaser: Phaser (
+        clk              ,
+        rst              ,
+        phase_increment  ,
+        phase            ,
+    );
+
+    // ノコギリ波生成
+    inst core: SawWaveCore (
+        phase    ,
+        pcm_out  ,
+    );
+}
