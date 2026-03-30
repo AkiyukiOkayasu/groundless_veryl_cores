@@ -8,20 +8,20 @@ pub package Phase {
     const PHASE_TYPE_MIDDLE: phase_type     = 32'h8000_0000; // 位相の中間値 (2^31)
     const PHASE_TYPE_MIN   : phase_type     = 32'h0000_0000; // 位相の最小値 (0)
 
-    /// 周波数指定で用いる位相増分値の型 (48ビット幅)
-    /// phase_increment = (ターゲット周波数 * 2^48) / システムクロック周波数
+    /// 位相ステップ量を表す型 (48ビット幅)
+    /// phase_step = (ターゲット周波数 * 2^48) / システムクロック周波数
     /// FM変調で負の周波数（逆回転）になり得るためsignedとする
-    type freq_type = signed logic<48>;
+    type phase_step_type = signed logic<48>;
 
     /// 周波数(Hz)から位相増分値へ変換する関数
-    function freq_to_phaseInc (
+    function freq_to_phase_step (
         freq_hz: input f64, /// 目標周波数 (Hz)
-    ) -> freq_type {
-        const SYS_CLK_HZ   : f64 = 50_000_000.0; // システムクロック周波数 (50MHz)
-        const SCALE        : f64 = 281474976710656.0; // 2^48
-        let phase_inc_f64: f64 = (freq_hz * SCALE) / SYS_CLK_HZ;
-        let rounded      : i64 = phase_inc_f64 as i64;
-        return rounded as freq_type;
+    ) -> phase_step_type {
+        const SYS_CLK_HZ    : f64 = 50_000_000.0; // システムクロック周波数 (50MHz)
+        const SCALE         : f64 = 281474976710656.0; // 2^48
+        let phase_step_f64: f64 = (freq_hz * SCALE) / SYS_CLK_HZ;
+        let rounded       : i64 = phase_step_f64 as i64;
+        return rounded as phase_step_type;
     }
 }
 
@@ -29,10 +29,10 @@ pub package Phase {
 /// 全ての波形オシレーターの基礎となるモジュール
 /// 負の周波数（位相の逆回転）にも対応
 pub module Phaser (
-    clk            : input  clock            , /// システムクロック（周波数50MHzを想定）
-    rst            : input  reset            , /// リセット 位相ゼロリセット
-    phase_increment: input  Phase::freq_type , /// 周波数: 1クロックあたりの位相増分値 phase_increment = (ターゲット周波数 * 2^48) / システムクロック周波数
-    phase          : output Phase::phase_type, /// 位相出力 (0 ~ 2^32-1)
+    clk       : input  clock                 , /// システムクロック（周波数50MHzを想定）
+    rst       : input  reset                 , /// リセット 位相ゼロリセット
+    phase_step: input  Phase::phase_step_type, /// 位相ステップ量: 1クロックあたりの位相増分値 phase_step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    phase     : output Phase::phase_type     , /// 位相出力 (0 ~ 2^32-1)
 ) {
     var p: logic<48>; // 内部位相カウンター (48ビット)
 
@@ -40,7 +40,7 @@ pub module Phaser (
         if_reset {
             p = 0;
         } else {
-            p += phase_increment;
+            p += phase_step;
         }
     }
 
