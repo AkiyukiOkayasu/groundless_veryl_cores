@@ -1,4 +1,4 @@
-pub module midi_rx #(
+pub module MidiRx #(
     param CLK_FREQ: u32 = 50_000_000,
 ) (
     clk    : input  clock   ,
@@ -22,7 +22,7 @@ pub module midi_rx #(
     );
 
     // 同期済み信号をUART受信モジュールに渡す
-    inst u_uart_rx: uart_rx #(
+    inst u_uart_rx: UartRx #(
         CLK_FREQ  : CLK_FREQ,
         BAUD_RATE : 31250   ,
         DATA_WIDTH: 8       ,
@@ -52,7 +52,7 @@ embed (inline) sv{{{
         logic valid;
 
         // DUT インスタンス化
-        groundless_veryl_cores_midi_rx #(
+        groundless_veryl_cores_MidiRx #(
             .CLK_FREQ(CLK_FREQ)
         ) dut (
             .clk(clk),
