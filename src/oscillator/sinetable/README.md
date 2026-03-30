@@ -11,4 +11,4 @@ uv run main.py
 
 ## 生成されるファイル
 
-- sine_data.txt: sinerom.verylのmem変数にコピーすること
+- sine_data.txt: sine_rom.verylのmem変数にコピーすること

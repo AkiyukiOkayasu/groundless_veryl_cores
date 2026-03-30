@@ -15,6 +15,7 @@ Respond to the user in **Japanese**. Code comments (doc / impl) in Japanese. Ide
 - **Port naming**: Use `clk` for clock and `rst` for reset ports.
 - For other ports, prefer semantic names without `i_`/`o_` when direction is obvious.
 - Use `i_`/`o_` only for short or ambiguous names, or to match external/std interfaces.
+- **Naming style**: File names are `snake_case`; public modules are `UpperCamelCase`; functions, locals, instances, and ports are `snake_case`; params and constants are `UPPER_SNAKE_CASE`; package names may use `PascalCase`.
 - **Reserved words**: If `reset` or `clock` names are necessary, escape as `r#reset` or `r#clock`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
