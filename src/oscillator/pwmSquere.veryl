@@ -2,8 +2,8 @@
 /// 位相入力から波形を生成する純粋な変換モジュール
 /// 全て組み合わせ回路で実装しているため遅延ゼロ
 pub module SquareWaveCore (
-    phase     : input  Phase::phase_type, /// 位相入力 (0 ~ 2^32-1)
-    duty_cycle: input  Phase::phase_type, /// デューティ比 位相のどこまで High にするか (0 ~ 2^32-1)
+    phase     : input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
+    duty_cycle: input  Phase::phase_t   , /// デューティ比 位相のどこまで High にするか (0 ~ 2^32-1)
     pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     always_comb {
@@ -19,19 +19,19 @@ pub module SquareWaveCore (
 /// PWM変調可能な矩形波オシレーター
 /// 全て組み合わせ回路で実装しているため遅延ゼロ
 pub module PwmSquareOscillator (
-    clk            : input  clock            , /// クロック
-    rst            : input  reset            , /// リセット 位相ゼロリセット
-    phase_increment: input  Phase::freq_type , /// 周波数: 1クロックあたりの位相増分値
-    duty_cycle     : input  Phase::phase_type, /// デューティ比 位相のどこまで High にするか (0 ~ 2^32-1)
-    pcm_out        : output FixedPoint::q8_24, /// 波形出力 (Q8.24形式)
+    clk       : input  clock            , /// クロック
+    rst       : input  reset            , /// リセット 位相ゼロリセット
+    phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    duty_cycle: input  Phase::phase_t   , /// デューティ比 位相のどこまで High にするか (0 ~ 2^32-1)
+    pcm_out   : output FixedPoint::q8_24, /// 波形出力 (Q8.24形式)
 ) {
     // 位相生成
-    var phase: Phase::phase_type;
-    inst phaser: Phaser (
-        clk              ,
-        rst              ,
-        phase_increment  ,
-        phase            ,
+    var phase: Phase::phase_t;
+    inst phasor: Phasor (
+        clk         ,
+        rst         ,
+        phase_step  ,
+        phase       ,
     );
 
     // 矩形波生成

@@ -4,7 +4,7 @@
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineWaveCore (
     clk    : input  clock            , /// クロック
-    phase  : input  Phase::phase_type, /// 位相入力 (0 ~ 2^32-1)
+    phase  : input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
     pcm_out: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // ----------------------------------------------------
@@ -70,7 +70,7 @@ pub module SineWaveCore (
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineWaveLerpCore (
     clk    : input  clock            , /// クロック
-    phase  : input  Phase::phase_type, /// 位相入力 (0 ~ 2^32-1)
+    phase  : input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
     pcm_out: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // ----------------------------------------------------
@@ -176,18 +176,18 @@ pub module SineWaveLerpCore (
 /// 第一象限(0~90度)の波形データ10bit分をROMに持っているので、実質的な分解能は12bit相当
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineOscillator (
-    clk            : input  clock            , /// クロック
-    rst            : input  reset            , /// リセット 位相ゼロリセット
-    phase_increment: input  Phase::freq_type , /// 周波数: 1クロックあたりの位相増分値
-    pcm_out        : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+    clk       : input  clock            , /// クロック
+    rst       : input  reset            , /// リセット 位相ゼロリセット
+    phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成 (Phase Accumulator)
-    var phase: Phase::phase_type;
-    inst phaser: Phaser (
-        clk              ,
-        rst              ,
-        phase_increment  ,
-        phase            ,
+    var phase: Phase::phase_t;
+    inst phasor: Phasor (
+        clk         ,
+        rst         ,
+        phase_step  ,
+        phase       ,
     );
 
     // サイン波生成
@@ -202,18 +202,18 @@ pub module SineOscillator (
 /// 実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineOscillatorLerp (
-    clk            : input  clock            , /// クロック
-    rst            : input  reset            , /// リセット 位相ゼロリセット
-    phase_increment: input  Phase::freq_type , /// 周波数: 1クロックあたりの位相増分値
-    pcm_out        : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+    clk       : input  clock            , /// クロック
+    rst       : input  reset            , /// リセット 位相ゼロリセット
+    phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成
-    var phase: Phase::phase_type;
-    inst phaser: Phaser (
-        clk              ,
-        rst              ,
-        phase_increment  ,
-        phase            ,
+    var phase: Phase::phase_t;
+    inst phasor: Phasor (
+        clk         ,
+        rst         ,
+        phase_step  ,
+        phase       ,
     );
 
     // サイン波生成 (線形補間付き)

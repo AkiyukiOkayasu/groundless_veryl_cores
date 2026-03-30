@@ -1,15 +1,14 @@
 /// 位相発生器 (Phasor / Phase Accumulator)
 /// 全ての波形オシレーターの基礎となるモジュール
 pub package Phase {
-    /// Phaserが出力する位相型 (0 ~ 2^32-1)
-    /// Note: Phaserの内部位相カウンターは48ビット幅で動作し、上位32ビットを出力する
-    type phase_t    = logic  <32>;
-    const PHASE_MAX : phase_t     = 32'hFFFF_FFFF; // 位相ワードの最大値 (2^32-1)
-    const PHASE_TURN: phase_t     = 32'h8000_0000; // 半回転の位相ワード (2^31)
-    const PHASE_ZERO: phase_t     = 32'h0000_0000; // ゼロ位相
+    /// 外部に公開する位相表現 (0 ~ 2^32-1)
+    /// 内部では48ビット精度で積算し、上位32ビットを出力する
+    type phase_t         = logic  <32>;
+    const PHASE_MAX      : phase_t     = 32'hFFFF_FFFF; // 位相ワードの最大値 (2^32-1)
+    const PHASE_HALF_TURN: phase_t     = 32'h8000_0000; // 半回転の位相ワード (2^31)
+    const PHASE_ZERO     : phase_t     = 32'h0000_0000; // ゼロ位相
 
-    /// 位相ステップ量を表す型 (48ビット幅)
-    /// 1クロックあたりの位相増分値を表す
+    /// 1クロックあたりの位相ステップ量 (48ビット幅)
     /// step = (ターゲット周波数 * 2^48) / システムクロック周波数
     /// FM変調などでは負の周波数（位相の逆回転）が表現できると便利なためsignedとする
     type step_t = signed logic<48>;
@@ -18,22 +17,22 @@ pub package Phase {
     function step_from_hz (
         system_clk_hz: input u32, /// システムクロック周波数 (Hz)
         freq_hz      : input f64, /// 目標周波数 (Hz)
-    ) -> phase_t {
-        const SCALE         : f64 = 2 ** 48 as f64; // 位相ステップのスケーリング係数 (2^48)
-        let phase_step_f64: f64 = (freq_hz * SCALE) / system_clk_hz as f64;
-        let rounded       : i64 = phase_step_f64 as i64;
-        return rounded as phase_t;
+    ) -> step_t {
+        const SCALE   : f64 = 2 ** 48 as f64; // 位相ステップのスケーリング係数 (2^48)
+        let step_f64: f64 = (freq_hz * SCALE) / system_clk_hz as f64;
+        let rounded : i64 = step_f64 as i64;
+        return rounded as step_t;
     }
 }
 
 /// 位相発生器
 /// 全ての波形オシレーターの基礎となるモジュール
 /// 負の周波数（位相の逆回転）にも対応
-pub module Phaser (
-    clk         : input  clock         , /// システムクロック
-    rst         : input  reset         , /// リセット 位相ゼロリセット
-    i_phase_step: input  Phase::step_t , /// 位相ステップ量: 1クロックあたりの位相増分値 step = (ターゲット周波数 * 2^48) / システムクロック周波数
-    o_phase     : output Phase::phase_t, /// 位相出力 (0 ~ 2^32-1)
+pub module Phasor (
+    clk       : input  clock         , /// システムクロック
+    rst       : input  reset         , /// 位相ゼロリセット
+    phase_step: input  Phase::step_t , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    phase     : output Phase::phase_t, /// 位相出力 (0 ~ 2^32-1)
 ) {
     var phase_acc: logic<48>; // 内部位相アキュムレータ (48ビット)
 
@@ -41,9 +40,9 @@ pub module Phaser (
         if_reset {
             phase_acc = 0;
         } else {
-            phase_acc += i_phase_step;
+            phase_acc += phase_step;
         }
     }
 
-    assign o_phase = phase_acc[msb:msb - 31]; // 上位32ビットを出力
+    assign phase = phase_acc[msb:msb - 31]; // 上位32ビットを出力
 }
