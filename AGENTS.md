@@ -7,12 +7,14 @@ Respond to the user in **Japanese**. Code comments (doc / impl) in Japanese. Ide
 ## Core Principles
 
 - **Do NOT maintain backward compatibility** unless explicitly requested. Break things boldly.
-- **Keep this file under 20-30 lines of instructions.** Every line competes for the agent's limited context budget (~150-200 total).
+- **Keep this file under 30-40 lines of instructions.** Every line competes for the agent's limited context budget (~150-200 total).
 
 ## CONVENTIONS
 
 - Delete dead code immediately
 - **Port naming**: Use `clk` for clock and `rst` for reset ports.
+- For other ports, prefer semantic names without `i_`/`o_` when direction is obvious.
+- Use `i_`/`o_` only for short or ambiguous names, or to match external/std interfaces.
 - **Reserved words**: If `reset` or `clock` names are necessary, escape as `r#reset` or `r#clock`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -27,6 +29,5 @@ Respond to the user in **Japanese**. Code comments (doc / impl) in Japanese. Ide
 veryl fmt # format code
 veryl check
 veryl build
-
 veryl test # simulation and tests
 ```
