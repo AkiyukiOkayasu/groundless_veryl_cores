@@ -3,25 +3,26 @@
 pub package Phase {
     /// Phaserが出力する位相型 (0 ~ 2^32-1)
     /// Note: Phaserの内部位相カウンターは48ビット幅で動作し、上位32ビットを出力する
-    type phase_type        = logic     <32>;
-    const PHASE_TYPE_MAX   : phase_type     = 32'hFFFF_FFFF; // 位相の最大値 (2^32-1)
-    const PHASE_TYPE_MIDDLE: phase_type     = 32'h8000_0000; // 位相の中間値 (2^31)
-    const PHASE_TYPE_MIN   : phase_type     = 32'h0000_0000; // 位相の最小値 (0)
+    type phase_t    = logic  <32>;
+    const PHASE_MAX : phase_t     = 32'hFFFF_FFFF; // 位相ワードの最大値 (2^32-1)
+    const PHASE_TURN: phase_t     = 32'h8000_0000; // 半回転の位相ワード (2^31)
+    const PHASE_ZERO: phase_t     = 32'h0000_0000; // ゼロ位相
 
     /// 位相ステップ量を表す型 (48ビット幅)
-    /// phase_step = (ターゲット周波数 * 2^48) / システムクロック周波数
-    /// FM変調で負の周波数（逆回転）になり得るためsignedとする
-    type phase_step_type = signed logic<48>;
+    /// 1クロックあたりの位相増分値を表す
+    /// step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    /// FM変調などでは負の周波数（位相の逆回転）が表現できると便利なためsignedとする
+    type step_t = signed logic<48>;
 
-    /// 周波数(Hz)から位相増分値へ変換する関数
-    function freq_to_phase_step (
-        freq_hz: input f64, /// 目標周波数 (Hz)
-    ) -> phase_step_type {
-        const SYS_CLK_HZ    : f64 = 50_000_000.0; // システムクロック周波数 (50MHz)
-        const SCALE         : f64 = 281474976710656.0; // 2^48
-        let phase_step_f64: f64 = (freq_hz * SCALE) / SYS_CLK_HZ;
+    /// 周波数(Hz)から位相ステップ量へ変換する関数
+    function step_from_hz (
+        system_clk_hz: input u32, /// システムクロック周波数 (Hz)
+        freq_hz      : input f64, /// 目標周波数 (Hz)
+    ) -> phase_t {
+        const SCALE         : f64 = 2 ** 48 as f64; // 位相ステップのスケーリング係数 (2^48)
+        let phase_step_f64: f64 = (freq_hz * SCALE) / system_clk_hz as f64;
         let rounded       : i64 = phase_step_f64 as i64;
-        return rounded as phase_step_type;
+        return rounded as phase_t;
     }
 }
 
@@ -29,20 +30,20 @@ pub package Phase {
 /// 全ての波形オシレーターの基礎となるモジュール
 /// 負の周波数（位相の逆回転）にも対応
 pub module Phaser (
-    clk       : input  clock                 , /// システムクロック（周波数50MHzを想定）
-    rst       : input  reset                 , /// リセット 位相ゼロリセット
-    phase_step: input  Phase::phase_step_type, /// 位相ステップ量: 1クロックあたりの位相増分値 phase_step = (ターゲット周波数 * 2^48) / システムクロック周波数
-    phase     : output Phase::phase_type     , /// 位相出力 (0 ~ 2^32-1)
+    clk         : input  clock         , /// システムクロック
+    rst         : input  reset         , /// リセット 位相ゼロリセット
+    i_phase_step: input  Phase::step_t , /// 位相ステップ量: 1クロックあたりの位相増分値 step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    o_phase     : output Phase::phase_t, /// 位相出力 (0 ~ 2^32-1)
 ) {
-    var p: logic<48>; // 内部位相カウンター (48ビット)
+    var phase_acc: logic<48>; // 内部位相アキュムレータ (48ビット)
 
     always_ff {
         if_reset {
-            p = 0;
+            phase_acc = 0;
         } else {
-            p += phase_step;
+            phase_acc += i_phase_step;
         }
     }
 
-    assign phase = p[msb:msb - 31]; // 上位32ビットを出力
+    assign o_phase = phase_acc[msb:msb - 31]; // 上位32ビットを出力
 }
