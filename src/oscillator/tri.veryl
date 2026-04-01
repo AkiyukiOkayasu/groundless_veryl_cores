@@ -21,7 +21,7 @@ pub module TriangleWaveCore (
     // 出力スケーリングとオフセット
     always_comb {
         // 右シフト 6bit: 31bitフルスケールを Q8.24の "+2.0"にスケール
-        let unipolar_2_0: FixedPoint::q8_24 = $signed(tri_wave >>> 6);
+        let unipolar_2_0: FixedPoint::q8_24 = $signed(tri_wave >> 6);
 
         // オフセット: 0.0～2.0 の範囲を -1.0～1.0 にずらす
         pcm_out = unipolar_2_0 - FixedPoint::Q8_24_POS_ONE;
