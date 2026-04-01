@@ -19,8 +19,8 @@ pub package Phase {
         freq_hz      : input f64, /// 目標周波数 (Hz)
     ) -> step_t {
         const SCALE   : f64 = 2 ** 48 as f64; // 位相ステップのスケーリング係数 (2^48)
-        let step_f64: f64 = (freq_hz * SCALE) / system_clk_hz as f64;
-        let rounded : i64 = step_f64 as i64;
+        let   step_f64: f64 = (freq_hz * SCALE) / system_clk_hz as f64;
+        let   rounded : i64 = step_f64 as i64;
         return rounded as step_t;
     }
 }

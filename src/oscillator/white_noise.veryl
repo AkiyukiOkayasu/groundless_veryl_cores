@@ -10,7 +10,7 @@ pub module WhiteNoise #(
 ) {
     // Initial value (Seed) must be non-zero.
     // rng_stateが0の場合、Xorshift32アルゴリズムが停止してしまうため、初期値として非ゼロ値を設定する。
-    var rng_state   : logic<32>;
+    var   rng_state   : logic<32>;
     const INITIAL_SEED: u32       = 32'h2463_5345;
 
     // クロック分周カウンター

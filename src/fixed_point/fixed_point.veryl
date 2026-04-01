@@ -41,8 +41,8 @@ pub package FixedPoint {
             $error("to_q1_31: Value out of range. Must be -1.0 <= val < 1.0");
         }
         const scale  : f64 = 2147483648.0; // 2^31
-        let scaled : f64 = val * scale;
-        let rounded: i32 = scaled as i32;
+        let   scaled : f64 = val * scale;
+        let   rounded: i32 = scaled as i32;
         return rounded as q1_31;
     }
 
@@ -74,8 +74,8 @@ pub package FixedPoint {
             $error("to_q8_24: Value out of range. Must be -128.0 <= val < 128.0");
         }
         const scale  : f64 = 16777216.0; // 2^24
-        let scaled : f64 = val * scale;
-        let rounded: i32 = scaled as i32; //四捨五入される
+        let   scaled : f64 = val * scale;
+        let   rounded: i32 = scaled as i32; //四捨五入される
         return rounded as q8_24;
     }
 
@@ -107,8 +107,8 @@ pub package FixedPoint {
             $error("to_q8_19: Value out of range. Must be -128.0 <= val < 128.0");
         }
         const scale  : f64 = 524288.0; // 2^19
-        let scaled : f64 = val * scale;
-        let rounded: i32 = scaled as i32;
+        let   scaled : f64 = val * scale;
+        let   rounded: i32 = scaled as i32;
         // 32bitから27bitへのキャスト。範囲チェック済みなので上位ビット切り捨てで問題ない
         return rounded as q8_19;
     }
@@ -140,8 +140,8 @@ pub package FixedPoint {
             $error("to_q3_24: Value out of range. Must be -4.0 <= val < 4.0");
         }
         const scale  : f64 = 16777216.0; // 2^24
-        let scaled : f64 = val * scale;
-        let rounded: i32 = scaled as i32;
+        let   scaled : f64 = val * scale;
+        let   rounded: i32 = scaled as i32;
         // 32bitから27bitへのキャスト。範囲チェック済みなので上位ビット切り捨てで問題ない
         return rounded as q3_24;
     }
