@@ -14,7 +14,6 @@ jobs:
         steps:
             - uses: actions/checkout@v6
             - uses: veryl-lang/setup-veryl@v1
-            - uses: veryl-lang/setup-verilator@v1
             - run: veryl fmt --check
             - run: veryl check
             - name: Tests

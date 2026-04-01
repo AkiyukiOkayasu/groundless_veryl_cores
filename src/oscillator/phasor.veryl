@@ -46,3 +46,41 @@ pub module Phasor (
 
     assign phase = phase_acc[msb:msb - 31]; // 上位32ビットを出力
 }
+
+/// テスト: Phasor が正しく動作することを検証
+/// - リセット時の位相がゼロになることを確認
+/// - 複数クロック経過後に位相が進むことを確認
+#[test(test_phasor)]
+module test_phasor {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen;
+
+    const STEP: Phase::step_t = 48'sd2474525; // 440Hz @ 50MHz
+
+    var phase_step: Phase::step_t ;
+    var phase     : Phase::phase_t;
+
+    inst dut: Phasor (
+        clk         ,
+        rst         ,
+        phase_step  ,
+        phase       ,
+    );
+
+    initial {
+        // リセット実行
+        phase_step = STEP;
+        rst.assert(clk);
+
+        // リセット後は位相がゼロであることを確認
+        $assert(phase == 32'd0);
+
+        // 100クロック進める
+        clk.next(100);
+
+        // 位相がゼロから進んでいることを確認
+        $assert(phase != 32'd0);
+
+        $finish();
+    }
+}

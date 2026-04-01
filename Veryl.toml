@@ -11,8 +11,3 @@ sources = ["src"]
 target = { type = "directory", path = "target" }
 
 [test]
-simulator = "verilator"
-waveform_format = "fst"
-
-[test.verilator]
-compile_args = ["-Wno-fatal"]
