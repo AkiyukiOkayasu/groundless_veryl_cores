@@ -55,7 +55,7 @@ module test_phasor {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen;
 
-    const STEP: Phase::step_t = Phase::step_from_hz(50_000_000, 440.0); // 440Hz @ 50MHz
+    const STEP: Phase::step_t = Phase::step_from_hz(50_000_000, 440.0); // 440.0Hz @ 50MHz
 
     var phase_step: Phase::step_t ;
     var phase     : Phase::phase_t;
@@ -92,8 +92,8 @@ module test_phasor {
 #[test(test_step_from_hz)]
 module test_step_from_hz {
     const SYSTEM_CLK_HZ  : u32           = 50_000_000;
-    const EXPECTED_STEP  : Phase::step_t = 48'sd2476979795; // 440Hz @ 50MHz
-    const EXPECTED_OCTAVE: Phase::step_t = 48'sd4953959590; // 880Hz @ 50MHz
+    const EXPECTED_STEP  : Phase::step_t = 48'sd2476979795; // 440.0Hz @ 50MHz
+    const EXPECTED_OCTAVE: Phase::step_t = 48'sd4953959590; // 880.0Hz @ 50MHz
     const STEP_POS       : Phase::step_t = Phase::step_from_hz(SYSTEM_CLK_HZ, 440.0);
     const STEP_ZERO      : Phase::step_t = Phase::step_from_hz(SYSTEM_CLK_HZ, 0.0);
 
