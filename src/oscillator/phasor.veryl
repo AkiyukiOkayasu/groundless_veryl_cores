@@ -13,37 +13,15 @@ pub package Phase {
     /// FM変調などでは負の周波数（位相の逆回転）が表現できると便利なためsignedとする
     type step_t = signed logic<48>;
 
-    function step_from_hz_unsigned (
-        system_clk_hz: input u32,
-        freq_hz      : input u64,
-    ) -> u64 {
-        const SHIFT        : u32 = 24;
-        let   clk_u64      : u64 = system_clk_hz as u64;
-        let   dividend_hi  : u64 = freq_hz <<< SHIFT;
-        let   step_hi      : u64 = (dividend_hi / clk_u64) <<< SHIFT;
-        let   dividend_lo  : u64 = (dividend_hi % clk_u64) <<< SHIFT;
-        let   step_lo      : u64 = dividend_lo / clk_u64;
-        let   step_unsigned: u64 = step_hi + step_lo;
-        return step_unsigned;
-    }
-
-    function step_from_hz_negative (
-        system_clk_hz: input u32,
-        freq_hz      : input u64,
-    ) -> step_t {
-        let step_abs: i64 = step_from_hz_unsigned(system_clk_hz, freq_hz) as i64;
-        return (-step_abs) as step_t;
-    }
-
     /// 周波数(Hz)から位相ステップ量へ変換する関数
     function step_from_hz (
         system_clk_hz: input u32, /// システムクロック周波数 (Hz)
-        freq_hz      : input i64, /// 目標周波数 (Hz)
+        freq_hz      : input f64, /// 目標周波数 (Hz)
     ) -> step_t {
-        if freq_hz <: 0 {
-            return step_from_hz_negative(system_clk_hz, (-freq_hz) as u64);
-        }
-        return step_from_hz_unsigned(system_clk_hz, freq_hz as u64) as step_t;
+        const SCALE   : f64 = 281474976710656.0; // 位相ステップのスケーリング係数 (2^48)
+        let   step_f64: f64 = (freq_hz * SCALE) / system_clk_hz as f64;
+        let   rounded : i64 = step_f64 as i64;
+        return rounded as step_t;
     }
 }
 
@@ -77,7 +55,7 @@ module test_phasor {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen;
 
-    const STEP: Phase::step_t = Phase::step_from_hz(50_000_000, 440); // 440Hz @ 50MHz
+    const STEP: Phase::step_t = Phase::step_from_hz(50_000_000, 440.0); // 440Hz @ 50MHz
 
     var phase_step: Phase::step_t ;
     var phase     : Phase::phase_t;
@@ -116,15 +94,15 @@ module test_step_from_hz {
     const SYSTEM_CLK_HZ  : u32           = 50_000_000;
     const EXPECTED_STEP  : Phase::step_t = 48'sd2476979795; // 440Hz @ 50MHz
     const EXPECTED_OCTAVE: Phase::step_t = 48'sd4953959590; // 880Hz @ 50MHz
-    const STEP_POS       : Phase::step_t = Phase::step_from_hz(SYSTEM_CLK_HZ, 440);
-    const STEP_ZERO      : Phase::step_t = Phase::step_from_hz(SYSTEM_CLK_HZ, 0);
+    const STEP_POS       : Phase::step_t = Phase::step_from_hz(SYSTEM_CLK_HZ, 440.0);
+    const STEP_ZERO      : Phase::step_t = Phase::step_from_hz(SYSTEM_CLK_HZ, 0.0);
 
     var step_neg   : Phase::step_t;
     var step_octave: Phase::step_t;
 
     initial {
-        step_neg    = Phase::step_from_hz(SYSTEM_CLK_HZ, -440);
-        step_octave = Phase::step_from_hz(SYSTEM_CLK_HZ, 880);
+        step_neg    = Phase::step_from_hz(SYSTEM_CLK_HZ, -440.0);
+        step_octave = Phase::step_from_hz(SYSTEM_CLK_HZ, 880.0);
 
         $assert(STEP_POS == EXPECTED_STEP, "440Hz step mismatch");
         $assert(STEP_ZERO == 48'sd0, "0Hz should map to zero step");
