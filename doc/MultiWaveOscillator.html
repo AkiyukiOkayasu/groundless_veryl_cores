@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>SawOscillator</title>
+        <title>MultiWaveOscillator</title>
 
 
         <!-- Custom HTML head -->
@@ -175,9 +175,12 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="sawoscillator"><a class="header" href="#sawoscillator">SawOscillator</a></h2>
-<p>ノコギリ波オシレーター
-全て組み合わせ回路で実装しているため遅延ゼロ</p>
+                        <h2 id="multiwaveoscillator"><a class="header" href="#multiwaveoscillator">MultiWaveOscillator</a></h2>
+<p>波形選択式オシレーター
+4種類の波形（Sine, Triangle, Saw, Pwm）を切り替え可能
+Sineは線形補間付きLUT、他は組み合わせ回路
+波形切り替え時のレイテンシ整合のため、全波形を1クロック遅延させて出力
+レイテンシー: 1クロック</p>
 <h3 id="ports"><a class="header" href="#ports">Ports</a></h3>
 <hr />
 <table class="table_list">
@@ -200,7 +203,21 @@
     <th class="table_list_item">phase_step</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">Phase step_t</span></td>
-    <td class="table_list_item"> 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    <td class="table_list_item"> 1クロックあたりの位相ステップ量
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">wave_type</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">WaveTypes WaveType</span></td>
+    <td class="table_list_item"> 波形タイプ選択
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">duty_cycle</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">Phase phase_t</span></td>
+    <td class="table_list_item"> PWMデューティ比 (Pwm以外では無視)
 </td>
 </tr>
 <tr>
@@ -217,11 +234,11 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="PwmSquareOscillator.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="MultiWaveCore.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="SawWaveCore.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="Phasor.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -231,11 +248,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="PwmSquareOscillator.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="MultiWaveCore.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="SawWaveCore.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="Phasor.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

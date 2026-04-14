@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Phaser</title>
+        <title>MidiRx</title>
 
 
         <!-- Custom HTML head -->
@@ -175,10 +175,18 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="phaser"><a class="header" href="#phaser">Phaser</a></h2>
-<p>位相発生器
-全ての波形オシレーターの基礎となるモジュール
-負の周波数（位相の逆回転）にも対応</p>
+                        <h2 id="midirx"><a class="header" href="#midirx">MidiRx</a></h2>
+<h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">CLK_FREQ</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"></td>
+</tr>
+</tbody>
+</table>
 <h3 id="ports"><a class="header" href="#ports">Ports</a></h3>
 <hr />
 <table class="table_list">
@@ -187,29 +195,31 @@
     <th class="table_list_item">clk</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">clock</span></td>
-    <td class="table_list_item"> システムクロック（周波数50MHzを想定）
-</td>
+    <td class="table_list_item"></td>
 </tr>
 <tr>
     <th class="table_list_item">rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"> リセット 位相ゼロリセット
-</td>
+    <td class="table_list_item"></td>
 </tr>
 <tr>
-    <th class="table_list_item">phase_increment</th>
+    <th class="table_list_item">i_rx</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">Phase freq_type</span></td>
-    <td class="table_list_item"> 周波数: 1クロックあたりの位相増分値 phase_increment = (ターゲット周波数 * 2^48) / システムクロック周波数
-</td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"></td>
 </tr>
 <tr>
-    <th class="table_list_item">phase</th>
+    <th class="table_list_item">o_data</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">Phase phase_type</span></td>
-    <td class="table_list_item"> 位相出力 (0 ~ 2^32-1)
-</td>
+    <td class="table_list_item"><span class="hljs-type">logic<8></span></td>
+    <td class="table_list_item"></td>
+</tr>
+<tr>
+    <th class="table_list_item">o_valid</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"></td>
 </tr>
 </tbody>
 </table>
@@ -218,11 +228,11 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="modules.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="LpfShiftVariableUnsigned.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="PwmSquareOscillator.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="MultiWaveCore.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -232,11 +242,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="modules.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="LpfShiftVariableUnsigned.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="PwmSquareOscillator.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="MultiWaveCore.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

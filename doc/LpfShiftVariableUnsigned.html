@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>midi_rx</title>
+        <title>LpfShiftVariableUnsigned</title>
 
 
         <!-- Custom HTML head -->
@@ -175,15 +175,33 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="midi_rx"><a class="header" href="#midi_rx">midi_rx</a></h2>
+                        <h2 id="lpfshiftvariableunsigned"><a class="header" href="#lpfshiftvariableunsigned">LpfShiftVariableUnsigned</a></h2>
+<p>可変シフト量に対応したLPF (符号なし版)
+実行時にシフト量を変更可能</p>
+<p>伝達関数:
+y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
+<p>MAX_SHIFTはDATA_WIDTHより大きくても問題ない。</p>
 <h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
 <tr>
-    <th class="table_list_item">CLK_FREQ</th>
+    <th class="table_list_item">DATA_WIDTH</th>
     <td class="table_list_item"><span class="hljs-type">u32</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> 入出力データ幅
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">MAX_SHIFT</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> 最大シフト量
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">SHIFT_BITS</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> シフト量を表現するビット数
+</td>
 </tr>
 </tbody>
 </table>
@@ -195,31 +213,43 @@
     <th class="table_list_item">clk</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">clock</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> システムクロック
+</td>
 </tr>
 <tr>
     <th class="table_list_item">rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"> リセット (出力を0に初期化)
+</td>
 </tr>
 <tr>
-    <th class="table_list_item">i_rx</th>
+    <th class="table_list_item">enable</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
+    <td class="table_list_item"> イネーブル信号 (trueでフィルタ更新)
+</td>
 </tr>
 <tr>
-    <th class="table_list_item">o_data</th>
-    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic<8></span></td>
-    <td class="table_list_item"></td>
+    <th class="table_list_item">shift</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<SHIFT_BITS></span></td>
+    <td class="table_list_item"> シフト量 (1 ~ MAX_SHIFT)
+</td>
 </tr>
 <tr>
-    <th class="table_list_item">o_valid</th>
+    <th class="table_list_item">x</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> 入力サンプル (符号なし)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">y</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
-    <td class="table_list_item"></td>
+    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> フィルタ出力 (符号なし)
+</td>
 </tr>
 </tbody>
 </table>
@@ -228,11 +258,11 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="WhiteNoise.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="LpfShiftVariableSigned.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="uart_rx.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="MidiRx.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -242,11 +272,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="WhiteNoise.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="LpfShiftVariableSigned.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="uart_rx.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="MidiRx.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>SawOscillator</title>
+        <title>Phasor</title>
 
 
         <!-- Custom HTML head -->
@@ -175,9 +175,10 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="sawoscillator"><a class="header" href="#sawoscillator">SawOscillator</a></h2>
-<p>ノコギリ波オシレーター
-全て組み合わせ回路で実装しているため遅延ゼロ</p>
+                        <h2 id="phasor"><a class="header" href="#phasor">Phasor</a></h2>
+<p>位相発生器
+全ての波形オシレーターの基礎となるモジュール
+負の周波数（位相の逆回転）にも対応</p>
 <h3 id="ports"><a class="header" href="#ports">Ports</a></h3>
 <hr />
 <table class="table_list">
@@ -186,14 +187,14 @@
     <th class="table_list_item">clk</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">clock</span></td>
-    <td class="table_list_item"> クロック
+    <td class="table_list_item"> システムクロック
 </td>
 </tr>
 <tr>
     <th class="table_list_item">rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"> リセット 位相ゼロリセット
+    <td class="table_list_item"> 位相ゼロリセット
 </td>
 </tr>
 <tr>
@@ -204,10 +205,10 @@
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">phase</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
-    <td class="table_list_item"> 出力波形 (Q8.24形式)
+    <td class="table_list_item"><span class="hljs-type">Phase phase_t</span></td>
+    <td class="table_list_item"> 位相出力 (0 ~ 2^32-1)
 </td>
 </tr>
 </tbody>
@@ -217,11 +218,11 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="PwmSquareOscillator.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="MultiWaveOscillator.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="SawWaveCore.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="PwmSquareOscillator.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -231,11 +232,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="PwmSquareOscillator.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="MultiWaveOscillator.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="SawWaveCore.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="PwmSquareOscillator.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
