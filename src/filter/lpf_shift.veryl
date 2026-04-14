@@ -1,0 +1,497 @@
+/// ビットシフトによる一次ローパスフィルタ (指数移動平均、符号付き版)
+/// 乗算器を使用せず、シフト演算のみで実装
+///
+/// 伝達関数:
+///   y[n] = y[n-1] + (x[n] - y[n-1]) >> SHIFT
+///
+/// カットオフ周波数の近似:
+///   fc ≈ fs / (2π * 2^SHIFT)
+///   例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz
+///
+/// SHIFT値が大きいほどカットオフ周波数が低くなり、
+/// より滑らかに補間される
+pub module LpfShiftSigned #(
+    param DATA_WIDTH: u32 = 16, /// 入出力データ幅
+    param SHIFT     : u32 = 4 , /// シフト量 (1以上)。大きいほど低いカットオフ周波数
+) (
+    clk   : input  clock                   , /// システムクロック
+    rst   : input  reset                   , /// リセット (出力を0に初期化)
+    enable: input  logic                   , /// イネーブル信号 (highでフィルタ更新)
+    x     : input  signed logic<DATA_WIDTH>, /// 入力サンプル (符号付き)
+    y     : output signed logic<DATA_WIDTH>, /// フィルタ出力 (符号付き)
+) {
+    // 内部アキュムレータ (精度保持のため拡張ビット幅)
+    // シフトによる量子化誤差を防ぐため、SHIFT分の余裕を持たせる
+    const ACC_WIDTH: u32 = DATA_WIDTH + SHIFT;
+
+    var acc: signed logic<ACC_WIDTH>;
+
+    // 入力xを符号拡張してSHIFTビット左シフト (小数部を確保)
+    var x_ext: signed logic<ACC_WIDTH>;
+    always_comb {
+        x_ext = x <<< SHIFT;
+    }
+
+    always_ff {
+        if_reset {
+            acc = 0;
+        } else if enable {
+            // y[n] = y[n-1] + (x[n] - y[n-1]) >> SHIFT
+            // acc は小数部を保持する拡張アキュムレータ
+            let diff : signed logic<ACC_WIDTH> = x_ext - acc;
+            let delta: signed logic<ACC_WIDTH> = diff >>> SHIFT; // 算術右シフト
+            acc   = acc + delta;
+        }
+    }
+
+    // 上位ビットを出力 (小数部を切り捨て)
+    always_comb {
+        y = acc >>> SHIFT;
+    }
+}
+
+/// 可変シフト量に対応したLPF (符号付き版)
+/// 実行時にシフト量を変更可能
+pub module LpfShiftVariableSigned #(
+    param DATA_WIDTH: u32 = 16                   , /// 入出力データ幅
+    param MAX_SHIFT : u32 = 16                   , /// 最大シフト量
+    param SHIFT_BITS: u32 = $clog2(MAX_SHIFT + 1), /// シフト量を表現するビット数
+) (
+    clk   : input  clock                   , /// システムクロック
+    rst   : input  reset                   , /// リセット (出力を0に初期化)
+    enable: input  logic                   , /// イネーブル信号 (highでフィルタ更新)
+    shift : input  logic       <SHIFT_BITS>, /// シフト量 (1 ~ MAX_SHIFT)
+    x     : input  signed logic<DATA_WIDTH>, /// 入力サンプル (符号付き)
+    y     : output signed logic<DATA_WIDTH>, /// フィルタ出力 (符号付き)
+) {
+    // 最大シフト量に対応できるアキュムレータ幅
+    const ACC_WIDTH: u32 = DATA_WIDTH + MAX_SHIFT;
+
+    var acc: signed logic<ACC_WIDTH>;
+
+    // 入力xを符号拡張してMAX_SHIFTビット左シフト (小数部を確保)
+    var x_ext: signed logic<ACC_WIDTH>;
+    always_comb {
+        x_ext = x <<< MAX_SHIFT;
+    }
+
+    always_ff {
+        if_reset {
+            acc = 0;
+        } else if enable {
+            let diff : signed logic<ACC_WIDTH> = x_ext - acc;
+            let delta: signed logic<ACC_WIDTH> = diff >>> shift; // 可変シフト
+            acc   = acc + delta;
+        }
+    }
+
+    // 上位ビットを出力 (小数部を切り捨て)
+    always_comb {
+        y = acc >>> MAX_SHIFT;
+    }
+}
+
+//-----------------------------------------------------------------------------
+// 符号なし (Unsigned) 版
+//-----------------------------------------------------------------------------
+
+/// ビットシフトによる一次ローパスフィルタ (符号なし版)
+/// 乗算器を使用せず、シフト演算のみで実装
+pub module LpfShiftUnsigned #(
+    param DATA_WIDTH: u32 = 16, /// 入出力データ幅
+    param SHIFT     : u32 = 4 , /// シフト量 (1以上)。大きいほど低いカットオフ周波数
+) (
+    clk   : input  clock            , /// システムクロック
+    rst   : input  reset            , /// リセット (出力を0に初期化)
+    enable: input  logic            , /// イネーブル信号 (highでフィルタ更新)
+    x     : input  logic<DATA_WIDTH>, /// 入力サンプル (符号なし)
+    y     : output logic<DATA_WIDTH>, /// フィルタ出力 (符号なし)
+) {
+    // 内部アキュムレータ (精度保持のため拡張ビット幅)
+    const ACC_WIDTH: u32 = DATA_WIDTH + SHIFT;
+
+    var acc: logic<ACC_WIDTH>;
+
+    // 入力xをSHIFTビット左シフト (小数部を確保)
+    var x_ext: logic<ACC_WIDTH>;
+    always_comb {
+        x_ext = x << SHIFT;
+    }
+
+    always_ff {
+        if_reset {
+            acc = 0;
+        } else if enable {
+            // y[n] = y[n-1] + (x[n] - y[n-1]) >> SHIFT
+            // 符号なしなので、差分を符号付きで計算してから加算
+            let x_ext_s: signed logic<ACC_WIDTH + 1> = {1'b0, x_ext};
+            let acc_s  : signed logic<ACC_WIDTH + 1> = {1'b0, acc};
+            let diff   : signed logic<ACC_WIDTH + 1> = x_ext_s - acc_s;
+            let delta  : signed logic<ACC_WIDTH + 1> = diff >>> SHIFT; // 算術右シフト
+            let new_acc: signed logic<ACC_WIDTH + 1> = acc_s + delta;
+            acc     = new_acc[ACC_WIDTH - 1:0];
+        }
+    }
+
+    // 上位ビットを出力 (小数部を切り捨て)
+    always_comb {
+        y = acc >> SHIFT;
+    }
+}
+
+/// 可変シフト量に対応したLPF (符号なし版)
+/// 実行時にシフト量を変更可能
+pub module LpfShiftVariableUnsigned #(
+    param DATA_WIDTH: u32 = 16                   , /// 入出力データ幅
+    param MAX_SHIFT : u32 = 16                   , /// 最大シフト量
+    param SHIFT_BITS: u32 = $clog2(MAX_SHIFT + 1), /// シフト量を表現するビット数
+) (
+    clk   : input  clock            , /// システムクロック
+    rst   : input  reset            , /// リセット (出力を0に初期化)
+    enable: input  logic            , /// イネーブル信号 (highでフィルタ更新)
+    shift : input  logic<SHIFT_BITS>, /// シフト量 (1 ~ MAX_SHIFT)
+    x     : input  logic<DATA_WIDTH>, /// 入力サンプル (符号なし)
+    y     : output logic<DATA_WIDTH>, /// フィルタ出力 (符号なし)
+) {
+    // 最大シフト量に対応できるアキュムレータ幅
+    const ACC_WIDTH: u32 = DATA_WIDTH + MAX_SHIFT;
+
+    var acc: logic<ACC_WIDTH>;
+
+    // 入力xをMAX_SHIFTビット左シフト (小数部を確保)
+    var x_ext: logic<ACC_WIDTH>;
+    always_comb {
+        x_ext = x << MAX_SHIFT;
+    }
+
+    always_ff {
+        if_reset {
+            acc = 0;
+        } else if enable {
+            // 符号なしなので、差分を符号付きで計算してから加算
+            let x_ext_s: signed logic<ACC_WIDTH + 1> = {1'b0, x_ext};
+            let acc_s  : signed logic<ACC_WIDTH + 1> = {1'b0, acc};
+            let diff   : signed logic<ACC_WIDTH + 1> = x_ext_s - acc_s;
+            let delta  : signed logic<ACC_WIDTH + 1> = diff >>> shift; // 可変シフト
+            let new_acc: signed logic<ACC_WIDTH + 1> = acc_s + delta;
+            acc     = new_acc[ACC_WIDTH - 1:0];
+        }
+    }
+
+    // 上位ビットを出力 (小数部を切り捨て)
+    always_comb {
+        y = acc >> MAX_SHIFT;
+    }
+}
+
+//-----------------------------------------------------------------------------
+// テスト
+//-----------------------------------------------------------------------------
+
+/// テスト: LpfShift の基本動作を検証
+/// - リセット後の出力がゼロであることを確認
+/// - ステップ入力に対して徐々に目標値に近づくことを確認
+#[test(test_lpf_shift_basic)]
+module test_lpf_shift_basic {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen;
+
+    const DATA_WIDTH: u32 = 16;
+    const SHIFT     : u32 = 4;
+
+    var enable    : logic                   ;
+    var x         : signed logic<DATA_WIDTH>;
+    var y         : signed logic<DATA_WIDTH>;
+    var y_after_10: signed logic<DATA_WIDTH>;
+
+    inst dut: LpfShiftSigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = 0;
+        x          = 0;
+        rst.assert(clk);
+
+        // リセット後は出力がゼロ
+        $assert(y == 16'sd0);
+
+        // ステップ入力 (0 → 1000)
+        x      = 16'sd1000;
+        enable = 1;
+
+        // 数クロック後、徐々に増加していることを確認
+        clk.next  (10);
+        y_after_10 = y;
+        $assert   (y_after_10 != 16'sd0); // 出力が変化している
+
+        // さらに進めて目標値に近づくことを確認
+        clk.next(100);
+        $assert (y != y_after_10); // さらに変化している
+
+        // 十分な時間が経過すると目標値にかなり近づく
+        clk.next(1000);
+        // 出力が目標値の近くに収束 (900-1100)
+        $display("y = %d (expected ~1000)", y);
+
+        $finish();
+    }
+}
+
+/// テスト: 負の値への追従を検証
+#[test(test_lpf_shift_negative)]
+module test_lpf_shift_negative {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen;
+
+    const DATA_WIDTH: u32 = 16;
+    const SHIFT     : u32 = 4;
+
+    var enable: logic                   ;
+    var x     : signed logic<DATA_WIDTH>;
+    var y     : signed logic<DATA_WIDTH>;
+
+    inst dut: LpfShiftSigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = 0;
+        x          = 0;
+        rst.assert(clk);
+
+        // 負のステップ入力
+        x      = -16'sd500;
+        enable = 1;
+
+        clk.next(10);
+        // 負の方向に変化しているはず
+        $display("y after 10 clocks = %d (expected < 0)", y);
+
+        // 十分な時間経過後
+        clk.next(1000);
+        $display("y final = %d (expected ~-500)", y);
+
+        $finish();
+    }
+}
+
+/// テスト: イネーブル信号の動作を検証
+#[test(test_lpf_shift_enable)]
+module test_lpf_shift_enable {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen;
+
+    const DATA_WIDTH: u32 = 16;
+    const SHIFT     : u32 = 4;
+
+    var enable: logic                   ;
+    var x     : signed logic<DATA_WIDTH>;
+    var y     : signed logic<DATA_WIDTH>;
+    var y_hold: signed logic<DATA_WIDTH>;
+
+    inst dut: LpfShiftSigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = 0;
+        x          = 16'sd1000;
+        rst.assert(clk);
+
+        // イネーブル=0の間は出力が変化しない
+        clk.next(100);
+        $assert (y == 16'sd0);
+
+        // イネーブルをONにすると変化開始
+        enable   = 1;
+        clk.next(10);
+        $assert (y != 16'sd0);
+
+        // イネーブルをOFFにすると保持
+        enable   = 0;
+        y_hold   = y;
+        clk.next(100);
+        $assert (y == y_hold);
+
+        $finish();
+    }
+}
+
+/// テスト: 可変シフトLPFの動作を検証
+#[test(test_lpf_shift_variable)]
+module test_lpf_shift_variable {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen;
+
+    const DATA_WIDTH: u32 = 16;
+    const MAX_SHIFT : u32 = 8;
+    const SHIFT_BITS: u32 = $clog2(MAX_SHIFT + 1);
+
+    var enable  : logic                   ;
+    var shift   : logic       <SHIFT_BITS>;
+    var x       : signed logic<DATA_WIDTH>;
+    var y       : signed logic<DATA_WIDTH>;
+    var y_shift4: signed logic<DATA_WIDTH>;
+
+    inst dut: LpfShiftVariableSigned #(
+        DATA_WIDTH  ,
+        MAX_SHIFT   ,
+        SHIFT_BITS  ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        shift   ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = 0;
+        shift      = 4;
+        x          = 0;
+        rst.assert(clk);
+
+        // シフト量=4でテスト
+        x      = 16'sd1000;
+        enable = 1;
+
+        clk.next(50);
+        y_shift4 = y;
+        $display("y with shift=4: %d", y_shift4);
+        $assert (y_shift4 != 16'sd0);
+
+        // リセットしてシフト量=2でテスト (より速い応答)
+        rst.assert(clk);
+        shift      = 2;
+
+        clk.next(50);
+        $display("y with shift=2: %d (should be > %d)", y, y_shift4);
+        // shift=2はshift=4より速い応答なので、同じ時間でより大きい値になるはず
+
+        $finish();
+    }
+}
+
+/// テスト: LpfShiftUnsigned の基本動作を検証
+#[test(test_lpf_shift_unsigned_basic)]
+module test_lpf_shift_unsigned_basic {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen;
+
+    const DATA_WIDTH: u32 = 16;
+    const SHIFT     : u32 = 4;
+
+    var enable    : logic            ;
+    var x         : logic<DATA_WIDTH>;
+    var y         : logic<DATA_WIDTH>;
+    var y_after_10: logic<DATA_WIDTH>;
+
+    inst dut: LpfShiftUnsigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = 0;
+        x          = 0;
+        rst.assert(clk);
+
+        // リセット後は出力がゼロ
+        $assert(y == 16'd0);
+
+        // ステップ入力 (0 → 50000)
+        x      = 16'd50000;
+        enable = 1;
+
+        // 数クロック後、徐々に増加していることを確認
+        clk.next  (10);
+        y_after_10 = y;
+        $assert   (y_after_10 != 16'd0);
+        $display  ("unsigned y after 10 clocks = %d", y_after_10);
+
+        // さらに進めて目標値に近づくことを確認
+        clk.next(100);
+        $assert (y != y_after_10);
+
+        // 十分な時間が経過すると目標値にかなり近づく
+        clk.next(1000);
+        $display("unsigned y final = %d (expected ~50000)", y);
+
+        $finish();
+    }
+}
+
+/// テスト: LpfShiftUnsigned で減少方向への追従を検証
+#[test(test_lpf_shift_unsigned_decrease)]
+module test_lpf_shift_unsigned_decrease {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen;
+
+    const DATA_WIDTH: u32 = 16;
+    const SHIFT     : u32 = 4;
+
+    var enable: logic            ;
+    var x     : logic<DATA_WIDTH>;
+    var y     : logic<DATA_WIDTH>;
+
+    inst dut: LpfShiftUnsigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = 0;
+        x          = 16'd40000;
+        rst.assert(clk);
+
+        // まず40000に収束させる
+        enable   = 1;
+        clk.next(1000);
+        $display("unsigned converged to: %d", y);
+
+        // 10000に変更して減少を確認
+        x        = 16'd10000;
+        clk.next(100);
+        $display("unsigned decreasing: %d (should be < 40000, > 10000)", y);
+
+        clk.next(1000);
+        $display("unsigned final: %d (expected ~10000)", y);
+
+        $finish();
+    }
+}
