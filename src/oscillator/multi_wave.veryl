@@ -1,0 +1,92 @@
+/// 波形タイプを定義するパッケージ
+pub package WaveTypes {
+    /// 波形タイプを表す列挙型
+    enum WaveType {
+        /// サイン波
+        Sine,
+        /// 三角波
+        Triangle,
+        /// ノコギリ波
+        Saw,
+        /// PWM矩形波
+        Pwm,
+    }
+}
+
+/// 波形選択式オシレーター
+/// 4種類の波形（Sine, Triangle, Saw, Pwm）を切り替え可能
+/// Sineは線形補間付きLUT、他は組み合わせ回路
+/// 波形切り替え時のレイテンシ整合のため、全波形を1クロック遅延させて出力
+pub module MultiWaveOscillator (
+    clk       : input  clock              , /// クロック
+    rst       : input  reset              , /// リセット 位相ゼロリセット
+    phase_step: input  Phase::step_t      , /// 1クロックあたりの位相ステップ量
+    wave_type : input  WaveTypes::WaveType, /// 波形タイプ選択
+    duty_cycle: input  Phase::phase_t     , /// PWMデューティ比 (Pwm以外では無視)
+    pcm_out   : output FixedPoint::q8_24  , /// 出力波形 (Q8.24形式)
+) {
+    // 位相生成 (共通Phasor)
+    var phase: Phase::phase_t;
+    inst phasor: Phasor (
+        clk         ,
+        rst         ,
+        phase_step  ,
+        phase       ,
+    );
+
+    // 各波形コアの出力
+    var sine_out    : FixedPoint::q8_24;
+    var triangle_out: FixedPoint::q8_24;
+    var saw_out     : FixedPoint::q8_24;
+    var square_out  : FixedPoint::q8_24;
+
+    // サイン波コア (線形補間、1クロック遅延あり)
+    inst sine_core: SineWaveLerpCore (
+        clk              ,
+        phase            ,
+        pcm_out: sine_out,
+    );
+
+    // 三角波コア (組み合わせ回路、遅延なし)
+    inst triangle_core: TriangleWaveCore (
+        phase                ,
+        pcm_out: triangle_out,
+    );
+
+    // ノコギリ波コア (組み合わせ回路、遅延なし)
+    inst saw_core: SawWaveCore (
+        phase           ,
+        pcm_out: saw_out,
+    );
+
+    // 矩形波コア (組み合わせ回路、遅延なし)
+    inst square_core: SquareWaveCore (
+        phase                 ,
+        duty_cycle            ,
+        pcm_out   : square_out,
+    );
+
+    // 波形選択用レジスタ (1クロック遅延でサイン波とタイミング整合)
+    var triangle_out_d: FixedPoint::q8_24  ;
+    var saw_out_d     : FixedPoint::q8_24  ;
+    var square_out_d  : FixedPoint::q8_24  ;
+    var wave_type_d   : WaveTypes::WaveType;
+
+    always_ff (clk) {
+        triangle_out_d = triangle_out;
+        saw_out_d      = saw_out;
+        square_out_d   = square_out;
+        wave_type_d    = wave_type;
+    }
+
+    // 波形選択マルチプレクサ
+    always_comb {
+        case wave_type_d {
+            WaveTypes::WaveType::Sine    : pcm_out = sine_out;
+            WaveTypes::WaveType::Triangle: pcm_out = triangle_out_d;
+            WaveTypes::WaveType::Saw     : pcm_out = saw_out_d;
+            WaveTypes::WaveType::Pwm     : pcm_out = square_out_d;
+            default                      : pcm_out = sine_out;
+        }
+    }
+}
