@@ -106,10 +106,10 @@ pub module MultiWaveOscillator (
 
     // マルチ波形生成コア
     inst core: MultiWaveCore (
-        clk        ,
-        phase      ,
-        wave_type  ,
-        duty_cycle ,
-        pcm_out    ,
+        clk         ,
+        phase       ,
+        wave_type   ,
+        duty_cycle  ,
+        pcm_out     ,
     );
 }
