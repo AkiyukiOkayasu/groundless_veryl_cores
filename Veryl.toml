@@ -1,6 +1,6 @@
 [project]
 name = "groundless_veryl_cores"
-version = "0.3.3"
+version = "0.3.4"
 authors = ["Akiyuki Okayasu"]
 description = "A collection of cores for Groundless, written in Veryl."
 license = "MIT or Apache-2.0"
