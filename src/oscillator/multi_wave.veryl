@@ -13,27 +13,18 @@ pub package WaveTypes {
     }
 }
 
-/// 波形選択式オシレーター
-/// 4種類の波形（Sine, Triangle, Saw, Pwm）を切り替え可能
+/// マルチ波形生成コアモジュール
+/// 位相入力から4種類の波形（Sine, Triangle, Saw, Pwm）を生成し、選択出力
 /// Sineは線形補間付きLUT、他は組み合わせ回路
-/// 波形切り替え時のレイテンシ整合のため、全波形を1クロック遅延させて出力
-pub module MultiWaveOscillator (
+/// レイテンシ整合のため、全波形を1クロック遅延させて出力
+/// レイテンシー: 1クロック
+pub module MultiWaveCore (
     clk       : input  clock              , /// クロック
-    rst       : input  reset              , /// リセット 位相ゼロリセット
-    phase_step: input  Phase::step_t      , /// 1クロックあたりの位相ステップ量
+    phase     : input  Phase::phase_t     , /// 位相入力 (0 ~ 2^32-1)
     wave_type : input  WaveTypes::WaveType, /// 波形タイプ選択
     duty_cycle: input  Phase::phase_t     , /// PWMデューティ比 (Pwm以外では無視)
     pcm_out   : output FixedPoint::q8_24  , /// 出力波形 (Q8.24形式)
 ) {
-    // 位相生成 (共通Phasor)
-    var phase: Phase::phase_t;
-    inst phasor: Phasor (
-        clk         ,
-        rst         ,
-        phase_step  ,
-        phase       ,
-    );
-
     // 各波形コアの出力
     var sine_out    : FixedPoint::q8_24;
     var triangle_out: FixedPoint::q8_24;
@@ -89,4 +80,36 @@ pub module MultiWaveOscillator (
             default                      : pcm_out = sine_out;
         }
     }
+}
+
+/// 波形選択式オシレーター
+/// 4種類の波形（Sine, Triangle, Saw, Pwm）を切り替え可能
+/// Sineは線形補間付きLUT、他は組み合わせ回路
+/// 波形切り替え時のレイテンシ整合のため、全波形を1クロック遅延させて出力
+/// レイテンシー: 1クロック
+pub module MultiWaveOscillator (
+    clk       : input  clock              , /// クロック
+    rst       : input  reset              , /// リセット 位相ゼロリセット
+    phase_step: input  Phase::step_t      , /// 1クロックあたりの位相ステップ量
+    wave_type : input  WaveTypes::WaveType, /// 波形タイプ選択
+    duty_cycle: input  Phase::phase_t     , /// PWMデューティ比 (Pwm以外では無視)
+    pcm_out   : output FixedPoint::q8_24  , /// 出力波形 (Q8.24形式)
+) {
+    // 位相生成 (共通Phasor)
+    var phase: Phase::phase_t;
+    inst phasor: Phasor (
+        clk         ,
+        rst         ,
+        phase_step  ,
+        phase       ,
+    );
+
+    // マルチ波形生成コア
+    inst core: MultiWaveCore (
+        clk        ,
+        phase      ,
+        wave_type  ,
+        duty_cycle ,
+        pcm_out    ,
+    );
 }
