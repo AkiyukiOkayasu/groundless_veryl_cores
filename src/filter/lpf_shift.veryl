@@ -16,7 +16,7 @@ pub module LpfShiftSigned #(
 ) (
     clk   : input  clock                   , /// システムクロック
     rst   : input  reset                   , /// リセット (出力を0に初期化)
-    enable: input  logic                   , /// イネーブル信号 (highでフィルタ更新)
+    enable: input  bbool                   , /// イネーブル信号 (trueでフィルタ更新)
     x     : input  signed logic<DATA_WIDTH>, /// 入力サンプル (符号付き)
     y     : output signed logic<DATA_WIDTH>, /// フィルタ出力 (符号付き)
 ) {
@@ -64,7 +64,7 @@ pub module LpfShiftVariableSigned #(
 ) (
     clk   : input  clock                   , /// システムクロック
     rst   : input  reset                   , /// リセット (出力を0に初期化)
-    enable: input  logic                   , /// イネーブル信号 (highでフィルタ更新)
+    enable: input  bbool                   , /// イネーブル信号 (trueでフィルタ更新)
     shift : input  logic       <SHIFT_BITS>, /// シフト量 (1 ~ MAX_SHIFT)
     x     : input  signed logic<DATA_WIDTH>, /// 入力サンプル (符号付き)
     y     : output signed logic<DATA_WIDTH>, /// フィルタ出力 (符号付き)
@@ -168,7 +168,7 @@ pub module LpfShiftVariableUnsigned #(
 ) (
     clk   : input  clock            , /// システムクロック
     rst   : input  reset            , /// リセット (出力を0に初期化)
-    enable: input  logic            , /// イネーブル信号 (highでフィルタ更新)
+    enable: input  bbool            , /// イネーブル信号 (trueでフィルタ更新)
     shift : input  logic<SHIFT_BITS>, /// シフト量 (1 ~ MAX_SHIFT)
     x     : input  logic<DATA_WIDTH>, /// 入力サンプル (符号なし)
     y     : output logic<DATA_WIDTH>, /// フィルタ出力 (符号なし)
@@ -219,7 +219,7 @@ module test_lpf_shift_basic {
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
 
-    var enable    : logic                   ;
+    var enable    : bbool                   ;
     var x         : signed logic<DATA_WIDTH>;
     var y         : signed logic<DATA_WIDTH>;
     var y_after_10: signed logic<DATA_WIDTH>;
@@ -236,7 +236,7 @@ module test_lpf_shift_basic {
     );
 
     initial {
-        enable     = 0;
+        enable     = false;
         x          = 0;
         rst.assert(clk);
 
@@ -245,7 +245,7 @@ module test_lpf_shift_basic {
 
         // ステップ入力 (0 → 1000)
         x      = 16'sd1000;
-        enable = 1;
+        enable = true;
 
         // 数クロック後、徐々に増加していることを確認
         clk.next  (10);
@@ -274,7 +274,7 @@ module test_lpf_shift_negative {
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
 
-    var enable: logic                   ;
+    var enable: bbool                   ;
     var x     : signed logic<DATA_WIDTH>;
     var y     : signed logic<DATA_WIDTH>;
 
@@ -290,13 +290,13 @@ module test_lpf_shift_negative {
     );
 
     initial {
-        enable     = 0;
+        enable     = false;
         x          = 0;
         rst.assert(clk);
 
         // 負のステップ入力
         x      = -16'sd500;
-        enable = 1;
+        enable = true;
 
         clk.next(10);
         // 負の方向に変化しているはず
@@ -319,7 +319,7 @@ module test_lpf_shift_enable {
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
 
-    var enable: logic                   ;
+    var enable: bbool                   ;
     var x     : signed logic<DATA_WIDTH>;
     var y     : signed logic<DATA_WIDTH>;
     var y_hold: signed logic<DATA_WIDTH>;
@@ -336,7 +336,7 @@ module test_lpf_shift_enable {
     );
 
     initial {
-        enable     = 0;
+        enable     = false;
         x          = 16'sd1000;
         rst.assert(clk);
 
@@ -345,12 +345,12 @@ module test_lpf_shift_enable {
         $assert (y == 16'sd0);
 
         // イネーブルをONにすると変化開始
-        enable   = 1;
+        enable   = true;
         clk.next(10);
         $assert (y != 16'sd0);
 
         // イネーブルをOFFにすると保持
-        enable   = 0;
+        enable   = false;
         y_hold   = y;
         clk.next(100);
         $assert (y == y_hold);
@@ -369,7 +369,7 @@ module test_lpf_shift_variable {
     const MAX_SHIFT : u32 = 8;
     const SHIFT_BITS: u32 = $clog2(MAX_SHIFT + 1);
 
-    var enable  : logic                   ;
+    var enable  : bbool                   ;
     var shift   : logic       <SHIFT_BITS>;
     var x       : signed logic<DATA_WIDTH>;
     var y       : signed logic<DATA_WIDTH>;
@@ -389,14 +389,14 @@ module test_lpf_shift_variable {
     );
 
     initial {
-        enable     = 0;
+        enable     = false;
         shift      = 4;
         x          = 0;
         rst.assert(clk);
 
         // シフト量=4でテスト
         x      = 16'sd1000;
-        enable = 1;
+        enable = true;
 
         clk.next(50);
         y_shift4 = y;
@@ -424,7 +424,7 @@ module test_lpf_shift_unsigned_basic {
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
 
-    var enable    : logic            ;
+    var enable    : bbool            ;
     var x         : logic<DATA_WIDTH>;
     var y         : logic<DATA_WIDTH>;
     var y_after_10: logic<DATA_WIDTH>;
@@ -441,7 +441,7 @@ module test_lpf_shift_unsigned_basic {
     );
 
     initial {
-        enable     = 0;
+        enable     = false;
         x          = 0;
         rst.assert(clk);
 
@@ -450,7 +450,7 @@ module test_lpf_shift_unsigned_basic {
 
         // ステップ入力 (0 → 50000)
         x      = 16'd50000;
-        enable = 1;
+        enable = true;
 
         // 数クロック後、徐々に増加していることを確認
         clk.next  (10);
@@ -495,12 +495,12 @@ module test_lpf_shift_unsigned_decrease {
     );
 
     initial {
-        enable     = 0;
+        enable     = false;
         x          = 16'd40000;
         rst.assert(clk);
 
         // まず40000に収束させる
-        enable   = 1;
+        enable   = true;
         clk.next(1000);
         $display("unsigned converged to: %d", y);
 
