@@ -8,8 +8,8 @@
 ///   fc ≈ fs / (2π * 2^SHIFT)
 ///   例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz
 ///
-/// SHIFT値が大きいほどカットオフ周波数が低くなり、
-/// より滑らかに補間される
+/// SHIFT値が大きいほどカットオフ周波数が低くなり、より滑らかに補間される。
+/// SHIFTはDATA_WIDTHより大きくても問題ない。
 pub module LpfShiftSigned #(
     param DATA_WIDTH: u32 = 16, /// 入出力データ幅
     param SHIFT     : u32 = 4 , /// シフト量 (1以上)。大きいほど低いカットオフ周波数
@@ -52,6 +52,11 @@ pub module LpfShiftSigned #(
 
 /// 可変シフト量に対応したLPF (符号付き版)
 /// 実行時にシフト量を変更可能
+///
+/// 伝達関数:
+///   y[n] = y[n-1] + (x[n] - y[n-1]) >> shift
+///
+/// MAX_SHIFTはDATA_WIDTHより大きくても問題ない。
 pub module LpfShiftVariableSigned #(
     param DATA_WIDTH: u32 = 16                   , /// 入出力データ幅
     param MAX_SHIFT : u32 = 16                   , /// 最大シフト量
@@ -97,6 +102,16 @@ pub module LpfShiftVariableSigned #(
 
 /// ビットシフトによる一次ローパスフィルタ (符号なし版)
 /// 乗算器を使用せず、シフト演算のみで実装
+///
+/// 伝達関数:
+///   y[n] = y[n-1] + (x[n] - y[n-1]) >> SHIFT
+///
+/// カットオフ周波数の近似:
+///   fc ≈ fs / (2π * 2^SHIFT)
+///   例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz
+///
+/// SHIFT値が大きいほどカットオフ周波数が低くなり、より滑らかに補間される。
+/// SHIFTはDATA_WIDTHより大きくても問題ない。
 pub module LpfShiftUnsigned #(
     param DATA_WIDTH: u32 = 16, /// 入出力データ幅
     param SHIFT     : u32 = 4 , /// シフト量 (1以上)。大きいほど低いカットオフ周波数
@@ -141,6 +156,11 @@ pub module LpfShiftUnsigned #(
 
 /// 可変シフト量に対応したLPF (符号なし版)
 /// 実行時にシフト量を変更可能
+///
+/// 伝達関数:
+///   y[n] = y[n-1] + (x[n] - y[n-1]) >> shift
+///
+/// MAX_SHIFTはDATA_WIDTHより大きくても問題ない。
 pub module LpfShiftVariableUnsigned #(
     param DATA_WIDTH: u32 = 16                   , /// 入出力データ幅
     param MAX_SHIFT : u32 = 16                   , /// 最大シフト量
