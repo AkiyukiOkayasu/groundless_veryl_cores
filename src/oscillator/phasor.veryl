@@ -53,7 +53,9 @@ pub module Phasor (
 #[test(test_phasor)]
 module test_phasor {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
 
     const STEP: Phase::step_t = Phase::step_from_hz(50_000_000, 440.0); // 440.0Hz @ 50MHz
 

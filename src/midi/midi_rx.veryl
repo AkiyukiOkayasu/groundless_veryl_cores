@@ -41,7 +41,9 @@ pub module MidiRx #(
 #[test(test_midi_rx)]
 module test_midi_rx {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
 
     var rx        : logic   ;
     var data      : logic<8>;
