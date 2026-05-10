@@ -1,6 +1,9 @@
+/// SPI共通型をimport
+import spi_pkg::SpiMode;
+
 /// SPI Master モジュール
 /// Mode 0 (CPOL=0, CPHA=0) 固定
-pub module SpiMaster #(
+pub module SpiMaster::<MODE: SpiMode = SpiMode::Mode0> #(
     param DATA_WIDTH: u16 = 8 , /// 通信ビット数 (8, 16, 24, 32など)
     param CLK_DIV   : u16 = 50, /// 分周比 (50MHz入力で50なら1MHzのSCLK)
 ) (
@@ -20,6 +23,7 @@ pub module SpiMaster #(
     miso: input  logic, /// SPI MISO
     cs_n: output logic, /// SPI Chip select (Active Low)
 ) {
+
     // ------------------------------------------
     // 内部ステート定義
     // ------------------------------------------
@@ -60,8 +64,30 @@ pub module SpiMaster #(
     );
 
 
+
+    // ------------------------------------------
+    // CPOL / CPHA 導出
+    // ------------------------------------------
+    var cpol: logic;
+    var cpha: logic;
+
+    always_comb {
+        if MODE == SpiMode::Mode2 || MODE == SpiMode::Mode3 {
+            cpol = 1;
+        } else {
+            cpol = 0;
+        }
+
+        if MODE == SpiMode::Mode1 || MODE == SpiMode::Mode3 {
+            cpha = 1;
+        } else {
+            cpha = 0;
+        }
+    }
+
     // ------------------------------------------
     // メインステートマシン
+
     // ------------------------------------------
     always_ff {
         if_reset {
@@ -69,11 +95,16 @@ pub module SpiMaster #(
             div_cnt   = 0;
             bit_cnt   = 0;
             shift_reg = 0;
-            sclk_reg  = 0;
-            busy      = 0;
-            done      = 0;
-            cs_n      = 1; // Idle時はHigh
-            miso_reg  = 0;
+            // CPOL に応じた初期値設定
+            if MODE == SpiMode::Mode2 || MODE == SpiMode::Mode3 {
+                sclk_reg = 1;
+            } else {
+                sclk_reg = 0;
+            }
+            busy     = 0;
+            done     = 0;
+            cs_n     = 1; // Idle時はHigh
+            miso_reg = 0;
         } else {
             // デフォルト動作
             done = 0;
@@ -82,7 +113,7 @@ pub module SpiMaster #(
                 State::Idle: {
                     busy     = 0;
                     cs_n     = 1;
-                    sclk_reg = 0; // Mode 0: Idle Low
+                    sclk_reg = cpol;
 
                     if start & !busy {
                         // 通信開始
@@ -97,57 +128,98 @@ pub module SpiMaster #(
                     busy = 1;
                     cs_n = 0; // CSアサート
 
-                    // 最初のSCLK立ち上がりまでの待ち時間 (t_CSSC)
+                    // 最初のSCLKエッジまでの待ち時間 (t_CSSC)
                     // とりあえず半周期待つ実装とする
                     if div_cnt >= CLK_DIV / 2 - 1 {
                         div_cnt = 0;
                         bit_cnt = 0;
-                        state   = State::Sample;
+                        if cpha == 0 {
+                            state = State::Sample;
+                        } else {
+                            state = State::Shift;
+                        }
                     } else {
                         div_cnt += 1;
                     }
                 }
 
                 State::Sample: {
-                    // SCLK立ち上がりでMISOをサンプル
-                    sclk_reg = 1;
+                    // MISOをサンプル
+                    if cpha == 0 {
+                        sclk_reg = !cpol;
+                    } else {
+                        sclk_reg = cpol;
+                    }
                     miso_reg = miso_synced;
                     div_cnt  = 1; //Sampleの1クロック分をカウント
-                    state    = State::HighWait;
+                    if cpha == 0 {
+                        state = State::HighWait;
+                    } else {
+                        state = State::LowWait;
+                    }
                 }
 
                 State::HighWait: {
-                    // SCLK Highを保持
-                    sclk_reg = 1;
+                    if cpha == 0 {
+                        sclk_reg = !cpol;
+                    } else {
+                        sclk_reg = cpol;
+                    }
 
                     if div_cnt >= CLK_DIV / 2 - 1 {
                         div_cnt = 0;
-                        state   = State::Shift;
+                        if cpha == 0 {
+                            state = State::Shift;
+                        } else {
+                            state = State::Sample;
+                        }
                     } else {
                         div_cnt += 1;
                     }
                 }
 
                 State::Shift: {
-                    // SCLK立ち下がりエッジでシフトし、次ビットを出力
-                    sclk_reg  = 0;
-                    shift_reg = (shift_reg << 1) | miso_reg; // サンプル結果をLSBへ
-                    div_cnt   = 1; // Shiftの1クロック分をカウント
-                    state     = State::LowWait;
+                    // シフトし、次ビットを出力
+                    if cpha == 0 {
+                        sclk_reg = cpol;
+                    } else {
+                        sclk_reg = !cpol;
+                    }
+                    // CPHA=1の場合、最初のShiftではシフトしない（まだサンプルしていないため）
+                    if cpha == 0 || bit_cnt >: 0 {
+                        shift_reg = (shift_reg << 1) | miso_reg; // サンプル結果をLSBへ
+                    }
+                    div_cnt = 1; // Shiftの1クロック分をカウント
+                    if cpha == 0 {
+                        state = State::LowWait;
+                    } else {
+                        state = State::HighWait;
+                    }
                 }
 
                 State::LowWait: {
-                    // SCLK Lowを保持
-                    sclk_reg = 0;
+                    if cpha == 0 {
+                        sclk_reg = cpol;
+                    } else {
+                        sclk_reg = !cpol;
+                    }
 
                     if div_cnt >= CLK_DIV / 2 - 1 {
                         if bit_cnt >= DATA_WIDTH - 1 {
+                            // CPHA=1の場合、最後のサンプル結果をシフト
+                            if cpha == 1 {
+                                shift_reg = (shift_reg << 1) | miso_reg;
+                            }
                             bit_cnt = 0;
                             div_cnt = 0;
                             state   = State::Finish;
                         } else {
                             bit_cnt += 1;
-                            state   =  State::Sample;
+                            if cpha == 0 {
+                                state = State::Sample;
+                            } else {
+                                state = State::Shift;
+                            }
                         }
                     } else {
                         div_cnt += 1;
@@ -180,4 +252,373 @@ pub module SpiMaster #(
     assign mosi = shift_reg[msb];
 
     assign rx_data = shift_reg;
+}
+
+// ==========================================================================
+// Verylネイティブテスト
+// ==========================================================================
+
+/// Mode 0ループバックテスト
+#[test(test_spi_mode0_loopback)]
+module test_spi_mode0_loopback {
+    // SPI共通型をimport
+    import spi_pkg::SpiMode;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    var start   : logic   ;
+    var tx_data : logic<8>;
+    var rx_data : logic<8>;
+    var busy    : logic   ;
+    var done    : logic   ;
+    var sclk_out: logic   ;
+    var mosi    : logic   ;
+    var miso    : logic   ; // ループバック用
+    var cs_n    : logic   ;
+
+    // MOSIをMISOにループバック接続
+    assign miso = mosi;
+
+    inst dut: SpiMaster::<SpiMode::Mode0> #(
+        DATA_WIDTH: 8 ,
+        CLK_DIV   : 20,
+    ) (
+        clk              ,
+        rst              ,
+        start            ,
+        tx_data          ,
+        rx_data          ,
+        busy             ,
+        done             ,
+        sclk   : sclk_out,
+        mosi             ,
+        miso             ,
+        cs_n             ,
+    );
+
+    initial {
+        start      = 0;
+        tx_data    = 8'hA5;
+        rst.assert();
+        clk.next  (10); // リセット解除後十分待機
+        start      = 1;
+        clk.next  (1);
+        start      = 0;
+        clk.next  (500); // 十分な時間待機
+        $assert   (busy == 0, "転送が完了していない");
+        $assert   (rx_data == 8'hA5, "ループバックデータ不一致");
+        $finish   ();
+    }
+}
+
+/// Mode 1ループバックテスト
+#[test(test_spi_mode1_loopback)]
+module test_spi_mode1_loopback {
+    // SPI共通型をimport
+    import spi_pkg::SpiMode;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    var start   : logic   ;
+    var tx_data : logic<8>;
+    var rx_data : logic<8>;
+    var busy    : logic   ;
+    var done    : logic   ;
+    var sclk_out: logic   ;
+    var mosi    : logic   ;
+    var miso    : logic   ; // ループバック用
+    var cs_n    : logic   ;
+
+    // MOSIをMISOにループバック接続
+    assign miso = mosi;
+
+    inst dut: SpiMaster::<SpiMode::Mode1> #(
+        DATA_WIDTH: 8 ,
+        CLK_DIV   : 20,
+    ) (
+        clk              ,
+        rst              ,
+        start            ,
+        tx_data          ,
+        rx_data          ,
+        busy             ,
+        done             ,
+        sclk   : sclk_out,
+        mosi             ,
+        miso             ,
+        cs_n             ,
+    );
+
+    initial {
+        start      = 0;
+        tx_data    = 8'hA5;
+        rst.assert();
+        clk.next  (10); // リセット解除後十分待機
+        start      = 1;
+        clk.next  (1);
+        start      = 0;
+        clk.next  (500); // 十分な時間待機
+        $assert   (busy == 0, "転送が完了していない");
+        $assert   (rx_data == 8'hA5, "ループバックデータ不一致");
+        $finish   ();
+    }
+}
+
+/// Mode 2ループバックテスト
+#[test(test_spi_mode2_loopback)]
+module test_spi_mode2_loopback {
+    // SPI共通型をimport
+    import spi_pkg::SpiMode;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    var start   : logic   ;
+    var tx_data : logic<8>;
+    var rx_data : logic<8>;
+    var busy    : logic   ;
+    var done    : logic   ;
+    var sclk_out: logic   ;
+    var mosi    : logic   ;
+    var miso    : logic   ; // ループバック用
+    var cs_n    : logic   ;
+
+    // MOSIをMISOにループバック接続
+    assign miso = mosi;
+
+    inst dut: SpiMaster::<SpiMode::Mode2> #(
+        DATA_WIDTH: 8 ,
+        CLK_DIV   : 20,
+    ) (
+        clk              ,
+        rst              ,
+        start            ,
+        tx_data          ,
+        rx_data          ,
+        busy             ,
+        done             ,
+        sclk   : sclk_out,
+        mosi             ,
+        miso             ,
+        cs_n             ,
+    );
+
+    initial {
+        start      = 0;
+        tx_data    = 8'hA5;
+        rst.assert();
+        clk.next  (10); // リセット解除後十分待機
+        start      = 1;
+        clk.next  (1);
+        start      = 0;
+        clk.next  (500); // 十分な時間待機
+        $assert   (busy == 0, "転送が完了していない");
+        $assert   (rx_data == 8'hA5, "ループバックデータ不一致");
+        $finish   ();
+    }
+}
+
+/// Mode 3ループバックテスト
+#[test(test_spi_mode3_loopback)]
+module test_spi_mode3_loopback {
+    // SPI共通型をimport
+    import spi_pkg::SpiMode;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    var start   : logic   ;
+    var tx_data : logic<8>;
+    var rx_data : logic<8>;
+    var busy    : logic   ;
+    var done    : logic   ;
+    var sclk_out: logic   ;
+    var mosi    : logic   ;
+    var miso    : logic   ; // ループバック用
+    var cs_n    : logic   ;
+
+    // MOSIをMISOにループバック接続
+    assign miso = mosi;
+
+    inst dut: SpiMaster::<SpiMode::Mode3> #(
+        DATA_WIDTH: 8 ,
+        CLK_DIV   : 20,
+    ) (
+        clk              ,
+        rst              ,
+        start            ,
+        tx_data          ,
+        rx_data          ,
+        busy             ,
+        done             ,
+        sclk   : sclk_out,
+        mosi             ,
+        miso             ,
+        cs_n             ,
+    );
+
+    initial {
+        start      = 0;
+        tx_data    = 8'hA5;
+        rst.assert();
+        clk.next  (10); // リセット解除後十分待機
+        start      = 1;
+        clk.next  (1);
+        start      = 0;
+        clk.next  (500); // 十分な時間待機
+        $assert   (busy == 0, "転送が完了していない");
+        $assert   (rx_data == 8'hA5, "ループバックデータ不一致");
+        $finish   ();
+    }
+}
+
+/// SCLKアイドル極性検証テスト
+#[test(test_spi_idle_polarity)]
+module test_spi_idle_polarity {
+    // SPI共通型をimport
+    import spi_pkg::SpiMode;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    var start         : logic   ;
+    var tx_data       : logic<8>;
+    var rx_data_mode0 : logic<8>;
+    var rx_data_mode2 : logic<8>;
+    var busy_mode0    : logic   ;
+    var busy_mode2    : logic   ;
+    var done_mode0    : logic   ;
+    var done_mode2    : logic   ;
+    var sclk_out_mode0: logic   ;
+    var sclk_out_mode2: logic   ;
+    var mosi_mode0    : logic   ;
+    var mosi_mode2    : logic   ;
+    var cs_n_mode0    : logic   ;
+    var cs_n_mode2    : logic   ;
+
+    inst dut_mode0: SpiMaster::<SpiMode::Mode0> #(
+        DATA_WIDTH: 8 ,
+        CLK_DIV   : 20,
+    ) (
+        clk                    ,
+        rst                    ,
+        start                  ,
+        tx_data                ,
+        rx_data: rx_data_mode0 ,
+        busy   : busy_mode0    ,
+        done   : done_mode0    ,
+        sclk   : sclk_out_mode0,
+        mosi   : mosi_mode0    ,
+        miso   : mosi_mode0    ,
+        cs_n   : cs_n_mode0    ,
+    );
+
+    inst dut_mode2: SpiMaster::<SpiMode::Mode2> #(
+        DATA_WIDTH: 8 ,
+        CLK_DIV   : 20,
+    ) (
+        clk                    ,
+        rst                    ,
+        start                  ,
+        tx_data                ,
+        rx_data: rx_data_mode2 ,
+        busy   : busy_mode2    ,
+        done   : done_mode2    ,
+        sclk   : sclk_out_mode2,
+        mosi   : mosi_mode2    ,
+        miso   : mosi_mode2    ,
+        cs_n   : cs_n_mode2    ,
+    );
+
+    initial {
+        start      = 0;
+        tx_data    = 0;
+        rst.assert();
+        clk.next  (5);
+        // Mode 0/1: SCLK idle Low
+        $assert(sclk_out_mode0 == 0, "Mode 0 SCLK idle should be Low");
+        // Mode 2/3: SCLK idle High
+        $assert(sclk_out_mode2 == 1, "Mode 2 SCLK idle should be High");
+        $finish();
+    }
+}
+
+/// 連続送信テスト
+#[test(test_spi_consecutive_transfer)]
+module test_spi_consecutive_transfer {
+    // SPI共通型をimport
+    import spi_pkg::SpiMode;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    var start   : logic   ;
+    var tx_data : logic<8>;
+    var rx_data : logic<8>;
+    var busy    : logic   ;
+    var done    : logic   ;
+    var sclk_out: logic   ;
+    var mosi    : logic   ;
+    var miso    : logic   ; // ループバック用
+    var cs_n    : logic   ;
+
+    // MOSIをMISOにループバック接続
+    assign miso = mosi;
+
+    inst dut: SpiMaster::<SpiMode::Mode0> #(
+        DATA_WIDTH: 8 ,
+        CLK_DIV   : 20,
+    ) (
+        clk              ,
+        rst              ,
+        start            ,
+        tx_data          ,
+        rx_data          ,
+        busy             ,
+        done             ,
+        sclk   : sclk_out,
+        mosi             ,
+        miso             ,
+        cs_n             ,
+    );
+
+    initial {
+        start      = 0;
+        rst.assert();
+        clk.next  (10);
+
+        // 1回目の送信
+        tx_data  = 8'hA5;
+        start    = 1;
+        clk.next(1);
+        start    = 0;
+        clk.next(500); // 十分な時間待機
+        $assert (busy == 0, "1回目の転送が完了していない");
+        $assert (rx_data == 8'hA5, "1回目のループバックデータ不一致");
+
+        // 2回目の送信
+        tx_data  = 8'h5A;
+        start    = 1;
+        clk.next(1);
+        start    = 0;
+        clk.next(500); // 十分な時間待機
+        $assert (busy == 0, "2回目の転送が完了していない");
+        $assert (rx_data == 8'h5A, "2回目のループバックデータ不一致");
+
+        $finish();
+    }
 }

@@ -1,0 +1,10 @@
+/// SPI共通型定義パッケージ
+package spi_pkg {
+    /// SPI Mode定義
+    enum SpiMode {
+        Mode0, // CPOL=0, CPHA=0
+        Mode1, // CPOL=0, CPHA=1
+        Mode2, // CPOL=1, CPHA=0
+        Mode3, // CPOL=1, CPHA=1
+    }
+}
