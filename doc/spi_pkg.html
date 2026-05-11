@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>groundless_veryl_cores</title>
+        <title>spi_pkg</title>
 
 
         <!-- Custom HTML head -->
@@ -175,188 +175,17 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="groundless_veryl_cores"><a class="header" href="#groundless_veryl_cores">groundless_veryl_cores</a></h1>
-<p>A collection of cores for Groundless, written in Veryl.</p>
-<table align="center" class="table_list">
-<tbody>
-<tr>
-    <th class="table_list_item">Version</th>
-    <td class="table_list_item">0.4.0</td>
-</tr>
-<tr>
-    <th class="table_list_item">Repository</th>
-    <td class="table_list_item"><a href="https://github.com/AkiyukiOkayasu/groundless_veryl_cores">https://github.com/AkiyukiOkayasu/groundless_veryl_cores</a></td>
-</tr>
-<tr>
-    <th class="table_list_item">License</th>
-    <td class="table_list_item">MIT or Apache-2.0</td>
-</tr>
-</tbody>
-</table>
-<h2 id="modules"><a class="header" href="#modules">Modules</a></h2>
-<hr />
-<table class="table_list">
-<tbody>
-<tr>
-    <th class="table_list_item"><a href="LpfShiftSigned.html">LpfShiftSigned</a></th>
-    <td class="table_list_item"> ビットシフトによる一次ローパスフィルタ (指数移動平均、符号付き版)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="LpfShiftUnsigned.html">LpfShiftUnsigned</a></th>
-    <td class="table_list_item"> ビットシフトによる一次ローパスフィルタ (符号なし版)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="LpfShiftVariableSigned.html">LpfShiftVariableSigned</a></th>
-    <td class="table_list_item"> 可変シフト量に対応したLPF (符号付き版)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="LpfShiftVariableUnsigned.html">LpfShiftVariableUnsigned</a></th>
-    <td class="table_list_item"> 可変シフト量に対応したLPF (符号なし版)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="MidiRx.html">MidiRx</a></th>
-    <td class="table_list_item"></td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="MultiWaveCore.html">MultiWaveCore</a></th>
-    <td class="table_list_item"> マルチ波形生成コアモジュール
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="MultiWaveOscillator.html">MultiWaveOscillator</a></th>
-    <td class="table_list_item"> 波形選択式オシレーター
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="Phasor.html">Phasor</a></th>
-    <td class="table_list_item"> 位相発生器
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="PwmSquareOscillator.html">PwmSquareOscillator</a></th>
-    <td class="table_list_item"> PWM変調可能な矩形波オシレーター
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SawOscillator.html">SawOscillator</a></th>
-    <td class="table_list_item"> ノコギリ波オシレーター
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SawWaveCore.html">SawWaveCore</a></th>
-    <td class="table_list_item"> ノコギリ波生成コアモジュール
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SineOscillator.html">SineOscillator</a></th>
-    <td class="table_list_item"> サイン波オシレーター (LUTのみ)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SineOscillatorLerp.html">SineOscillatorLerp</a></th>
-    <td class="table_list_item"> サイン波オシレーター (LUT + 線形補間)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SineRomQuarter.html">SineRomQuarter</a></th>
-    <td class="table_list_item"></td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SineRomQuarterDual.html">SineRomQuarterDual</a></th>
-    <td class="table_list_item"></td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SineWaveCore.html">SineWaveCore</a></th>
-    <td class="table_list_item"> サイン波生成コアモジュール (LUTのみ)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SineWaveLerpCore.html">SineWaveLerpCore</a></th>
-    <td class="table_list_item"> サイン波生成コアモジュール (LUT + 線形補間)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SpiMaster.html">SpiMaster::&lt;MODE&gt;</a></th>
-    <td class="table_list_item"> SPI Master モジュール
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="SquareWaveCore.html">SquareWaveCore</a></th>
-    <td class="table_list_item"> 矩形波生成コアモジュール
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="TriangleOscillator.html">TriangleOscillator</a></th>
-    <td class="table_list_item"> 三角波オシレーター
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="TriangleWaveCore.html">TriangleWaveCore</a></th>
-    <td class="table_list_item"> 三角波生成コアモジュール
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="UartRx.html">UartRx</a></th>
-    <td class="table_list_item"></td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="WhiteNoise.html">WhiteNoise</a></th>
-    <td class="table_list_item"> White Noise Generator (Xorshift32 Algorithm)
-</td>
-</tr>
-</tbody>
-</table>
-<h2 id="module-prototypes"><a class="header" href="#module-prototypes">Module Prototypes</a></h2>
-<hr />
-<table class="table_list">
-<tbody>
-</tbody>
-</table>
-<h2 id="interfaces"><a class="header" href="#interfaces">Interfaces</a></h2>
-<hr />
-<table class="table_list">
-<tbody>
-</tbody>
-</table>
-<h2 id="packages"><a class="header" href="#packages">Packages</a></h2>
-<hr />
-<table class="table_list">
-<tbody>
-<tr>
-    <th class="table_list_item"><a href="FixedPoint.html">FixedPoint</a></th>
-    <td class="table_list_item"> 固定小数点型と定数や変換関数
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="Phase.html">Phase</a></th>
-    <td class="table_list_item"> 位相発生器 (Phasor / Phase Accumulator)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="WaveTypes.html">WaveTypes</a></th>
-    <td class="table_list_item"> 波形タイプを定義するパッケージ
-</td>
-</tr>
-<tr>
-    <th class="table_list_item"><a href="spi_pkg.html">spi_pkg</a></th>
-    <td class="table_list_item"> SPI共通型定義パッケージ
-</td>
-</tr>
-</tbody>
-</table>
+                        <h2 id="spi_pkg"><a class="header" href="#spi_pkg">spi_pkg</a></h2>
+<p>SPI共通型定義パッケージ</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-
-                            <a rel="next prefetch" href="modules.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
+                            <a rel="prev" href="WaveTypes.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
                             </a>
+
 
                         <div style="clear: both"></div>
                     </nav>
@@ -364,10 +193,10 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-
-                    <a rel="next prefetch" href="modules.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
+                    <a rel="prev" href="WaveTypes.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
                     </a>
+
             </nav>
 
         </div>
