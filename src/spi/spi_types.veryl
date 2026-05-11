@@ -1,5 +1,5 @@
 /// SPI共通型定義パッケージ
-package spi_pkg {
+pub package spi_pkg {
     /// SPI Mode定義
     enum SpiMode {
         Mode0, // CPOL=0, CPHA=0
