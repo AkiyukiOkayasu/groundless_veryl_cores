@@ -12,10 +12,9 @@ Respond to the user in **Japanese**. Code comments (doc / impl) in Japanese. Ide
 ## CONVENTIONS
 
 - Delete dead code immediately
-- **Port naming**: Use `clk` for clock and `rst` (Veryl `reset` type) for system reset only.
-- Functional resets (phase reset, etc.) use `logic` type with semantic names like `phase_rst`.
-- For other ports, prefer semantic names without `i_`/`o_` when direction is obvious.
-- Use `i_`/`o_` only for short or ambiguous names, or to match external/std interfaces.
+- **Port naming**: Use bare semantic names only (e.g. `clk`, `rst`, `phase`, `data`, `valid`, `audio`). Do NOT use `i_`/`o_` prefixes or `_in`/`_out` suffixes — the `input`/`output` type already conveys direction.
+- System reset uses `rst` (Veryl `reset` type). Functional resets (phase reset, etc.) use `logic` type with semantic names like `phase_rst`.
+- Exception: std interface ports (e.g. `$std::synchronizer_basic`'s `i_clk`, `i_d`, `o_d`) use their library-defined names.
 - **Naming style**: File names are `snake_case`; public modules are `UpperCamelCase`; functions, locals, instances, and ports are `snake_case`; params and constants are `UPPER_SNAKE_CASE`; package names may use `PascalCase`.
 - **Reserved words**: If `reset` or `clock` names are necessary, escape as `r#reset` or `r#clock`.
 

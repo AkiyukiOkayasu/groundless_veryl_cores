@@ -4,14 +4,14 @@
 pub module SquareWaveCore (
     phase     : input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
     duty_cycle: input  Phase::phase_t   , /// デューティ比 位相のどこまで High にするか (0 ~ 2^32-1)
-    pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+    audio     : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     always_comb {
         // phase が しきい値(duty_cycle) より小さい間は High
         if phase <: duty_cycle {
-            pcm_out = FixedPoint::Q8_24_POS_ONE;
+            audio = FixedPoint::Q8_24_POS_ONE;
         } else {
-            pcm_out = FixedPoint::Q8_24_NEG_ONE;
+            audio = FixedPoint::Q8_24_NEG_ONE;
         }
     }
 }
@@ -23,7 +23,7 @@ pub module PwmSquareOscillator (
     phase_rst : input  logic            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
     duty_cycle: input  Phase::phase_t   , /// デューティ比 位相のどこまで High にするか (0 ~ 2^32-1)
-    pcm_out   : output FixedPoint::q8_24, /// 波形出力 (Q8.24形式)
+    audio     : output FixedPoint::q8_24, /// 波形出力 (Q8.24形式)
 ) {
     // 位相生成
     var phase: Phase::phase_t;
@@ -32,13 +32,13 @@ pub module PwmSquareOscillator (
         phase_rst    ,
         phase_step   ,
         phase        ,
-        eoc_out   : _,
+        eoc       : _,
     );
 
     // 矩形波生成
     inst core: SquareWaveCore (
         phase       ,
         duty_cycle  ,
-        pcm_out     ,
+        audio       ,
     );
 }

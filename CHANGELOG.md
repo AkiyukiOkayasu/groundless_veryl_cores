@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 全ポート名をbare（方向マーカーなし）に統一
+  - オシレータ出力: `pcm_out` → `audio`（全14モジュール）
+  - Phasor制御出力: `eoc_out` → `eoc`
+  - UartRx/MidiRx: `i_rx`/`o_data`/`o_valid` → `rx`/`data`/`valid`
+- `SineWaveCore` / `SineWaveLerpCore`内の内部`let audio`を`audio_q8`にリネーム（ポート名との衝突回避）
+- AGENTS.mdのポート命名規則をbare前提に更新
+
 ## [0.4.2] - 2026-05-19
 
 ### Added

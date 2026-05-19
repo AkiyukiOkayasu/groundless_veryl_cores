@@ -5,8 +5,8 @@
 pub module WhiteNoise #(
     param DIV: u16 = 200, /// クロック分周比
 ) (
-    clk    : input  clock            , /// クロック
-    pcm_out: output FixedPoint::q8_24, /// 波形出力 (Q8.24形式)
+    clk  : input  clock            , /// クロック
+    audio: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // Initial value (Seed) must be non-zero.
     // rng_stateが0の場合、Xorshift32アルゴリズムが停止してしまうため、初期値として非ゼロ値を設定する。
@@ -39,5 +39,5 @@ pub module WhiteNoise #(
         }
     }
 
-    assign pcm_out = FixedPoint::to_q8_24_from_q1_31($signed(rng_state)); // Q1.31 -> Q8.24
+    assign audio = FixedPoint::to_q8_24_from_q1_31($signed(rng_state)); // Q1.31 -> Q8.24
 }

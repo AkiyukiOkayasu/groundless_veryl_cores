@@ -2,8 +2,8 @@
 /// 位相入力から波形を生成する純粋な変換モジュール
 /// 全て組み合わせ回路で実装しているため遅延ゼロ
 pub module TriangleWaveCore (
-    phase  : input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
-    pcm_out: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+    phase: input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
+    audio: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 三角波シェイピング (Folding)
     var tri_wave: logic<32>;
@@ -24,7 +24,7 @@ pub module TriangleWaveCore (
         let unipolar_2_0: FixedPoint::q8_24 = $signed(tri_wave >> 6);
 
         // オフセット: 0.0～2.0 の範囲を -1.0～1.0 にずらす
-        pcm_out = unipolar_2_0 - FixedPoint::Q8_24_POS_ONE;
+        audio = unipolar_2_0 - FixedPoint::Q8_24_POS_ONE;
     }
 }
 
@@ -34,7 +34,7 @@ pub module TriangleOscillator (
     clk       : input  clock            , /// クロック
     phase_rst : input  logic            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
-    pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+    audio     : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成
     var phase: Phase::phase_t;
@@ -43,12 +43,12 @@ pub module TriangleOscillator (
         phase_rst    ,
         phase_step   ,
         phase        ,
-        eoc_out   : _,
+        eoc       : _,
     );
 
     // 三角波生成
     inst core: TriangleWaveCore (
-        phase    ,
-        pcm_out  ,
+        phase  ,
+        audio  ,
     );
 }

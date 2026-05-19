@@ -3,11 +3,11 @@ pub module UartRx #(
     param BAUD_RATE : u32 = 31250     ,
     param DATA_WIDTH: u8  = 8         ,
 ) (
-    clk    : input  clock            ,
-    rst    : input  reset            ,
-    i_rx   : input  logic            ,
-    o_data : output logic<DATA_WIDTH>,
-    o_valid: output logic            ,
+    clk  : input  clock            ,
+    rst  : input  reset            ,
+    rx   : input  logic            ,
+    data : output logic<DATA_WIDTH>,
+    valid: output logic            ,
 ) {
     const CYCLES_PER_BIT: u32 = CLK_FREQ / BAUD_RATE;
 
@@ -29,16 +29,16 @@ pub module UartRx #(
             clk_cnt = 0;
             bit_cnt = 0;
             rx_reg  = 0;
-            o_valid = 0;
-            o_data  = 0;
+            valid   = 0;
+            data    = 0;
         } else {
             // validは1クロックのみアサートする
-            o_valid = 0;
+            valid = 0;
 
             case state {
                 State::Idle: {
                     // Startビット(Low)を検出
-                    if !i_rx {
+                    if !rx {
                         state = State::Start;
                         // ビットの中央でサンプリングするため、サイクル数を半分に設定
                         // オフバイワン修正: カウンタはN→0でN+1サイクル待つため-1が必要
@@ -47,7 +47,7 @@ pub module UartRx #(
                 }
                 State::Start: {
                     if clk_cnt == 0 {
-                        if !i_rx {
+                        if !rx {
                             // スタートビット確認OK、データ受信開始
                             state   = State::Data;
                             clk_cnt = CYCLES_PER_BIT - 1;
@@ -63,7 +63,7 @@ pub module UartRx #(
                 State::Data: {
                     if clk_cnt == 0 {
                         // LSBファーストで受信データをシフトレジスタに格納
-                        rx_reg[bit_cnt] = i_rx;
+                        rx_reg[bit_cnt] = rx;
                         clk_cnt         = CYCLES_PER_BIT - 1;
 
                         if bit_cnt == DATA_WIDTH - 1 {
@@ -78,10 +78,10 @@ pub module UartRx #(
                 State::Stop: {
                     if clk_cnt == 0 {
                         state = State::Idle;
-                        if i_rx {
+                        if rx {
                             // 正常なストップビット、受信完了
-                            o_data  = rx_reg;
-                            o_valid = 1;
+                            data  = rx_reg;
+                            valid = 1;
                         }
                         // ストップビットがLowの場合はフレーミングエラー、o_validを出さない
                     } else {
@@ -112,11 +112,11 @@ module test_uart_rx {
         BAUD_RATE : 31250     ,
         DATA_WIDTH: 8         ,
     ) (
-        clk           ,
-        rst           ,
-        i_rx   : rx   ,
-        o_data : data ,
-        o_valid: valid,
+        clk         ,
+        rst         ,
+        rx   : rx   ,
+        data : data ,
+        valid: valid,
     );
 
     // valid パルスをラッチ: valid==1 のクロックが来たら valid_seen を 1 にする

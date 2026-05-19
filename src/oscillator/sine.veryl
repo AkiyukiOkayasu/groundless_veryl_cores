@@ -3,9 +3,9 @@
 /// 第一象限(0~90度)の波形データ10bit分をROMに持っているので、実質的な分解能は12bit相当
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineWaveCore (
-    clk    : input  clock            , /// クロック
-    phase  : input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
-    pcm_out: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+    clk  : input  clock            , /// クロック
+    phase: input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
+    audio: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // ----------------------------------------------------
     // 象限判定とアドレス計算
@@ -51,15 +51,15 @@ pub module SineWaveCore (
     }
 
     always_comb {
-        let s    : FixedPoint::q1_31 = $signed({1'b0, rom_data}); // Q1.31形式に変換
-        let audio: FixedPoint::q8_24 = FixedPoint::to_q8_24_from_q1_31(s); // Q8.24形式にスケール
+        let s       : FixedPoint::q1_31 = $signed({1'b0, rom_data}); // Q1.31形式に変換
+        let audio_q8: FixedPoint::q8_24 = FixedPoint::to_q8_24_from_q1_31(s); // Q8.24形式にスケール
 
         // 第3・第4象限はマイナス側
         // 遅延させた象限情報を使って符号反転
         if quadrant_d[1] {
-            pcm_out = -audio;
+            audio = -audio_q8;
         } else {
-            pcm_out = audio;
+            audio = audio_q8;
         }
     }
 }
@@ -69,9 +69,9 @@ pub module SineWaveCore (
 /// 実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineWaveLerpCore (
-    clk    : input  clock            , /// クロック
-    phase  : input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
-    pcm_out: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+    clk  : input  clock            , /// クロック
+    phase: input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
+    audio: output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // ----------------------------------------------------
     // 象限判定と「三角波状」位相への変換
@@ -158,15 +158,15 @@ pub module SineWaveLerpCore (
     }
 
     always_comb {
-        let s    : FixedPoint::q1_31 = $signed({1'b0, interp_res}); // Q1.31形式に変換
-        let audio: FixedPoint::q8_24 = FixedPoint::to_q8_24_from_q1_31(s); // Q8.24形式にスケール
+        let s       : FixedPoint::q1_31 = $signed({1'b0, interp_res}); // Q1.31形式に変換
+        let audio_q8: FixedPoint::q8_24 = FixedPoint::to_q8_24_from_q1_31(s); // Q8.24形式にスケール
 
         // 第3・第4象限はマイナス側
         // 遅延させた象限情報を使って符号反転
         if quadrant_d[1] {
-            pcm_out = -audio;
+            audio = -audio_q8;
         } else {
-            pcm_out = audio;
+            audio = audio_q8;
         }
     }
 }
@@ -179,7 +179,7 @@ pub module SineOscillator (
     clk       : input  clock            , /// クロック
     phase_rst : input  logic            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
-    pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+    audio     : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成 (Phase Accumulator)
     var phase: Phase::phase_t;
@@ -188,14 +188,14 @@ pub module SineOscillator (
         phase_rst    ,
         phase_step   ,
         phase        ,
-        eoc_out   : _,
+        eoc       : _,
     );
 
     // サイン波生成
     inst core: SineWaveCore (
-        clk      ,
-        phase    ,
-        pcm_out  ,
+        clk    ,
+        phase  ,
+        audio  ,
     );
 }
 
@@ -206,7 +206,7 @@ pub module SineOscillatorLerp (
     clk       : input  clock            , /// クロック
     phase_rst : input  logic            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
-    pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
+    audio     : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成
     var phase: Phase::phase_t;
@@ -215,13 +215,13 @@ pub module SineOscillatorLerp (
         phase_rst    ,
         phase_step   ,
         phase        ,
-        eoc_out   : _,
+        eoc       : _,
     );
 
     // サイン波生成 (線形補間付き)
     inst core: SineWaveLerpCore (
-        clk      ,
-        phase    ,
-        pcm_out  ,
+        clk    ,
+        phase  ,
+        audio  ,
     );
 }

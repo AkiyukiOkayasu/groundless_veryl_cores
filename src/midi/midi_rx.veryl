@@ -1,11 +1,11 @@
 pub module MidiRx #(
     param CLK_FREQ: u32 = 50_000_000,
 ) (
-    clk    : input  clock   ,
-    rst    : input  reset   ,
-    i_rx   : input  logic   , // MIDI入力信号 (非同期)
-    o_data : output logic<8>, // MIDI data byte
-    o_valid: output logic   , // MIDIデータ受信完了フラグ (1クロックパルス)
+    clk  : input  clock   ,
+    rst  : input  reset   ,
+    rx   : input  logic   , // MIDI入力信号 (非同期)
+    data : output logic<8>, // MIDI data byte
+    valid: output logic   , // MIDIデータ受信完了フラグ (1クロックパルス)
 ) {
     var rx_synced: logic;
 
@@ -17,7 +17,7 @@ pub module MidiRx #(
     ) (
         i_clk: clk      ,
         i_rst: rst      ,
-        i_d  : i_rx     ,
+        i_d  : rx       ,
         o_d  : rx_synced,
     );
 
@@ -27,11 +27,11 @@ pub module MidiRx #(
         BAUD_RATE : 31250   ,
         DATA_WIDTH: 8       ,
     ) (
-        clk               ,
-        rst               ,
-        i_rx   : rx_synced,
-        o_data            ,
-        o_valid           ,
+        clk             ,
+        rst             ,
+        rx   : rx_synced,
+        data            ,
+        valid           ,
     );
 }
 
@@ -56,11 +56,11 @@ module test_midi_rx {
     inst dut: MidiRx #(
         CLK_FREQ: 50_000_000,
     ) (
-        clk           ,
-        rst           ,
-        i_rx   : rx   ,
-        o_data : data ,
-        o_valid: valid,
+        clk         ,
+        rst         ,
+        rx   : rx   ,
+        data : data ,
+        valid: valid,
     );
 
     // valid パルスをラッチ: valid==1 のクロックが来たら valid_seen を 1 にする

@@ -23,7 +23,7 @@ pub module MultiWaveCore (
     phase     : input  Phase::phase_t     , /// 位相入力 (0 ~ 2^32-1)
     wave_type : input  WaveTypes::WaveType, /// 波形タイプ選択
     duty_cycle: input  Phase::phase_t     , /// PWMデューティ比 (Pwm以外では無視)
-    pcm_out   : output FixedPoint::q8_24  , /// 出力波形 (Q8.24形式)
+    audio     : output FixedPoint::q8_24  , /// 出力波形 (Q8.24形式)
 ) {
     // 各波形コアの出力
     var sine_out    : FixedPoint::q8_24;
@@ -33,28 +33,28 @@ pub module MultiWaveCore (
 
     // サイン波コア (線形補間、1クロック遅延あり)
     inst sine_core: SineWaveLerpCore (
-        clk              ,
-        phase            ,
-        pcm_out: sine_out,
+        clk            ,
+        phase          ,
+        audio: sine_out,
     );
 
     // 三角波コア (組み合わせ回路、遅延なし)
     inst triangle_core: TriangleWaveCore (
-        phase                ,
-        pcm_out: triangle_out,
+        phase              ,
+        audio: triangle_out,
     );
 
     // ノコギリ波コア (組み合わせ回路、遅延なし)
     inst saw_core: SawWaveCore (
-        phase           ,
-        pcm_out: saw_out,
+        phase         ,
+        audio: saw_out,
     );
 
     // 矩形波コア (組み合わせ回路、遅延なし)
     inst square_core: SquareWaveCore (
-        phase                 ,
-        duty_cycle            ,
-        pcm_out   : square_out,
+        phase               ,
+        duty_cycle          ,
+        audio   : square_out,
     );
 
     // 波形選択用レジスタ (1クロック遅延でサイン波とタイミング整合)
@@ -73,11 +73,11 @@ pub module MultiWaveCore (
     // 波形選択マルチプレクサ
     always_comb {
         case wave_type_d {
-            WaveTypes::WaveType::Sine    : pcm_out = sine_out;
-            WaveTypes::WaveType::Triangle: pcm_out = triangle_out_d;
-            WaveTypes::WaveType::Saw     : pcm_out = saw_out_d;
-            WaveTypes::WaveType::Pwm     : pcm_out = square_out_d;
-            default                      : pcm_out = sine_out;
+            WaveTypes::WaveType::Sine    : audio = sine_out;
+            WaveTypes::WaveType::Triangle: audio = triangle_out_d;
+            WaveTypes::WaveType::Saw     : audio = saw_out_d;
+            WaveTypes::WaveType::Pwm     : audio = square_out_d;
+            default                      : audio = sine_out;
         }
     }
 }
@@ -93,7 +93,7 @@ pub module MultiWaveOscillator (
     phase_step: input  Phase::step_t      , /// 1クロックあたりの位相ステップ量
     wave_type : input  WaveTypes::WaveType, /// 波形タイプ選択
     duty_cycle: input  Phase::phase_t     , /// PWMデューティ比 (Pwm以外では無視)
-    pcm_out   : output FixedPoint::q8_24  , /// 出力波形 (Q8.24形式)
+    audio     : output FixedPoint::q8_24  , /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成 (共通Phasor)
     var phase: Phase::phase_t;
@@ -102,7 +102,7 @@ pub module MultiWaveOscillator (
         phase_rst    ,
         phase_step   ,
         phase        ,
-        eoc_out   : _,
+        eoc       : _,
     );
 
     // マルチ波形生成コア
@@ -111,6 +111,6 @@ pub module MultiWaveOscillator (
         phase       ,
         wave_type   ,
         duty_cycle  ,
-        pcm_out     ,
+        audio       ,
     );
 }
