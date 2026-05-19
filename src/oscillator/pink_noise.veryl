@@ -1,0 +1,75 @@
+/// ピンクノイズジェネレーター (Voss-McCartney Algorithm + Xorshift32)
+///
+/// 1/f特性を持つピンクノイズを生成する
+/// 単一のXorshift32 RNGがフリーランし、
+/// サンプルカウンタの各ビット立ち上がりでラッチされることで1/fスペクトルを形成する
+///
+/// 24段構成:
+///   行kは2^kサンプルごとに更新される
+///   最低更新レート = sample_rate / 2^24
+///   50MHz/200分周(250kHz)前提で約0.015Hz = サブオーディオ帯域まで余裕を持ってカバー
+///
+/// 出力スケーリング:
+///   24行のQ1.31和 → ÷8(>>3) → Q8.24変換(>>>7) = 合計>>>10
+///   RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)
+pub module PinkNoise #(
+    param DIV: u16 = 200, /// クロック分周比
+) (
+    clk    : input  clock            , /// クロック
+    pcm_out: output FixedPoint::q8_24, /// 波形出力 (Q8.24形式)
+) {
+    const INIT_SEED: u32 = 32'h2463_5345;
+
+    var rng_state: logic<32>;
+
+    // クロック分周カウンター
+    var cnt: u16;
+
+    // サンプルカウンタと前回値（Voss-McCartneyエッジ検出用）
+    var sample_cnt     : logic<24>;
+    var prev_sample_cnt: logic<24>;
+
+    // 各行のラッチ値 [24]
+    var rows: logic<32> [24];
+
+    always_ff {
+        if cnt == DIV - 1 {
+            cnt = 0;
+
+            // Xorshift32 フリーラン
+            var next     : logic<32>;
+            next      =  if (rng_state == 0) ? INIT_SEED : rng_state;
+            next      ^= (next << 13);
+            next      ^= (next >> 17);
+            next      ^= (next << 5);
+            rng_state =  next;
+
+            // サンプルカウンタ更新
+            prev_sample_cnt =  sample_cnt;
+            sample_cnt      += 1;
+
+            // Voss-McCartney: 各行の更新トリガー検出とラッチ
+            // sample_cnt[k] が 0→1 に立ち上がったら行kを更新
+            // 行kは 2^k サンプルごとに更新される
+            for k in 0..24 {
+                if !prev_sample_cnt[k] && sample_cnt[k] {
+                    rows[k] = rng_state;
+                }
+            }
+        } else {
+            cnt += 1;
+        }
+    }
+
+    // 全行の加算とスケーリング
+    // 24行のQ1.31和 → ÷8(>>3) → Q8.24変換(>>>7) = 合計>>>10
+    var sum: signed logic<37>;
+
+    always_comb {
+        sum = 0;
+        for k in 0..24 {
+            sum = sum + $signed(rows[k]);
+        }
+        pcm_out = (sum >>> 10) as FixedPoint::q8_24;
+    }
+}
