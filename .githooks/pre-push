@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Pre-push hook: versionタグをpushする際にCHANGELOG.mdの更新を強制する
+
+while read local_ref local_sha remote_ref remote_sha; do
+    # 削除pushはスキップ
+    case "$local_sha" in
+        0000*) continue ;;
+    esac
+
+    case "$remote_ref" in
+        refs/tags/v*)
+            version="${remote_ref#refs/tags/v}"
+            if ! grep -q "^## \\[$version\\]" CHANGELOG.md 2>/dev/null; then
+                echo "ERROR: CHANGELOG.md にバージョン $version のセクションがありません。"
+                echo "先に CHANGELOG.md を更新してください ([Unreleased] を [$version] に書き換え)。"
+                exit 1
+            fi
+            ;;
+    esac
+done
+
+exit 0

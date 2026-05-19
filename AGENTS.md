@@ -12,7 +12,8 @@ Respond to the user in **Japanese**. Code comments (doc / impl) in Japanese. Ide
 ## CONVENTIONS
 
 - Delete dead code immediately
-- **Port naming**: Use `clk` for clock and `rst` for reset ports.
+- **Port naming**: Use `clk` for clock and `rst` (Veryl `reset` type) for system reset only.
+- Functional resets (phase reset, etc.) use `logic` type with semantic names like `phase_rst`.
 - For other ports, prefer semantic names without `i_`/`o_` when direction is obvious.
 - Use `i_`/`o_` only for short or ambiguous names, or to match external/std interfaces.
 - **Naming style**: File names are `snake_case`; public modules are `UpperCamelCase`; functions, locals, instances, and ports are `snake_case`; params and constants are `UPPER_SNAKE_CASE`; package names may use `PascalCase`.
@@ -26,9 +27,13 @@ Respond to the user in **Japanese**. Code comments (doc / impl) in Japanese. Ide
 
 ## COMMANDS
 
+- Always update CHANGELOG.md when changes are made (add entries under `[Unreleased]`)
+- When tagging a release, move `[Unreleased]` entries into new version section matching the tag
+
 ```bash
 veryl fmt # format code
 veryl check
 veryl build
 veryl test # simulation and tests
 ```
+- Run `git config core.hooksPath .githooks` after clone to enable pre-push CHANGELOG enforcement
