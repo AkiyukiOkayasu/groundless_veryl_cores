@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "formatter": {
+    "veryl": {
+      "command": ["veryl", "fmt"],
+      "extensions": [".veryl"]
+    }
+  },
+  "command": {
+    "verify-rtl": {
+      "template": "RTL検証ワークフローを実行してください:\n1. `veryl fmt` でフォーマット\n2. `veryl check` でチェック\n3. `veryl test` でテスト\n4. CHANGELOG.md の [Unreleased] に変更内容を追記\n\nいずれかのステップが失敗したら、原因を修正して再実行してください。",
+      "description": "RTL検証: veryl fmt/check/test + CHANGELOG更新"
+    },
+    "changelog": {
+      "template": "CHANGELOG.md の [Unreleased] セクションに直近の変更を追記してください。既存エントリと重複しないよう注意してください。",
+      "description": "CHANGELOG更新"
+    }
+  }
+}

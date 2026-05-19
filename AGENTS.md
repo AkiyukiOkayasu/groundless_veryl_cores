@@ -24,16 +24,16 @@ Respond to the user in **Japanese**. Code comments (doc / impl) in Japanese. Ide
 - Do not edit vendored stdlib under `dependencies/` directly; regenerate upstream.
 - Do not re-implement basic functions (Synchronizer, EdgeDetector, FIFO, etc.) that are available in [Veryl std](https://github.com/veryl-lang/veryl/tree/master/crates/std/veryl/src).
 
-## COMMANDS
+## MANDATORY: RTL編集後の検証パイプライン
 
-- Always update CHANGELOG.md when changes are made (add entries under `[Unreleased]`)
+`.veryl`ファイルを編集した後は、**必ず**以下を順番に実行すること:
+1. `veryl fmt` → 2. `veryl check` → 3. `veryl test` → 4. CHANGELOG.mdの`[Unreleased]`に追記
+- 失敗したら修正して再実行
+- 複数ファイル編集時は全編集完了後に1回だけ実行
+- RTL以外のみの編集はパイプライン不要
+
+## OTHER COMMANDS
+
 - When tagging a release, update `version` in Veryl.toml and move `[Unreleased]` entries into new version section matching the tag
-
-```bash
-veryl fmt # format code
-veryl check
-veryl build
-veryl test # simulation and tests
-veryl publish # publish to registry (required for dependencies to fetch)
-```
+- `veryl build` / `veryl publish`
 - Run `git config core.hooksPath .githooks` after clone to enable pre-push CHANGELOG enforcement

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `.githooks/pre-commit`を追加 — .veryl ファイルの staged 変更時に `veryl fmt` → `veryl check` → `veryl test` を自動実行
+
 ### Changed
 
 - 全ポート名をbare（方向マーカーなし）に統一
