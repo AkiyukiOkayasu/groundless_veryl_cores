@@ -28,12 +28,13 @@ Respond to the user in **Japanese**. Code comments (doc / impl) in Japanese. Ide
 ## COMMANDS
 
 - Always update CHANGELOG.md when changes are made (add entries under `[Unreleased]`)
-- When tagging a release, move `[Unreleased]` entries into new version section matching the tag
+- When tagging a release, update `version` in Veryl.toml and move `[Unreleased]` entries into new version section matching the tag
 
 ```bash
 veryl fmt # format code
 veryl check
 veryl build
 veryl test # simulation and tests
+veryl publish # publish to registry (required for dependencies to fetch)
 ```
 - Run `git config core.hooksPath .githooks` after clone to enable pre-push CHANGELOG enforcement
