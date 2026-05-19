@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-05-19
+
 ### Added
 
 - `Phasor`に`eoc_out`（End Of Cycle）パルス出力を追加
