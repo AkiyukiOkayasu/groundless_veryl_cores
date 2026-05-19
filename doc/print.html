@@ -182,7 +182,7 @@
 <tbody>
 <tr>
     <th class="table_list_item">Version</th>
-    <td class="table_list_item">0.4.0</td>
+    <td class="table_list_item">0.5.0</td>
 </tr>
 <tr>
     <th class="table_list_item">Repository</th>
@@ -235,6 +235,11 @@
 <tr>
     <th class="table_list_item"><a href="Phasor.html">Phasor</a></th>
     <td class="table_list_item"> 位相発生器
+</td>
+</tr>
+<tr>
+    <th class="table_list_item"><a href="PinkNoise.html">PinkNoise</a></th>
+    <td class="table_list_item"> ピンクノイズジェネレーター (Voss-McCartney Algorithm + Xorshift32)
 </td>
 </tr>
 <tr>
@@ -390,6 +395,11 @@
 <tr>
     <th class="table_list_item"><a href="Phasor.html">Phasor</a></th>
     <td class="table_list_item"> 位相発生器
+</td>
+</tr>
+<tr>
+    <th class="table_list_item"><a href="PinkNoise.html">PinkNoise</a></th>
+    <td class="table_list_item"> ピンクノイズジェネレーター (Voss-McCartney Algorithm + Xorshift32)
 </td>
 </tr>
 <tr>
@@ -789,19 +799,19 @@ y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
     <td class="table_list_item"></td>
 </tr>
 <tr>
-    <th class="table_list_item">i_rx</th>
+    <th class="table_list_item">rx</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">logic</span></td>
     <td class="table_list_item"></td>
 </tr>
 <tr>
-    <th class="table_list_item">o_data</th>
+    <th class="table_list_item">data</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">logic<8></span></td>
     <td class="table_list_item"></td>
 </tr>
 <tr>
-    <th class="table_list_item">o_valid</th>
+    <th class="table_list_item">valid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">logic</span></td>
     <td class="table_list_item"></td>
@@ -847,7 +857,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 出力波形 (Q8.24形式)
@@ -873,10 +883,10 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">rst</th>
+    <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"> リセット 位相ゼロリセット
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
 <tr>
@@ -901,7 +911,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 出力波形 (Q8.24形式)
@@ -925,10 +935,10 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">rst</th>
+    <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"> 位相ゼロリセット
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
 <tr>
@@ -945,11 +955,39 @@ Sineは線形補間付きLUT、他は組み合わせ回路
     <td class="table_list_item"> 位相出力 (0 ~ 2^32-1)
 </td>
 </tr>
+<tr>
+    <th class="table_list_item">eoc</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> 1周期完了パルス (End Of Cycle): 位相がラップアラウンドしたサイクルで1クロックだけHigh
+</td>
+</tr>
 </tbody>
 </table>
-<div style="break-before: page; page-break-before: always;"></div><h2 id="pwmsquareoscillator"><a class="header" href="#pwmsquareoscillator">PwmSquareOscillator</a></h2>
-<p>PWM変調可能な矩形波オシレーター
-全て組み合わせ回路で実装しているため遅延ゼロ</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="pinknoise"><a class="header" href="#pinknoise">PinkNoise</a></h2>
+<p>ピンクノイズジェネレーター (Voss-McCartney Algorithm + Xorshift32)</p>
+<p>1/f特性を持つピンクノイズを生成する
+単一のXorshift32 RNGがフリーランし、
+サンプルカウンタの各ビット立ち上がりでラッチされることで1/fスペクトルを形成する</p>
+<p>24段構成:
+行kは2^kサンプルごとに更新される
+最低更新レート = sample_rate / 2^24
+50MHz/200分周(250kHz)前提で約0.015Hz = サブオーディオ帯域まで余裕を持ってカバー</p>
+<p>出力スケーリング:
+24行のQ1.31和 → ÷8(&gt;&gt;3) → Q8.24変換(&gt;&gt;&gt;7) = 合計&gt;&gt;&gt;10
+RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
+<h3 id="parameters-5"><a class="header" href="#parameters-5">Parameters</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">DIV</th>
+    <td class="table_list_item"><span class="hljs-type">u16</span></td>
+    <td class="table_list_item"> クロック分周比
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ports-8"><a class="header" href="#ports-8">Ports</a></h3>
 <hr />
 <table class="table_list">
@@ -962,10 +1000,33 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">rst</th>
+    <th class="table_list_item">audio</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
+    <td class="table_list_item"> 出力波形 (Q8.24形式)
+</td>
+</tr>
+</tbody>
+</table>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="pwmsquareoscillator"><a class="header" href="#pwmsquareoscillator">PwmSquareOscillator</a></h2>
+<p>PWM変調可能な矩形波オシレーター
+全て組み合わせ回路で実装しているため遅延ゼロ</p>
+<h3 id="ports-9"><a class="header" href="#ports-9">Ports</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">clk</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"> リセット 位相ゼロリセット
+    <td class="table_list_item"><span class="hljs-type">clock</span></td>
+    <td class="table_list_item"> クロック
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">phase_rst</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
 <tr>
@@ -983,7 +1044,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 波形出力 (Q8.24形式)
@@ -994,7 +1055,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 <div style="break-before: page; page-break-before: always;"></div><h2 id="sawoscillator"><a class="header" href="#sawoscillator">SawOscillator</a></h2>
 <p>ノコギリ波オシレーター
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-9"><a class="header" href="#ports-9">Ports</a></h3>
+<h3 id="ports-10"><a class="header" href="#ports-10">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1006,10 +1067,10 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">rst</th>
+    <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"> リセット 位相ゼロリセット
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
 <tr>
@@ -1020,7 +1081,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 出力波形 (Q8.24形式)
@@ -1032,7 +1093,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 <p>ノコギリ波生成コアモジュール
 位相入力から波形を生成する純粋な変換モジュール
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-10"><a class="header" href="#ports-10">Ports</a></h3>
+<h3 id="ports-11"><a class="header" href="#ports-11">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1044,7 +1105,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 出力波形 (Q8.24形式)
@@ -1056,44 +1117,6 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 <p>サイン波オシレーター (LUTのみ)
 テーブル引きのサイン波
 第一象限(0~90度)の波形データ10bit分をROMに持っているので、実質的な分解能は12bit相当
-レイテンシー: 1クロック (BRAM読み出し分)</p>
-<h3 id="ports-11"><a class="header" href="#ports-11">Ports</a></h3>
-<hr />
-<table class="table_list">
-<tbody>
-<tr>
-    <th class="table_list_item">clk</th>
-    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">clock</span></td>
-    <td class="table_list_item"> クロック
-</td>
-</tr>
-<tr>
-    <th class="table_list_item">rst</th>
-    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"> リセット 位相ゼロリセット
-</td>
-</tr>
-<tr>
-    <th class="table_list_item">phase_step</th>
-    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">Phase step_t</span></td>
-    <td class="table_list_item"> 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
-</td>
-</tr>
-<tr>
-    <th class="table_list_item">pcm_out</th>
-    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
-    <td class="table_list_item"> 出力波形 (Q8.24形式)
-</td>
-</tr>
-</tbody>
-</table>
-<div style="break-before: page; page-break-before: always;"></div><h2 id="sineoscillatorlerp"><a class="header" href="#sineoscillatorlerp">SineOscillatorLerp</a></h2>
-<p>サイン波オシレーター (LUT + 線形補間)
-実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
 レイテンシー: 1クロック (BRAM読み出し分)</p>
 <h3 id="ports-12"><a class="header" href="#ports-12">Ports</a></h3>
 <hr />
@@ -1107,10 +1130,10 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">rst</th>
+    <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"> リセット 位相ゼロリセット
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
 <tr>
@@ -1121,7 +1144,45 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
+    <td class="table_list_item"> 出力波形 (Q8.24形式)
+</td>
+</tr>
+</tbody>
+</table>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="sineoscillatorlerp"><a class="header" href="#sineoscillatorlerp">SineOscillatorLerp</a></h2>
+<p>サイン波オシレーター (LUT + 線形補間)
+実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
+レイテンシー: 1クロック (BRAM読み出し分)</p>
+<h3 id="ports-13"><a class="header" href="#ports-13">Ports</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">clk</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">clock</span></td>
+    <td class="table_list_item"> クロック
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">phase_rst</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> 位相ゼロリセット (同期)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">phase_step</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">Phase step_t</span></td>
+    <td class="table_list_item"> 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 出力波形 (Q8.24形式)
@@ -1130,7 +1191,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </tbody>
 </table>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="sineromquarter"><a class="header" href="#sineromquarter">SineRomQuarter</a></h2>
-<h3 id="ports-13"><a class="header" href="#ports-13">Ports</a></h3>
+<h3 id="ports-14"><a class="header" href="#ports-14">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1158,7 +1219,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </tbody>
 </table>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="sineromquarterdual"><a class="header" href="#sineromquarterdual">SineRomQuarterDual</a></h2>
-<h3 id="ports-14"><a class="header" href="#ports-14">Ports</a></h3>
+<h3 id="ports-15"><a class="header" href="#ports-15">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1204,38 +1265,6 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 位相入力から波形を生成する純粋な変換モジュール
 第一象限(0~90度)の波形データ10bit分をROMに持っているので、実質的な分解能は12bit相当
 レイテンシー: 1クロック (BRAM読み出し分)</p>
-<h3 id="ports-15"><a class="header" href="#ports-15">Ports</a></h3>
-<hr />
-<table class="table_list">
-<tbody>
-<tr>
-    <th class="table_list_item">clk</th>
-    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">clock</span></td>
-    <td class="table_list_item"> クロック
-</td>
-</tr>
-<tr>
-    <th class="table_list_item">phase</th>
-    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">Phase phase_t</span></td>
-    <td class="table_list_item"> 位相入力 (0 ~ 2^32-1)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item">pcm_out</th>
-    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
-    <td class="table_list_item"> 出力波形 (Q8.24形式)
-</td>
-</tr>
-</tbody>
-</table>
-<div style="break-before: page; page-break-before: always;"></div><h2 id="sinewavelerpcore"><a class="header" href="#sinewavelerpcore">SineWaveLerpCore</a></h2>
-<p>サイン波生成コアモジュール (LUT + 線形補間)
-位相入力から波形を生成する純粋な変換モジュール
-実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
-レイテンシー: 1クロック (BRAM読み出し分)</p>
 <h3 id="ports-16"><a class="header" href="#ports-16">Ports</a></h3>
 <hr />
 <table class="table_list">
@@ -1255,7 +1284,39 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
+    <td class="table_list_item"> 出力波形 (Q8.24形式)
+</td>
+</tr>
+</tbody>
+</table>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="sinewavelerpcore"><a class="header" href="#sinewavelerpcore">SineWaveLerpCore</a></h2>
+<p>サイン波生成コアモジュール (LUT + 線形補間)
+位相入力から波形を生成する純粋な変換モジュール
+実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
+レイテンシー: 1クロック (BRAM読み出し分)</p>
+<h3 id="ports-17"><a class="header" href="#ports-17">Ports</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">clk</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">clock</span></td>
+    <td class="table_list_item"> クロック
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">phase</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">Phase phase_t</span></td>
+    <td class="table_list_item"> 位相入力 (0 ~ 2^32-1)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 出力波形 (Q8.24形式)
@@ -1276,7 +1337,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </tr>
 </tbody>
 </table>
-<h3 id="parameters-5"><a class="header" href="#parameters-5">Parameters</a></h3>
+<h3 id="parameters-6"><a class="header" href="#parameters-6">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1294,7 +1355,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </tr>
 </tbody>
 </table>
-<h3 id="ports-17"><a class="header" href="#ports-17">Ports</a></h3>
+<h3 id="ports-18"><a class="header" href="#ports-18">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1381,7 +1442,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <p>矩形波生成コアモジュール
 位相入力から波形を生成する純粋な変換モジュール
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-18"><a class="header" href="#ports-18">Ports</a></h3>
+<h3 id="ports-19"><a class="header" href="#ports-19">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1400,7 +1461,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 出力波形 (Q8.24形式)
@@ -1411,7 +1472,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="triangleoscillator"><a class="header" href="#triangleoscillator">TriangleOscillator</a></h2>
 <p>三角波オシレーター
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-19"><a class="header" href="#ports-19">Ports</a></h3>
+<h3 id="ports-20"><a class="header" href="#ports-20">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1423,10 +1484,10 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">rst</th>
+    <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">reset</span></td>
-    <td class="table_list_item"> リセット 位相ゼロリセット
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
 <tr>
@@ -1437,7 +1498,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 出力波形 (Q8.24形式)
@@ -1449,7 +1510,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <p>三角波生成コアモジュール
 位相入力から波形を生成する純粋な変換モジュール
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-20"><a class="header" href="#ports-20">Ports</a></h3>
+<h3 id="ports-21"><a class="header" href="#ports-21">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1461,7 +1522,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
     <td class="table_list_item"> 出力波形 (Q8.24形式)
@@ -1470,7 +1531,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </tbody>
 </table>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="uartrx"><a class="header" href="#uartrx">UartRx</a></h2>
-<h3 id="parameters-6"><a class="header" href="#parameters-6">Parameters</a></h3>
+<h3 id="parameters-7"><a class="header" href="#parameters-7">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1491,7 +1552,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </tr>
 </tbody>
 </table>
-<h3 id="ports-21"><a class="header" href="#ports-21">Ports</a></h3>
+<h3 id="ports-22"><a class="header" href="#ports-22">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1508,19 +1569,19 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
     <td class="table_list_item"></td>
 </tr>
 <tr>
-    <th class="table_list_item">i_rx</th>
+    <th class="table_list_item">rx</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
     <td class="table_list_item"><span class="hljs-type">logic</span></td>
     <td class="table_list_item"></td>
 </tr>
 <tr>
-    <th class="table_list_item">o_data</th>
+    <th class="table_list_item">data</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
     <td class="table_list_item"></td>
 </tr>
 <tr>
-    <th class="table_list_item">o_valid</th>
+    <th class="table_list_item">valid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">logic</span></td>
     <td class="table_list_item"></td>
@@ -1531,7 +1592,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <p>White Noise Generator (Xorshift32 Algorithm)</p>
 <p>Generates high-quality pseudo-random numbers suitable for audio noise.
 No reset signal required. Initializes with a non-zero seed on power-up.</p>
-<h3 id="parameters-7"><a class="header" href="#parameters-7">Parameters</a></h3>
+<h3 id="parameters-8"><a class="header" href="#parameters-8">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1543,7 +1604,7 @@ No reset signal required. Initializes with a non-zero seed on power-up.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="ports-22"><a class="header" href="#ports-22">Ports</a></h3>
+<h3 id="ports-23"><a class="header" href="#ports-23">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1555,10 +1616,10 @@ No reset signal required. Initializes with a non-zero seed on power-up.</p>
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">pcm_out</th>
+    <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
-    <td class="table_list_item"> 波形出力 (Q8.24形式)
+    <td class="table_list_item"> 出力波形 (Q8.24形式)
 </td>
 </tr>
 </tbody>

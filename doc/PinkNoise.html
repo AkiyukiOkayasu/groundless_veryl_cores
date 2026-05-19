@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>PwmSquareOscillator</title>
+        <title>PinkNoise</title>
 
 
         <!-- Custom HTML head -->
@@ -175,9 +175,30 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="pwmsquareoscillator"><a class="header" href="#pwmsquareoscillator">PwmSquareOscillator</a></h2>
-<p>PWM変調可能な矩形波オシレーター
-全て組み合わせ回路で実装しているため遅延ゼロ</p>
+                        <h2 id="pinknoise"><a class="header" href="#pinknoise">PinkNoise</a></h2>
+<p>ピンクノイズジェネレーター (Voss-McCartney Algorithm + Xorshift32)</p>
+<p>1/f特性を持つピンクノイズを生成する
+単一のXorshift32 RNGがフリーランし、
+サンプルカウンタの各ビット立ち上がりでラッチされることで1/fスペクトルを形成する</p>
+<p>24段構成:
+行kは2^kサンプルごとに更新される
+最低更新レート = sample_rate / 2^24
+50MHz/200分周(250kHz)前提で約0.015Hz = サブオーディオ帯域まで余裕を持ってカバー</p>
+<p>出力スケーリング:
+24行のQ1.31和 → ÷8(&gt;&gt;3) → Q8.24変換(&gt;&gt;&gt;7) = 合計&gt;&gt;&gt;10
+RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
+<h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">DIV</th>
+    <td class="table_list_item"><span class="hljs-type">u16</span></td>
+    <td class="table_list_item"> クロック分周比
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ports"><a class="header" href="#ports">Ports</a></h3>
 <hr />
 <table class="table_list">
@@ -190,31 +211,10 @@
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">phase_rst</th>
-    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
-    <td class="table_list_item"> 位相ゼロリセット (同期)
-</td>
-</tr>
-<tr>
-    <th class="table_list_item">phase_step</th>
-    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">Phase step_t</span></td>
-    <td class="table_list_item"> 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
-</td>
-</tr>
-<tr>
-    <th class="table_list_item">duty_cycle</th>
-    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">Phase phase_t</span></td>
-    <td class="table_list_item"> デューティ比 位相のどこまで High にするか (0 ~ 2^32-1)
-</td>
-</tr>
-<tr>
     <th class="table_list_item">audio</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
     <td class="table_list_item"><span class="hljs-type">FixedPoint q8_24</span></td>
-    <td class="table_list_item"> 波形出力 (Q8.24形式)
+    <td class="table_list_item"> 出力波形 (Q8.24形式)
 </td>
 </tr>
 </tbody>
@@ -224,11 +224,11 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="PinkNoise.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="Phasor.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="SawOscillator.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="PwmSquareOscillator.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -238,11 +238,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="PinkNoise.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="Phasor.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="SawOscillator.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="PwmSquareOscillator.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
