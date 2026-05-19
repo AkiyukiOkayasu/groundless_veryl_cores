@@ -177,17 +177,18 @@ pub module SineWaveLerpCore (
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineOscillator (
     clk       : input  clock            , /// クロック
-    rst       : input  reset            , /// リセット 位相ゼロリセット
+    phase_rst : input  logic            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
     pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成 (Phase Accumulator)
     var phase: Phase::phase_t;
     inst phasor: Phasor (
-        clk         ,
-        rst         ,
-        phase_step  ,
-        phase       ,
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc_out   : _,
     );
 
     // サイン波生成
@@ -203,17 +204,18 @@ pub module SineOscillator (
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineOscillatorLerp (
     clk       : input  clock            , /// クロック
-    rst       : input  reset            , /// リセット 位相ゼロリセット
+    phase_rst : input  logic            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
     pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成
     var phase: Phase::phase_t;
     inst phasor: Phasor (
-        clk         ,
-        rst         ,
-        phase_step  ,
-        phase       ,
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc_out   : _,
     );
 
     // サイン波生成 (線形補間付き)

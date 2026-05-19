@@ -32,17 +32,18 @@ pub module TriangleWaveCore (
 /// 全て組み合わせ回路で実装しているため遅延ゼロ
 pub module TriangleOscillator (
     clk       : input  clock            , /// クロック
-    rst       : input  reset            , /// リセット 位相ゼロリセット
+    phase_rst : input  logic            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
     pcm_out   : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成
     var phase: Phase::phase_t;
     inst phasor: Phasor (
-        clk         ,
-        rst         ,
-        phase_step  ,
-        phase       ,
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc_out   : _,
     );
 
     // 三角波生成

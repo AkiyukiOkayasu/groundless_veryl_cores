@@ -30,21 +30,30 @@ pub package Phase {
 /// 負の周波数（位相の逆回転）にも対応
 pub module Phasor (
     clk       : input  clock         , /// システムクロック
-    rst       : input  reset         , /// 位相ゼロリセット
+    phase_rst : input  logic         , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
     phase     : output Phase::phase_t, /// 位相出力 (0 ~ 2^32-1)
+    eoc_out   : output logic         , /// 1周期完了パルス (End Of Cycle): 位相がラップアラウンドしたサイクルで1クロックだけHigh
 ) {
-    var phase_acc: logic<48>; // 内部位相アキュムレータ (48ビット)
+    var phase_acc : logic         <48>; // 内部位相アキュムレータ (48ビット)
+    var prev_phase: Phase::phase_t    ; // 前サイクルの位相 (ラップアラウンド検出用)
 
     always_ff {
-        if_reset {
-            phase_acc = 0;
+        if phase_rst {
+            phase_acc  = 0;
+            prev_phase = 0;
         } else {
-            phase_acc += phase_step;
+            phase_acc  += phase_step;
+            prev_phase =  phase;
         }
     }
 
     assign phase = phase_acc[msb:msb - 31]; // 上位32ビットを出力
+
+    // ラップアラウンド検出
+    // 正のstep: phaseが前回より小さくなった = オーバーフロー
+    // 負のstep: phaseが前回より大きくなった = アンダーフロー
+    assign eoc_out = (phase_step >= 0 && phase <: prev_phase) || (phase_step <: 0 && phase >: prev_phase);
 }
 
 /// テスト: Phasor が正しく動作することを検証
@@ -53,26 +62,27 @@ pub module Phasor (
 #[test(test_phasor)]
 module test_phasor {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
 
     const STEP: Phase::step_t = Phase::step_from_hz(50_000_000, 440.0); // 440.0Hz @ 50MHz
 
     var phase_step: Phase::step_t ;
     var phase     : Phase::phase_t;
+    var phase_rst : logic         ;
 
     inst dut: Phasor (
-        clk         ,
-        rst         ,
-        phase_step  ,
-        phase       ,
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc_out   : _,
     );
 
     initial {
         // リセット実行
         phase_step = STEP;
-        rst.assert(clk);
+        phase_rst  = 1;
+        clk.next  (1);
+        phase_rst  = 0;
 
         // リセット後は位相がゼロであることを確認
         $assert(phase == 32'd0);
