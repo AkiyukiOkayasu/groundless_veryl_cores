@@ -52,9 +52,9 @@ pub module MultiWaveCore (
 
     // 矩形波コア (組み合わせ回路、遅延なし)
     inst square_core: SquareWaveCore (
-        phase               ,
-        duty_cycle          ,
-        audio   : square_out,
+        phase                 ,
+        duty_cycle            ,
+        audio     : square_out,
     );
 
     // 波形選択用レジスタ (1クロック遅延でサイン波とタイミング整合)

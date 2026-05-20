@@ -1,0 +1,383 @@
+/// ビットシフトによる一次ハイパスフィルタ (符号付き版)
+/// LPFの出力を入力から減算してHPFを構成: y[n] = x[n] - lpf[n]
+/// 内部でLpfShiftSignedをインスタンスして使用
+///
+/// カットオフ周波数の近似:
+///   fc ≈ fs / (2π * 2^SHIFT)
+///   例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz
+///
+/// SHIFT値が大きいほどカットオフ周波数が低くなり、より多くの低域を通過させる。
+pub module HpfShiftSigned #(
+    param DATA_WIDTH: u32 = 16, /// 入出力データ幅
+    param SHIFT     : u32 = 4 , /// シフト量 (1以上)。大きいほど低いカットオフ周波数
+) (
+    clk   : input  clock                   , /// システムクロック
+    rst   : input  reset                   , /// リセット (出力を0に初期化)
+    enable: input  bbool                   , /// イネーブル信号 (trueでフィルタ更新)
+    x     : input  signed logic<DATA_WIDTH>, /// 入力サンプル (符号付き)
+    y     : output signed logic<DATA_WIDTH>, /// フィルタ出力 (符号付き)
+) {
+    var lpf_out: signed logic<DATA_WIDTH>;
+
+    inst lpf: LpfShiftSigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk   : clk    ,
+        rst   : rst    ,
+        enable: enable ,
+        x     : x      ,
+        y     : lpf_out,
+    );
+
+    always_comb {
+        y = x - lpf_out;
+    }
+}
+
+/// 可変シフト量に対応したHPF (符号付き版)
+/// 実行時にシフト量を変更可能
+///
+/// 伝達関数:
+///   y[n] = x[n] - lpf[n]
+///   ここで lpf[n] = lpf[n-1] + (x[n] - lpf[n-1]) >> shift
+pub module HpfShiftVariableSigned #(
+    param DATA_WIDTH: u32 = 16                   , /// 入出力データ幅
+    param MAX_SHIFT : u32 = 16                   , /// 最大シフト量
+    param SHIFT_BITS: u32 = $clog2(MAX_SHIFT + 1), /// シフト量を表現するビット数
+) (
+    clk   : input  clock                   , /// システムクロック
+    rst   : input  reset                   , /// リセット (出力を0に初期化)
+    enable: input  bbool                   , /// イネーブル信号 (trueでフィルタ更新)
+    shift : input  logic       <SHIFT_BITS>, /// シフト量 (1 ~ MAX_SHIFT)
+    x     : input  signed logic<DATA_WIDTH>, /// 入力サンプル (符号付き)
+    y     : output signed logic<DATA_WIDTH>, /// フィルタ出力 (符号付き)
+) {
+    var lpf_out: signed logic<DATA_WIDTH>;
+
+    inst lpf: LpfShiftVariableSigned #(
+        DATA_WIDTH  ,
+        MAX_SHIFT   ,
+        SHIFT_BITS  ,
+    ) (
+        clk   : clk    ,
+        rst   : rst    ,
+        enable: enable ,
+        shift : shift  ,
+        x     : x      ,
+        y     : lpf_out,
+    );
+
+    always_comb {
+        y = x - lpf_out;
+    }
+}
+
+//-----------------------------------------------------------------------------
+// 符号なし (Unsigned) 版
+//-----------------------------------------------------------------------------
+
+/// ビットシフトによる一次ハイパスフィルタ (符号なし版)
+/// LPFの出力を入力から減算してHPFを構成: y[n] = x[n] - lpf[n]
+/// 内部でLpfShiftUnsignedをインスタンスして使用
+///
+/// カットオフ周波数の近似:
+///   fc ≈ fs / (2π * 2^SHIFT)
+///
+/// 注意: x < lpf_outの場合、出力はラップアラウンドする。
+pub module HpfShiftUnsigned #(
+    param DATA_WIDTH: u32 = 16, /// 入出力データ幅
+    param SHIFT     : u32 = 4 , /// シフト量 (1以上)。大きいほど低いカットオフ周波数
+) (
+    clk   : input  clock            , /// システムクロック
+    rst   : input  reset            , /// リセット (出力を0に初期化)
+    enable: input  logic            , /// イネーブル信号 (highでフィルタ更新)
+    x     : input  logic<DATA_WIDTH>, /// 入力サンプル (符号なし)
+    y     : output logic<DATA_WIDTH>, /// フィルタ出力 (符号なし)
+) {
+    var lpf_out: logic<DATA_WIDTH>;
+
+    inst lpf: LpfShiftUnsigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk   : clk    ,
+        rst   : rst    ,
+        enable: enable ,
+        x     : x      ,
+        y     : lpf_out,
+    );
+
+    always_comb {
+        y = x - lpf_out;
+    }
+}
+
+/// 可変シフト量に対応したHPF (符号なし版)
+/// 実行時にシフト量を変更可能
+///
+/// 伝達関数:
+///   y[n] = x[n] - lpf[n]
+///   ここで lpf[n] = lpf[n-1] + (x[n] - lpf[n-1]) >> shift
+///
+/// 注意: x < lpf_outの場合、出力はラップアラウンドする。
+pub module HpfShiftVariableUnsigned #(
+    param DATA_WIDTH: u32 = 16                   , /// 入出力データ幅
+    param MAX_SHIFT : u32 = 16                   , /// 最大シフト量
+    param SHIFT_BITS: u32 = $clog2(MAX_SHIFT + 1), /// シフト量を表現するビット数
+) (
+    clk   : input  clock            , /// システムクロック
+    rst   : input  reset            , /// リセット (出力を0に初期化)
+    enable: input  bbool            , /// イネーブル信号 (trueでフィルタ更新)
+    shift : input  logic<SHIFT_BITS>, /// シフト量 (1 ~ MAX_SHIFT)
+    x     : input  logic<DATA_WIDTH>, /// 入力サンプル (符号なし)
+    y     : output logic<DATA_WIDTH>, /// フィルタ出力 (符号なし)
+) {
+    var lpf_out: logic<DATA_WIDTH>;
+
+    inst lpf: LpfShiftVariableUnsigned #(
+        DATA_WIDTH  ,
+        MAX_SHIFT   ,
+        SHIFT_BITS  ,
+    ) (
+        clk   : clk    ,
+        rst   : rst    ,
+        enable: enable ,
+        shift : shift  ,
+        x     : x      ,
+        y     : lpf_out,
+    );
+
+    always_comb {
+        y = x - lpf_out;
+    }
+}
+
+//-----------------------------------------------------------------------------
+// テスト
+//-----------------------------------------------------------------------------
+
+/// テスト: HpfShiftSigned の基本動作を検証
+/// - リセット後は入力=0なので出力もゼロ
+/// - 定常入力ではHPF出力がゼロに収束 (DCを除去)
+#[test(test_hpf_shift_basic)]
+module test_hpf_shift_basic {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    const DATA_WIDTH: u32 = 16;
+    const SHIFT     : u32 = 4;
+
+    var enable   : bbool                   ;
+    var x        : signed logic<DATA_WIDTH>;
+    var y        : signed logic<DATA_WIDTH>;
+    var y_initial: signed logic<DATA_WIDTH>;
+
+    inst dut: HpfShiftSigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = false;
+        x          = 0;
+        rst.assert(clk);
+
+        // リセット直後は出力ゼロ
+        $assert(y == 16'sd0);
+
+        // ステップ入力: 最初は入力とLPF出力の差が大きいのでHPF出力が大きい
+        x      = 16'sd1000;
+        enable = true;
+
+        clk.next (1);
+        y_initial = y;
+        $display ("HPF y initial = %d (expected ~1000)", y_initial);
+
+        // 定常状態ではHPF出力がゼロに近づく (DC成分を除去)
+        clk.next(1000);
+        $display("HPF y steady = %d (expected ~0)", y);
+
+        // 負のステップ入力: 過渡応答を確認
+        x        = -16'sd500;
+        clk.next(5);
+        $display("HPF y after negative step = %d", y);
+
+        // 再び定常状態に収束
+        clk.next(1000);
+        $display("HPF y steady negative = %d (expected ~0)", y);
+
+        $finish();
+    }
+}
+
+/// テスト: 交流入力に対するHPFの通過を検証
+#[test(test_hpf_shift_ac)]
+module test_hpf_shift_ac {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    const DATA_WIDTH: u32 = 16;
+    const SHIFT     : u32 = 4;
+
+    var enable: bbool                   ;
+    var x     : signed logic<DATA_WIDTH>;
+    var y     : signed logic<DATA_WIDTH>;
+
+    inst dut: HpfShiftSigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = false;
+        x          = 0;
+        rst.assert(clk);
+
+        // 交番信号を入力してHPFが通過することを確認
+        enable   = true;
+        x        = 16'sd1000;
+        clk.next(1);
+        $display("AC step 1: y = %d", y);
+
+        x        = -16'sd1000;
+        clk.next(1);
+        $display("AC step 2: y = %d", y);
+
+        x        = 16'sd1000;
+        clk.next(1);
+        $display("AC step 3: y = %d", y);
+
+        x        = -16'sd1000;
+        clk.next(1);
+        $display("AC step 4: y = %d", y);
+
+        // 交番信号ではHPF出力が大きい (入力をそのまま通過させる)
+        $assert(y != 16'sd0);
+
+        $finish();
+    }
+}
+
+/// テスト: HpfShiftUnsigned の基本動作を検証
+#[test(test_hpf_shift_unsigned_basic)]
+module test_hpf_shift_unsigned_basic {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    const DATA_WIDTH: u32 = 16;
+    const SHIFT     : u32 = 4;
+
+    var enable   : bbool            ;
+    var x        : logic<DATA_WIDTH>;
+    var y        : logic<DATA_WIDTH>;
+    var y_initial: logic<DATA_WIDTH>;
+
+    inst dut: HpfShiftUnsigned #(
+        DATA_WIDTH  ,
+        SHIFT       ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = false;
+        x          = 0;
+        rst.assert(clk);
+
+        // リセット直後は出力ゼロ
+        $assert(y == 16'd0);
+
+        // ステップ入力
+        x      = 16'd50000;
+        enable = true;
+
+        clk.next (1);
+        y_initial = y;
+        $display ("unsigned HPF y initial = %d (expected ~50000)", y_initial);
+
+        // 定常状態ではHPF出力がゼロに近づく
+        clk.next(1000);
+        $display("unsigned HPF y steady = %d (expected ~0)", y);
+
+        $finish();
+    }
+}
+
+/// テスト: 可変シフトHPFの動作を検証
+#[test(test_hpf_shift_variable)]
+module test_hpf_shift_variable {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen (
+        clk  ,
+    );
+
+    const DATA_WIDTH: u32 = 16;
+    const MAX_SHIFT : u32 = 8;
+    const SHIFT_BITS: u32 = $clog2(MAX_SHIFT + 1);
+
+    var enable: bbool                   ;
+    var shift : logic       <SHIFT_BITS>;
+    var x     : signed logic<DATA_WIDTH>;
+    var y     : signed logic<DATA_WIDTH>;
+
+    inst dut: HpfShiftVariableSigned #(
+        DATA_WIDTH  ,
+        MAX_SHIFT   ,
+        SHIFT_BITS  ,
+    ) (
+        clk     ,
+        rst     ,
+        enable  ,
+        shift   ,
+        x       ,
+        y       ,
+    );
+
+    initial {
+        enable     = false;
+        shift      = 4;
+        x          = 0;
+        rst.assert(clk);
+
+        // 定常DC入力 → HPF出力はゼロに収束
+        x      = 16'sd1000;
+        enable = true;
+
+        clk.next(1000);
+        $display("variable HPF y steady = %d (expected ~0)", y);
+
+        // 入力をゼロに戻す → 過渡応答 (LPFがまだ追従中なので負の値が出る)
+        x        = 16'sd0;
+        clk.next(5);
+        $display("variable HPF y transient = %d (expected < 0)", y);
+
+        // 再び定常状態に収束
+        clk.next(1000);
+        $display("variable HPF y re-steady = %d (expected ~0)", y);
+
+        $finish();
+    }
+}

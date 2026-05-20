@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- HPF（ハイパスフィルタ）モジュール群を追加 (`src/filter/hpf_shift.veryl`)
+  - `HpfShiftSigned`: 固定シフト量・符号付き
+  - `HpfShiftVariableSigned`: 可変シフト量・符号付き
+  - `HpfShiftUnsigned`: 固定シフト量・符号なし
+  - `HpfShiftVariableUnsigned`: 可変シフト量・符号なし
+  - LPF出力を入力から減算する構成: `y = x - lpf(x)`
+
 ## [0.5.0] - 2026-05-19
 
 ### Added
