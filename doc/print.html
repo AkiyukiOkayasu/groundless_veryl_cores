@@ -199,6 +199,26 @@
 <table class="table_list">
 <tbody>
 <tr>
+    <th class="table_list_item"><a href="HpfShiftSigned.html">HpfShiftSigned</a></th>
+    <td class="table_list_item"> ビットシフトによる一次ハイパスフィルタ (符号付き版)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item"><a href="HpfShiftUnsigned.html">HpfShiftUnsigned</a></th>
+    <td class="table_list_item"> ビットシフトによる一次ハイパスフィルタ (符号なし版)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item"><a href="HpfShiftVariableSigned.html">HpfShiftVariableSigned</a></th>
+    <td class="table_list_item"> 可変シフト量に対応したHPF (符号付き版)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item"><a href="HpfShiftVariableUnsigned.html">HpfShiftVariableUnsigned</a></th>
+    <td class="table_list_item"> 可変シフト量に対応したHPF (符号なし版)
+</td>
+</tr>
+<tr>
     <th class="table_list_item"><a href="LpfShiftSigned.html">LpfShiftSigned</a></th>
     <td class="table_list_item"> ビットシフトによる一次ローパスフィルタ (指数移動平均、符号付き版)
 </td>
@@ -359,6 +379,26 @@
 <table class="table_list">
 <tbody>
 <tr>
+    <th class="table_list_item"><a href="HpfShiftSigned.html">HpfShiftSigned</a></th>
+    <td class="table_list_item"> ビットシフトによる一次ハイパスフィルタ (符号付き版)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item"><a href="HpfShiftUnsigned.html">HpfShiftUnsigned</a></th>
+    <td class="table_list_item"> ビットシフトによる一次ハイパスフィルタ (符号なし版)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item"><a href="HpfShiftVariableSigned.html">HpfShiftVariableSigned</a></th>
+    <td class="table_list_item"> 可変シフト量に対応したHPF (符号付き版)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item"><a href="HpfShiftVariableUnsigned.html">HpfShiftVariableUnsigned</a></th>
+    <td class="table_list_item"> 可変シフト量に対応したHPF (符号なし版)
+</td>
+</tr>
+<tr>
     <th class="table_list_item"><a href="LpfShiftSigned.html">LpfShiftSigned</a></th>
     <td class="table_list_item"> ビットシフトによる一次ローパスフィルタ (指数移動平均、符号付き版)
 </td>
@@ -476,16 +516,14 @@
 </tr>
 </tbody>
 </table>
-<div style="break-before: page; page-break-before: always;"></div><h2 id="lpfshiftsigned"><a class="header" href="#lpfshiftsigned">LpfShiftSigned</a></h2>
-<p>ビットシフトによる一次ローパスフィルタ (指数移動平均、符号付き版)
-乗算器を使用せず、シフト演算のみで実装</p>
-<p>伝達関数:
-y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; SHIFT</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="hpfshiftsigned"><a class="header" href="#hpfshiftsigned">HpfShiftSigned</a></h2>
+<p>ビットシフトによる一次ハイパスフィルタ (符号付き版)
+LPFの出力を入力から減算してHPFを構成: y[n] = x[n] - lpf[n]
+内部でLpfShiftSignedをインスタンスして使用</p>
 <p>カットオフ周波数の近似:
 fc ≈ fs / (2π * 2^SHIFT)
 例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz</p>
-<p>SHIFT値が大きいほどカットオフ周波数が低くなり、より滑らかに補間される。
-SHIFTはDATA_WIDTHより大きくても問題ない。</p>
+<p>SHIFT値が大きいほどカットオフ周波数が低くなり、より多くの低域を通過させる。</p>
 <h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
 <hr />
 <table class="table_list">
@@ -545,16 +583,13 @@ SHIFTはDATA_WIDTHより大きくても問題ない。</p>
 </tr>
 </tbody>
 </table>
-<div style="break-before: page; page-break-before: always;"></div><h2 id="lpfshiftunsigned"><a class="header" href="#lpfshiftunsigned">LpfShiftUnsigned</a></h2>
-<p>ビットシフトによる一次ローパスフィルタ (符号なし版)
-乗算器を使用せず、シフト演算のみで実装</p>
-<p>伝達関数:
-y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; SHIFT</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="hpfshiftunsigned"><a class="header" href="#hpfshiftunsigned">HpfShiftUnsigned</a></h2>
+<p>ビットシフトによる一次ハイパスフィルタ (符号なし版)
+LPFの出力を入力から減算してHPFを構成: y[n] = x[n] - lpf[n]
+内部でLpfShiftUnsignedをインスタンスして使用</p>
 <p>カットオフ周波数の近似:
-fc ≈ fs / (2π * 2^SHIFT)
-例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz</p>
-<p>SHIFT値が大きいほどカットオフ周波数が低くなり、より滑らかに補間される。
-SHIFTはDATA_WIDTHより大きくても問題ない。</p>
+fc ≈ fs / (2π * 2^SHIFT)</p>
+<p>注意: x &lt; lpf_outの場合、出力はラップアラウンドする。</p>
 <h3 id="parameters-1"><a class="header" href="#parameters-1">Parameters</a></h3>
 <hr />
 <table class="table_list">
@@ -614,12 +649,12 @@ SHIFTはDATA_WIDTHより大きくても問題ない。</p>
 </tr>
 </tbody>
 </table>
-<div style="break-before: page; page-break-before: always;"></div><h2 id="lpfshiftvariablesigned"><a class="header" href="#lpfshiftvariablesigned">LpfShiftVariableSigned</a></h2>
-<p>可変シフト量に対応したLPF (符号付き版)
+<div style="break-before: page; page-break-before: always;"></div><h2 id="hpfshiftvariablesigned"><a class="header" href="#hpfshiftvariablesigned">HpfShiftVariableSigned</a></h2>
+<p>可変シフト量に対応したHPF (符号付き版)
 実行時にシフト量を変更可能</p>
 <p>伝達関数:
-y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
-<p>MAX_SHIFTはDATA_WIDTHより大きくても問題ない。</p>
+y[n] = x[n] - lpf[n]
+ここで lpf[n] = lpf[n-1] + (x[n] - lpf[n-1]) &gt;&gt; shift</p>
 <h3 id="parameters-2"><a class="header" href="#parameters-2">Parameters</a></h3>
 <hr />
 <table class="table_list">
@@ -692,12 +727,13 @@ y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
 </tr>
 </tbody>
 </table>
-<div style="break-before: page; page-break-before: always;"></div><h2 id="lpfshiftvariableunsigned"><a class="header" href="#lpfshiftvariableunsigned">LpfShiftVariableUnsigned</a></h2>
-<p>可変シフト量に対応したLPF (符号なし版)
+<div style="break-before: page; page-break-before: always;"></div><h2 id="hpfshiftvariableunsigned"><a class="header" href="#hpfshiftvariableunsigned">HpfShiftVariableUnsigned</a></h2>
+<p>可変シフト量に対応したHPF (符号なし版)
 実行時にシフト量を変更可能</p>
 <p>伝達関数:
-y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
-<p>MAX_SHIFTはDATA_WIDTHより大きくても問題ない。</p>
+y[n] = x[n] - lpf[n]
+ここで lpf[n] = lpf[n-1] + (x[n] - lpf[n-1]) &gt;&gt; shift</p>
+<p>注意: x &lt; lpf_outの場合、出力はラップアラウンドする。</p>
 <h3 id="parameters-3"><a class="header" href="#parameters-3">Parameters</a></h3>
 <hr />
 <table class="table_list">
@@ -770,8 +806,302 @@ y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
 </tr>
 </tbody>
 </table>
-<div style="break-before: page; page-break-before: always;"></div><h2 id="midirx"><a class="header" href="#midirx">MidiRx</a></h2>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="lpfshiftsigned"><a class="header" href="#lpfshiftsigned">LpfShiftSigned</a></h2>
+<p>ビットシフトによる一次ローパスフィルタ (指数移動平均、符号付き版)
+乗算器を使用せず、シフト演算のみで実装</p>
+<p>伝達関数:
+y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; SHIFT</p>
+<p>カットオフ周波数の近似:
+fc ≈ fs / (2π * 2^SHIFT)
+例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz</p>
+<p>SHIFT値が大きいほどカットオフ周波数が低くなり、より滑らかに補間される。
+SHIFTはDATA_WIDTHより大きくても問題ない。</p>
 <h3 id="parameters-4"><a class="header" href="#parameters-4">Parameters</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">DATA_WIDTH</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> 入出力データ幅
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">SHIFT</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> シフト量 (1以上)。大きいほど低いカットオフ周波数
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ports-4"><a class="header" href="#ports-4">Ports</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">clk</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">clock</span></td>
+    <td class="table_list_item"> システムクロック
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">rst</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">reset</span></td>
+    <td class="table_list_item"> リセット (出力を0に初期化)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">enable</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
+    <td class="table_list_item"> イネーブル信号 (trueでフィルタ更新)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">x</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">signedlogic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> 入力サンプル (符号付き)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">y</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">signedlogic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> フィルタ出力 (符号付き)
+</td>
+</tr>
+</tbody>
+</table>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="lpfshiftunsigned"><a class="header" href="#lpfshiftunsigned">LpfShiftUnsigned</a></h2>
+<p>ビットシフトによる一次ローパスフィルタ (符号なし版)
+乗算器を使用せず、シフト演算のみで実装</p>
+<p>伝達関数:
+y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; SHIFT</p>
+<p>カットオフ周波数の近似:
+fc ≈ fs / (2π * 2^SHIFT)
+例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz</p>
+<p>SHIFT値が大きいほどカットオフ周波数が低くなり、より滑らかに補間される。
+SHIFTはDATA_WIDTHより大きくても問題ない。</p>
+<h3 id="parameters-5"><a class="header" href="#parameters-5">Parameters</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">DATA_WIDTH</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> 入出力データ幅
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">SHIFT</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> シフト量 (1以上)。大きいほど低いカットオフ周波数
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ports-5"><a class="header" href="#ports-5">Ports</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">clk</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">clock</span></td>
+    <td class="table_list_item"> システムクロック
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">rst</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">reset</span></td>
+    <td class="table_list_item"> リセット (出力を0に初期化)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">enable</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"> イネーブル信号 (highでフィルタ更新)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">x</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> 入力サンプル (符号なし)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">y</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> フィルタ出力 (符号なし)
+</td>
+</tr>
+</tbody>
+</table>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="lpfshiftvariablesigned"><a class="header" href="#lpfshiftvariablesigned">LpfShiftVariableSigned</a></h2>
+<p>可変シフト量に対応したLPF (符号付き版)
+実行時にシフト量を変更可能</p>
+<p>伝達関数:
+y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
+<p>MAX_SHIFTはDATA_WIDTHより大きくても問題ない。</p>
+<h3 id="parameters-6"><a class="header" href="#parameters-6">Parameters</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">DATA_WIDTH</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> 入出力データ幅
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">MAX_SHIFT</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> 最大シフト量
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">SHIFT_BITS</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> シフト量を表現するビット数
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ports-6"><a class="header" href="#ports-6">Ports</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">clk</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">clock</span></td>
+    <td class="table_list_item"> システムクロック
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">rst</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">reset</span></td>
+    <td class="table_list_item"> リセット (出力を0に初期化)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">enable</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
+    <td class="table_list_item"> イネーブル信号 (trueでフィルタ更新)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">shift</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<SHIFT_BITS></span></td>
+    <td class="table_list_item"> シフト量 (1 ~ MAX_SHIFT)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">x</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">signedlogic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> 入力サンプル (符号付き)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">y</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">signedlogic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> フィルタ出力 (符号付き)
+</td>
+</tr>
+</tbody>
+</table>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="lpfshiftvariableunsigned"><a class="header" href="#lpfshiftvariableunsigned">LpfShiftVariableUnsigned</a></h2>
+<p>可変シフト量に対応したLPF (符号なし版)
+実行時にシフト量を変更可能</p>
+<p>伝達関数:
+y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
+<p>MAX_SHIFTはDATA_WIDTHより大きくても問題ない。</p>
+<h3 id="parameters-7"><a class="header" href="#parameters-7">Parameters</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">DATA_WIDTH</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> 入出力データ幅
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">MAX_SHIFT</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> 最大シフト量
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">SHIFT_BITS</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> シフト量を表現するビット数
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ports-7"><a class="header" href="#ports-7">Ports</a></h3>
+<hr />
+<table class="table_list">
+<tbody>
+<tr>
+    <th class="table_list_item">clk</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">clock</span></td>
+    <td class="table_list_item"> システムクロック
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">rst</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">reset</span></td>
+    <td class="table_list_item"> リセット (出力を0に初期化)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">enable</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
+    <td class="table_list_item"> イネーブル信号 (trueでフィルタ更新)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">shift</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<SHIFT_BITS></span></td>
+    <td class="table_list_item"> シフト量 (1 ~ MAX_SHIFT)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">x</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> 入力サンプル (符号なし)
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">y</th>
+    <td class="table_list_item"><span class="hljs-keyword">output</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> フィルタ出力 (符号なし)
+</td>
+</tr>
+</tbody>
+</table>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="midirx"><a class="header" href="#midirx">MidiRx</a></h2>
+<h3 id="parameters-8"><a class="header" href="#parameters-8">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -782,7 +1112,7 @@ y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
 </tr>
 </tbody>
 </table>
-<h3 id="ports-4"><a class="header" href="#ports-4">Ports</a></h3>
+<h3 id="ports-8"><a class="header" href="#ports-8">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -824,7 +1154,7 @@ y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; shift</p>
 Sineは線形補間付きLUT、他は組み合わせ回路
 レイテンシ整合のため、全波形を1クロック遅延させて出力
 レイテンシー: 1クロック</p>
-<h3 id="ports-5"><a class="header" href="#ports-5">Ports</a></h3>
+<h3 id="ports-9"><a class="header" href="#ports-9">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -871,7 +1201,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 Sineは線形補間付きLUT、他は組み合わせ回路
 波形切り替え時のレイテンシ整合のため、全波形を1クロック遅延させて出力
 レイテンシー: 1クロック</p>
-<h3 id="ports-6"><a class="header" href="#ports-6">Ports</a></h3>
+<h3 id="ports-10"><a class="header" href="#ports-10">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -923,7 +1253,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 <p>位相発生器
 全ての波形オシレーターの基礎となるモジュール
 負の周波数（位相の逆回転）にも対応</p>
-<h3 id="ports-7"><a class="header" href="#ports-7">Ports</a></h3>
+<h3 id="ports-11"><a class="header" href="#ports-11">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -976,7 +1306,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 <p>出力スケーリング:
 24行のQ1.31和 → ÷8(&gt;&gt;3) → Q8.24変換(&gt;&gt;&gt;7) = 合計&gt;&gt;&gt;10
 RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
-<h3 id="parameters-5"><a class="header" href="#parameters-5">Parameters</a></h3>
+<h3 id="parameters-9"><a class="header" href="#parameters-9">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -988,7 +1318,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 </tr>
 </tbody>
 </table>
-<h3 id="ports-8"><a class="header" href="#ports-8">Ports</a></h3>
+<h3 id="ports-12"><a class="header" href="#ports-12">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1011,7 +1341,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="pwmsquareoscillator"><a class="header" href="#pwmsquareoscillator">PwmSquareOscillator</a></h2>
 <p>PWM変調可能な矩形波オシレーター
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-9"><a class="header" href="#ports-9">Ports</a></h3>
+<h3 id="ports-13"><a class="header" href="#ports-13">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1055,7 +1385,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="sawoscillator"><a class="header" href="#sawoscillator">SawOscillator</a></h2>
 <p>ノコギリ波オシレーター
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-10"><a class="header" href="#ports-10">Ports</a></h3>
+<h3 id="ports-14"><a class="header" href="#ports-14">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1093,7 +1423,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <p>ノコギリ波生成コアモジュール
 位相入力から波形を生成する純粋な変換モジュール
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-11"><a class="header" href="#ports-11">Ports</a></h3>
+<h3 id="ports-15"><a class="header" href="#ports-15">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1118,7 +1448,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 テーブル引きのサイン波
 第一象限(0~90度)の波形データ10bit分をROMに持っているので、実質的な分解能は12bit相当
 レイテンシー: 1クロック (BRAM読み出し分)</p>
-<h3 id="ports-12"><a class="header" href="#ports-12">Ports</a></h3>
+<h3 id="ports-16"><a class="header" href="#ports-16">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1156,7 +1486,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <p>サイン波オシレーター (LUT + 線形補間)
 実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
 レイテンシー: 1クロック (BRAM読み出し分)</p>
-<h3 id="ports-13"><a class="header" href="#ports-13">Ports</a></h3>
+<h3 id="ports-17"><a class="header" href="#ports-17">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1191,7 +1521,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 </tbody>
 </table>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="sineromquarter"><a class="header" href="#sineromquarter">SineRomQuarter</a></h2>
-<h3 id="ports-14"><a class="header" href="#ports-14">Ports</a></h3>
+<h3 id="ports-18"><a class="header" href="#ports-18">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1219,7 +1549,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 </tbody>
 </table>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="sineromquarterdual"><a class="header" href="#sineromquarterdual">SineRomQuarterDual</a></h2>
-<h3 id="ports-15"><a class="header" href="#ports-15">Ports</a></h3>
+<h3 id="ports-19"><a class="header" href="#ports-19">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1265,7 +1595,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 位相入力から波形を生成する純粋な変換モジュール
 第一象限(0~90度)の波形データ10bit分をROMに持っているので、実質的な分解能は12bit相当
 レイテンシー: 1クロック (BRAM読み出し分)</p>
-<h3 id="ports-16"><a class="header" href="#ports-16">Ports</a></h3>
+<h3 id="ports-20"><a class="header" href="#ports-20">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1297,7 +1627,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 位相入力から波形を生成する純粋な変換モジュール
 実質12bit相当のテーブル引きに線形補間を追加することで、高精細なサイン波を生成
 レイテンシー: 1クロック (BRAM読み出し分)</p>
-<h3 id="ports-17"><a class="header" href="#ports-17">Ports</a></h3>
+<h3 id="ports-21"><a class="header" href="#ports-21">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1337,7 +1667,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </tr>
 </tbody>
 </table>
-<h3 id="parameters-6"><a class="header" href="#parameters-6">Parameters</a></h3>
+<h3 id="parameters-10"><a class="header" href="#parameters-10">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1355,7 +1685,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </tr>
 </tbody>
 </table>
-<h3 id="ports-18"><a class="header" href="#ports-18">Ports</a></h3>
+<h3 id="ports-22"><a class="header" href="#ports-22">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1442,7 +1772,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <p>矩形波生成コアモジュール
 位相入力から波形を生成する純粋な変換モジュール
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-19"><a class="header" href="#ports-19">Ports</a></h3>
+<h3 id="ports-23"><a class="header" href="#ports-23">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1472,7 +1802,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="triangleoscillator"><a class="header" href="#triangleoscillator">TriangleOscillator</a></h2>
 <p>三角波オシレーター
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-20"><a class="header" href="#ports-20">Ports</a></h3>
+<h3 id="ports-24"><a class="header" href="#ports-24">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1510,7 +1840,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <p>三角波生成コアモジュール
 位相入力から波形を生成する純粋な変換モジュール
 全て組み合わせ回路で実装しているため遅延ゼロ</p>
-<h3 id="ports-21"><a class="header" href="#ports-21">Ports</a></h3>
+<h3 id="ports-25"><a class="header" href="#ports-25">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1531,7 +1861,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </tbody>
 </table>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="uartrx"><a class="header" href="#uartrx">UartRx</a></h2>
-<h3 id="parameters-7"><a class="header" href="#parameters-7">Parameters</a></h3>
+<h3 id="parameters-11"><a class="header" href="#parameters-11">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1552,7 +1882,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 </tr>
 </tbody>
 </table>
-<h3 id="ports-22"><a class="header" href="#ports-22">Ports</a></h3>
+<h3 id="ports-26"><a class="header" href="#ports-26">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1592,7 +1922,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <p>White Noise Generator (Xorshift32 Algorithm)</p>
 <p>Generates high-quality pseudo-random numbers suitable for audio noise.
 No reset signal required. Initializes with a non-zero seed on power-up.</p>
-<h3 id="parameters-8"><a class="header" href="#parameters-8">Parameters</a></h3>
+<h3 id="parameters-12"><a class="header" href="#parameters-12">Parameters</a></h3>
 <hr />
 <table class="table_list">
 <tbody>
@@ -1604,7 +1934,7 @@ No reset signal required. Initializes with a non-zero seed on power-up.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="ports-23"><a class="header" href="#ports-23">Ports</a></h3>
+<h3 id="ports-27"><a class="header" href="#ports-27">Ports</a></h3>
 <hr />
 <table class="table_list">
 <tbody>

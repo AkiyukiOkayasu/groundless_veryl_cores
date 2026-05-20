@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>LpfShiftSigned</title>
+        <title>HpfShiftVariableUnsigned</title>
 
 
         <!-- Custom HTML head -->
@@ -175,16 +175,13 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="lpfshiftsigned"><a class="header" href="#lpfshiftsigned">LpfShiftSigned</a></h2>
-<p>ビットシフトによる一次ローパスフィルタ (指数移動平均、符号付き版)
-乗算器を使用せず、シフト演算のみで実装</p>
+                        <h2 id="hpfshiftvariableunsigned"><a class="header" href="#hpfshiftvariableunsigned">HpfShiftVariableUnsigned</a></h2>
+<p>可変シフト量に対応したHPF (符号なし版)
+実行時にシフト量を変更可能</p>
 <p>伝達関数:
-y[n] = y[n-1] + (x[n] - y[n-1]) &gt;&gt; SHIFT</p>
-<p>カットオフ周波数の近似:
-fc ≈ fs / (2π * 2^SHIFT)
-例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz</p>
-<p>SHIFT値が大きいほどカットオフ周波数が低くなり、より滑らかに補間される。
-SHIFTはDATA_WIDTHより大きくても問題ない。</p>
+y[n] = x[n] - lpf[n]
+ここで lpf[n] = lpf[n-1] + (x[n] - lpf[n-1]) &gt;&gt; shift</p>
+<p>注意: x &lt; lpf_outの場合、出力はラップアラウンドする。</p>
 <h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
 <hr />
 <table class="table_list">
@@ -196,9 +193,15 @@ SHIFTはDATA_WIDTHより大きくても問題ない。</p>
 </td>
 </tr>
 <tr>
-    <th class="table_list_item">SHIFT</th>
+    <th class="table_list_item">MAX_SHIFT</th>
     <td class="table_list_item"><span class="hljs-type">u32</span></td>
-    <td class="table_list_item"> シフト量 (1以上)。大きいほど低いカットオフ周波数
+    <td class="table_list_item"> 最大シフト量
+</td>
+</tr>
+<tr>
+    <th class="table_list_item">SHIFT_BITS</th>
+    <td class="table_list_item"><span class="hljs-type">u32</span></td>
+    <td class="table_list_item"> シフト量を表現するビット数
 </td>
 </tr>
 </tbody>
@@ -229,17 +232,24 @@ SHIFTはDATA_WIDTHより大きくても問題ない。</p>
 </td>
 </tr>
 <tr>
+    <th class="table_list_item">shift</th>
+    <td class="table_list_item"><span class="hljs-keyword">input</span></td>
+    <td class="table_list_item"><span class="hljs-type">logic<SHIFT_BITS></span></td>
+    <td class="table_list_item"> シフト量 (1 ~ MAX_SHIFT)
+</td>
+</tr>
+<tr>
     <th class="table_list_item">x</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">signedlogic<DATA_WIDTH></span></td>
-    <td class="table_list_item"> 入力サンプル (符号付き)
+    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> 入力サンプル (符号なし)
 </td>
 </tr>
 <tr>
     <th class="table_list_item">y</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">signedlogic<DATA_WIDTH></span></td>
-    <td class="table_list_item"> フィルタ出力 (符号付き)
+    <td class="table_list_item"><span class="hljs-type">logic<DATA_WIDTH></span></td>
+    <td class="table_list_item"> フィルタ出力 (符号なし)
 </td>
 </tr>
 </tbody>
@@ -249,11 +259,11 @@ SHIFTはDATA_WIDTHより大きくても問題ない。</p>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="HpfShiftVariableUnsigned.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="HpfShiftVariableSigned.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="LpfShiftUnsigned.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="LpfShiftSigned.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -263,11 +273,11 @@ SHIFTはDATA_WIDTHより大きくても問題ない。</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="HpfShiftVariableUnsigned.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="HpfShiftVariableSigned.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="LpfShiftUnsigned.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="LpfShiftSigned.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
