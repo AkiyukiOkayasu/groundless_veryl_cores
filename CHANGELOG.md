@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-05-20
+
 ### Added
 
 - HPF（ハイパスフィルタ）モジュール群を追加 (`src/filter/hpf_shift.veryl`)
