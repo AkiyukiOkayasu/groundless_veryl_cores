@@ -214,9 +214,7 @@ pub module LpfShiftVariableUnsigned #(
 #[test(test_lpf_shift_basic)]
 module test_lpf_shift_basic {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
@@ -226,16 +224,7 @@ module test_lpf_shift_basic {
     var y         : signed logic<DATA_WIDTH>;
     var y_after_10: signed logic<DATA_WIDTH>;
 
-    inst dut: LpfShiftSigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        x       ,
-        y       ,
-    );
+    inst dut: LpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
         enable     = false;
@@ -271,9 +260,7 @@ module test_lpf_shift_basic {
 #[test(test_lpf_shift_negative)]
 module test_lpf_shift_negative {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
@@ -282,16 +269,7 @@ module test_lpf_shift_negative {
     var x     : signed logic<DATA_WIDTH>;
     var y     : signed logic<DATA_WIDTH>;
 
-    inst dut: LpfShiftSigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        x       ,
-        y       ,
-    );
+    inst dut: LpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
         enable     = false;
@@ -318,9 +296,7 @@ module test_lpf_shift_negative {
 #[test(test_lpf_shift_enable)]
 module test_lpf_shift_enable {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
@@ -330,16 +306,7 @@ module test_lpf_shift_enable {
     var y     : signed logic<DATA_WIDTH>;
     var y_hold: signed logic<DATA_WIDTH>;
 
-    inst dut: LpfShiftSigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        x       ,
-        y       ,
-    );
+    inst dut: LpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
         enable     = false;
@@ -369,9 +336,7 @@ module test_lpf_shift_enable {
 #[test(test_lpf_shift_variable)]
 module test_lpf_shift_variable {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const MAX_SHIFT : u32 = 8;
@@ -383,18 +348,7 @@ module test_lpf_shift_variable {
     var y       : signed logic<DATA_WIDTH>;
     var y_shift4: signed logic<DATA_WIDTH>;
 
-    inst dut: LpfShiftVariableSigned #(
-        DATA_WIDTH  ,
-        MAX_SHIFT   ,
-        SHIFT_BITS  ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        shift   ,
-        x       ,
-        y       ,
-    );
+    inst dut: LpfShiftVariableSigned #( DATA_WIDTH, MAX_SHIFT, SHIFT_BITS ) ( clk, rst, enable, shift, x, y );
 
     initial {
         enable     = false;
@@ -427,9 +381,7 @@ module test_lpf_shift_variable {
 #[test(test_lpf_shift_unsigned_basic)]
 module test_lpf_shift_unsigned_basic {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
@@ -439,16 +391,7 @@ module test_lpf_shift_unsigned_basic {
     var y         : logic<DATA_WIDTH>;
     var y_after_10: logic<DATA_WIDTH>;
 
-    inst dut: LpfShiftUnsigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        x       ,
-        y       ,
-    );
+    inst dut: LpfShiftUnsigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
         enable     = false;
@@ -484,9 +427,7 @@ module test_lpf_shift_unsigned_basic {
 #[test(test_lpf_shift_unsigned_decrease)]
 module test_lpf_shift_unsigned_decrease {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
@@ -495,16 +436,7 @@ module test_lpf_shift_unsigned_decrease {
     var x     : logic<DATA_WIDTH>;
     var y     : logic<DATA_WIDTH>;
 
-    inst dut: LpfShiftUnsigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        x       ,
-        y       ,
-    );
+    inst dut: LpfShiftUnsigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
         enable     = false;

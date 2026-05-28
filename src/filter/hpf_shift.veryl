@@ -19,16 +19,7 @@ pub module HpfShiftSigned #(
 ) {
     var lpf_out: signed logic<DATA_WIDTH>;
 
-    inst lpf: LpfShiftSigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk   : clk    ,
-        rst   : rst    ,
-        enable: enable ,
-        x     : x      ,
-        y     : lpf_out,
-    );
+    inst lpf: LpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk: clk, rst: rst, enable: enable, x: x, y: lpf_out );
 
     always_comb {
         y = x - lpf_out;
@@ -97,16 +88,7 @@ pub module HpfShiftUnsigned #(
 ) {
     var lpf_out: logic<DATA_WIDTH>;
 
-    inst lpf: LpfShiftUnsigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk   : clk    ,
-        rst   : rst    ,
-        enable: enable ,
-        x     : x      ,
-        y     : lpf_out,
-    );
+    inst lpf: LpfShiftUnsigned #( DATA_WIDTH, SHIFT ) ( clk: clk, rst: rst, enable: enable, x: x, y: lpf_out );
 
     always_comb {
         y = x - lpf_out;
@@ -163,9 +145,7 @@ pub module HpfShiftVariableUnsigned #(
 #[test(test_hpf_shift_basic)]
 module test_hpf_shift_basic {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
@@ -175,16 +155,7 @@ module test_hpf_shift_basic {
     var y        : signed logic<DATA_WIDTH>;
     var y_initial: signed logic<DATA_WIDTH>;
 
-    inst dut: HpfShiftSigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        x       ,
-        y       ,
-    );
+    inst dut: HpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
         enable     = false;
@@ -223,9 +194,7 @@ module test_hpf_shift_basic {
 #[test(test_hpf_shift_ac)]
 module test_hpf_shift_ac {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
@@ -234,16 +203,7 @@ module test_hpf_shift_ac {
     var x     : signed logic<DATA_WIDTH>;
     var y     : signed logic<DATA_WIDTH>;
 
-    inst dut: HpfShiftSigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        x       ,
-        y       ,
-    );
+    inst dut: HpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
         enable     = false;
@@ -279,9 +239,7 @@ module test_hpf_shift_ac {
 #[test(test_hpf_shift_unsigned_basic)]
 module test_hpf_shift_unsigned_basic {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
@@ -291,16 +249,7 @@ module test_hpf_shift_unsigned_basic {
     var y        : logic<DATA_WIDTH>;
     var y_initial: logic<DATA_WIDTH>;
 
-    inst dut: HpfShiftUnsigned #(
-        DATA_WIDTH  ,
-        SHIFT       ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        x       ,
-        y       ,
-    );
+    inst dut: HpfShiftUnsigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
         enable     = false;
@@ -330,9 +279,7 @@ module test_hpf_shift_unsigned_basic {
 #[test(test_hpf_shift_variable)]
 module test_hpf_shift_variable {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     const DATA_WIDTH: u32 = 16;
     const MAX_SHIFT : u32 = 8;
@@ -343,18 +290,7 @@ module test_hpf_shift_variable {
     var x     : signed logic<DATA_WIDTH>;
     var y     : signed logic<DATA_WIDTH>;
 
-    inst dut: HpfShiftVariableSigned #(
-        DATA_WIDTH  ,
-        MAX_SHIFT   ,
-        SHIFT_BITS  ,
-    ) (
-        clk     ,
-        rst     ,
-        enable  ,
-        shift   ,
-        x       ,
-        y       ,
-    );
+    inst dut: HpfShiftVariableSigned #( DATA_WIDTH, MAX_SHIFT, SHIFT_BITS ) ( clk, rst, enable, shift, x, y );
 
     initial {
         enable     = false;

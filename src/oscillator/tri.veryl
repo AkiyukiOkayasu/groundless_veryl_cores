@@ -13,9 +13,10 @@ pub module TriangleWaveCore (
     // 0 -> 2^31-1 -> 0の三角波
     assign tri_wave = {
         1'b0, // MSBはゼロ固定
-        phase[msb - 1:0] ^ {
-            phase[msb] repeat 31
-        } // 下位31bitを反転条件付きで反転
+        phase[msb - 1:0]
+            ^ {
+                phase[msb] repeat 31
+            } // 下位31bitを反転条件付きで反転
     };
 
     // 出力スケーリングとオフセット
@@ -38,17 +39,8 @@ pub module TriangleOscillator (
 ) {
     // 位相生成
     var phase: Phase::phase_t;
-    inst phasor: Phasor (
-        clk          ,
-        phase_rst    ,
-        phase_step   ,
-        phase        ,
-        eoc       : _,
-    );
+    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
 
     // 三角波生成
-    inst core: TriangleWaveCore (
-        phase  ,
-        audio  ,
-    );
+    inst core: TriangleWaveCore ( phase, audio );
 }

@@ -24,17 +24,8 @@ pub module SawOscillator (
 ) {
     // 位相生成
     var phase: Phase::phase_t;
-    inst phasor: Phasor (
-        clk          ,
-        phase_rst    ,
-        phase_step   ,
-        phase        ,
-        eoc       : _,
-    );
+    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
 
     // ノコギリ波生成
-    inst core: SawWaveCore (
-        phase  ,
-        audio  ,
-    );
+    inst core: SawWaveCore ( phase, audio );
 }

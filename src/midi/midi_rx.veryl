@@ -41,9 +41,7 @@ pub module MidiRx #(
 #[test(test_midi_rx)]
 module test_midi_rx {
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     var rx        : logic   ;
     var data      : logic<8>;
@@ -53,15 +51,7 @@ module test_midi_rx {
     // CLK_FREQ=50MHz, BAUD_RATE=31250 → CYCLES_PER_BIT=1600
     const CYCLES_PER_BIT: u32 = 1600;
 
-    inst dut: MidiRx #(
-        CLK_FREQ: 50_000_000,
-    ) (
-        clk         ,
-        rst         ,
-        rx   : rx   ,
-        data : data ,
-        valid: valid,
-    );
+    inst dut: MidiRx #( CLK_FREQ: 50_000_000 ) ( clk, rst, rx: rx, data: data, valid: valid );
 
     // valid パルスをラッチ: valid==1 のクロックが来たら valid_seen を 1 にする
     always_ff (clk, rst) {

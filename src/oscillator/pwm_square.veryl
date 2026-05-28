@@ -27,18 +27,8 @@ pub module PwmSquareOscillator (
 ) {
     // 位相生成
     var phase: Phase::phase_t;
-    inst phasor: Phasor (
-        clk          ,
-        phase_rst    ,
-        phase_step   ,
-        phase        ,
-        eoc       : _,
-    );
+    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
 
     // 矩形波生成
-    inst core: SquareWaveCore (
-        phase       ,
-        duty_cycle  ,
-        audio       ,
-    );
+    inst core: SquareWaveCore ( phase, duty_cycle, audio );
 }

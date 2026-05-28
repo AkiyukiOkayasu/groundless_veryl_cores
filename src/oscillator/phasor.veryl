@@ -69,13 +69,7 @@ module test_phasor {
     var phase     : Phase::phase_t;
     var phase_rst : logic         ;
 
-    inst dut: Phasor (
-        clk          ,
-        phase_rst    ,
-        phase_step   ,
-        phase        ,
-        eoc       : _,
-    );
+    inst dut: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
 
     initial {
         // リセット実行

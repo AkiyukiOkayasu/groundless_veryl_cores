@@ -265,9 +265,7 @@ module test_spi_mode0_loopback {
     import spi_pkg::SpiMode;
 
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     var start   : logic   ;
     var tx_data : logic<8>;
@@ -321,9 +319,7 @@ module test_spi_mode1_loopback {
     import spi_pkg::SpiMode;
 
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     var start   : logic   ;
     var tx_data : logic<8>;
@@ -377,9 +373,7 @@ module test_spi_mode2_loopback {
     import spi_pkg::SpiMode;
 
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     var start   : logic   ;
     var tx_data : logic<8>;
@@ -433,9 +427,7 @@ module test_spi_mode3_loopback {
     import spi_pkg::SpiMode;
 
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     var start   : logic   ;
     var tx_data : logic<8>;
@@ -489,9 +481,7 @@ module test_spi_idle_polarity {
     import spi_pkg::SpiMode;
 
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     var start         : logic   ;
     var tx_data       : logic<8>;
@@ -562,9 +552,7 @@ module test_spi_consecutive_transfer {
     import spi_pkg::SpiMode;
 
     inst clk: $tb::clock_gen;
-    inst rst: $tb::reset_gen (
-        clk  ,
-    );
+    inst rst: $tb::reset_gen ( clk );
 
     var start   : logic   ;
     var tx_data : logic<8>;

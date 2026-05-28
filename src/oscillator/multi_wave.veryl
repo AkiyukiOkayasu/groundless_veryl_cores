@@ -32,30 +32,16 @@ pub module MultiWaveCore (
     var square_out  : FixedPoint::q8_24;
 
     // サイン波コア (線形補間、1クロック遅延あり)
-    inst sine_core: SineWaveLerpCore (
-        clk            ,
-        phase          ,
-        audio: sine_out,
-    );
+    inst sine_core: SineWaveLerpCore ( clk, phase, audio: sine_out );
 
     // 三角波コア (組み合わせ回路、遅延なし)
-    inst triangle_core: TriangleWaveCore (
-        phase              ,
-        audio: triangle_out,
-    );
+    inst triangle_core: TriangleWaveCore ( phase, audio: triangle_out );
 
     // ノコギリ波コア (組み合わせ回路、遅延なし)
-    inst saw_core: SawWaveCore (
-        phase         ,
-        audio: saw_out,
-    );
+    inst saw_core: SawWaveCore ( phase, audio: saw_out );
 
     // 矩形波コア (組み合わせ回路、遅延なし)
-    inst square_core: SquareWaveCore (
-        phase                 ,
-        duty_cycle            ,
-        audio     : square_out,
-    );
+    inst square_core: SquareWaveCore ( phase, duty_cycle, audio: square_out );
 
     // 波形選択用レジスタ (1クロック遅延でサイン波とタイミング整合)
     var triangle_out_d: FixedPoint::q8_24  ;
@@ -97,20 +83,8 @@ pub module MultiWaveOscillator (
 ) {
     // 位相生成 (共通Phasor)
     var phase: Phase::phase_t;
-    inst phasor: Phasor (
-        clk          ,
-        phase_rst    ,
-        phase_step   ,
-        phase        ,
-        eoc       : _,
-    );
+    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
 
     // マルチ波形生成コア
-    inst core: MultiWaveCore (
-        clk         ,
-        phase       ,
-        wave_type   ,
-        duty_cycle  ,
-        audio       ,
-    );
+    inst core: MultiWaveCore ( clk, phase, wave_type, duty_cycle, audio );
 }
