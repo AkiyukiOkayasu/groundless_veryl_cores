@@ -1,0 +1,125 @@
+import Adat::AdatFamily;
+
+/// TXビットシリアライザ
+///
+/// 256bitフレームをMSB-first（bit 255 → bit 0）でシリアル出力する。
+/// ビットタイミングはADATビットレート(family × 256)に基づく分数補間を使用。
+/// 48kHz系で約4.07 clk/bit, 44.1kHz系で約4.46 clk/bit.
+///
+/// ## Usage
+/// 1. `load`パルスで`frame`をロード
+/// 2. 自動でビット出力開始（MSB first）
+/// 3. 256bit完了時に`frame_done`パルス
+module TxBitSerializer #(
+    /// システムクロック周波数 [Hz]
+    param CLK_FREQ: u32 = 50_000_000,
+) (
+    /// システムクロック (50MHz)
+    clk: input clock,
+    rst: input reset,
+    /// 送信フレームデータ
+    frame: input logic<256>,
+    /// フレームロード要求
+    load: input logic,
+    /// ADATビットレートファミリー
+    family: input AdatFamily,
+    /// シリアルビット出力
+    serial_bit: output logic,
+    /// ビット出力有効ストローブ
+    bit_valid: output logic,
+    /// フレーム送信完了パルス
+    frame_done: output logic,
+) {
+    // ビットレート
+    var bit_rate: logic<40>;
+    // クロック周波数（演算用拡張幅）
+    var clk_freq: logic<40>;
+    // フレームデータ保持
+    var frame_reg: logic<256>;
+    // 出力ビットカウンタ (0..255)
+    var bit_counter: logic<8>;
+    // ビット内クロックカウンタ
+    var clk_counter: logic<16>;
+    // 現在ビットの目標クロック数
+    var bit_clocks_target: logic<16>;
+    // 丸め付きエッジ位相累積
+    var phase_accum: logic<40>;
+    // 直前ビット境界クロック
+    var edge_clocks: logic<16>;
+    // 送信中フラグ
+    var active: logic;
+    // 出力レジスタ
+    var r_bit       : logic;
+    var r_bit_valid : logic;
+    var r_frame_done: logic;
+
+    assign serial_bit = r_bit;
+    assign bit_valid  = r_bit_valid;
+    assign frame_done = r_frame_done;
+
+    // ADATファミリーに応じたビットレート選択
+    // 物理ビットレートは2種類のみ:
+    // - F44K1 (0): 11,289,600 bps
+    // - F48K (1): 12,288,000 bps
+    always_comb {
+        if family == AdatFamily::F44K1 {
+            bit_rate = 40'd11_289_600;
+        } else {
+            bit_rate = 40'd12_288_000;
+        }
+        clk_freq = CLK_FREQ;
+    }
+
+    always_ff {
+        if_reset {
+            frame_reg         = 256'd0;
+            bit_counter       = 8'd0;
+            clk_counter       = 16'd0;
+            bit_clocks_target = 16'd1;
+            phase_accum       = 40'd0;
+            edge_clocks       = 16'd0;
+            active            = 1'b0;
+            r_bit             = 1'b0;
+            r_bit_valid       = 1'b0;
+            r_frame_done      = 1'b0;
+        } else {
+            r_bit_valid  = 1'b0;
+            r_frame_done = 1'b0;
+
+            if load {
+                // bit_phase_clocks相当の分数補間（整数演算版）
+                let first_phase: logic<40> = (bit_rate >> 1) + clk_freq;
+                let first_edge : logic<16> = first_phase / bit_rate;
+
+                frame_reg         = frame;
+                bit_counter       = 8'd0;
+                clk_counter       = 16'd0;
+                bit_clocks_target = first_edge;
+                phase_accum       = first_phase;
+                edge_clocks       = first_edge;
+                active            = 1'b1;
+            } else if active {
+                if clk_counter >= (bit_clocks_target - 16'd1) {
+                    r_bit       = frame_reg[255 - bit_counter];
+                    r_bit_valid = 1'b1;
+                    clk_counter = 16'd0;
+
+                    if bit_counter >= 8'd255 {
+                        active       = 1'b0;
+                        r_frame_done = 1'b1;
+                    } else {
+                        let next_phase: logic<40> = phase_accum + clk_freq;
+                        let next_edge : logic<16> = next_phase / bit_rate;
+
+                        bit_counter       = bit_counter + 8'd1;
+                        phase_accum       = next_phase;
+                        bit_clocks_target = next_edge - edge_clocks;
+                        edge_clocks       = next_edge;
+                    }
+                } else {
+                    clk_counter = clk_counter + 16'd1;
+                }
+            }
+        }
+    }
+}

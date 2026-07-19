@@ -1,0 +1,152 @@
+/// 出力インターフェース
+///
+/// S/MUX対応、サンプルレート自動検出、フレームクロック生成を行う。
+///
+/// # フレームクロック
+/// ADATフレーム周期のクロック（サンプルクロックではない）
+/// 通常は44.1/48kHz、S/MUX有効時のサンプルレートはこの2倍または4倍
+/// フレーム周期の約50%デューティで出力
+///
+/// # valid
+/// `data_valid && channel==7` のとき、`valid` を1サイクルだけアサートする。
+/// これは1フレーム分のPCM（`channel_reg[0..7]`）が更新されたことを示す。
+///
+/// # locked
+/// 連続する複数フレームが受信できていると判断したときに`locked`をアサートする。
+/// 目安として、リセット解除後に有効なフレーム受信が継続すれば5フレーム以内に1になる。
+/// complete-frame未観測が`frame_time`の約2倍続いた場合はロックを解除する。
+module OutputInterface (
+    /// システムクロック
+    clk: input clock,
+    rst: input reset,
+    /// フレーム時間
+    frame_time: input logic<12>,
+    /// PCMデータ入力
+    data: input logic<24>,
+    /// チャンネル番号
+    channel: input logic<3>,
+    /// データ有効
+    data_valid: input logic,
+    /// 同期マスク
+    sync: input logic,
+    /// ユーザービット入力
+    user_bits: input logic<4>,
+    /// 検出されたS/MUX有効状態 (1: enabled, 0: disabled)
+    smux_active: output logic,
+    /// ADATフレーム周期のクロック出力（サンプルクロックではない）
+    frame_clk: output logic,
+    /// 8チャンネルPCMデータ出力
+    channels: output logic<24> [8],
+    /// 全チャンネルデータ有効
+    valid: output logic,
+    /// 同期ロック状態
+    locked: output logic,
+) {
+    // ワードクロックカウンタ
+    var word_clk_cnt: logic<12>;
+    // ワードクロック出力
+    var word_clk: logic;
+    // チャンネルデータバッファ
+    var channel_reg: logic<24> [8];
+    // 出力有効
+    var valid_out: logic;
+    // ロック状態
+    var locked_reg: logic;
+    // フレームカウンタ（ロック検出用）
+    var frame_cnt: logic<4>;
+    // complete-frame未観測カウンタ（ロック解除用）
+    var no_frame_cnt: logic<16>;
+    // UserBit由来のS/MUX有効フラグ
+    var smux_active_reg: logic;
+
+    // S/MUX有効判定 (ADAT User Bit 2 → user_bits[1])
+    // Note: ここからS/MUX2とS/MUX4の区別はできない
+    assign smux_active_reg = user_bits[1];
+    assign smux_active     = smux_active_reg;
+
+    assign frame_clk = word_clk;
+    assign valid     = valid_out;
+    assign locked    = locked_reg;
+
+    // チャンネル出力割り当て
+    for i in 0..8 :g_ch_out {
+        assign channels[i] = channel_reg[i];
+    }
+
+    // ロック検出
+    // 数フレーム連続で同期が取れたらロック
+    always_ff {
+        if_reset {
+            frame_cnt    = 4'd0;
+            locked_reg   = 1'b0;
+            no_frame_cnt = 16'd0;
+        } else if data_valid && channel == 3'd7 {
+            // 最後のチャンネル受信でカウントアップ
+            if frame_cnt <: 4'd15 {
+                frame_cnt = frame_cnt + 4'd1;
+            }
+            if frame_cnt >= 4'd4 {
+                locked_reg = 1'b1;
+            }
+
+            // complete-frame観測でwatchdogリセット
+            no_frame_cnt = 16'd0;
+        } else {
+            // complete-frameが来ない期間をカウント
+            if no_frame_cnt <: 16'hFFFF {
+                no_frame_cnt = no_frame_cnt + 16'd1;
+            }
+
+            // complete-frame未観測が一定期間続いたらロック解除
+            if no_frame_cnt >: (frame_time << 1) {
+                frame_cnt  = 4'd0;
+                locked_reg = 1'b0;
+            }
+        }
+    }
+
+    // ワードクロック生成
+    // フレーム時間の約50%デューティ
+    always_ff {
+        if_reset {
+            word_clk_cnt = 12'd0;
+            word_clk     = 1'b0;
+        } else if !sync {
+            word_clk_cnt = 12'd0;
+            word_clk     = 1'b1;
+        } else {
+            word_clk_cnt = word_clk_cnt + 12'd1;
+            if word_clk_cnt >: (frame_time >> 1) {
+                word_clk = 1'b0;
+            } else {
+                word_clk = 1'b1;
+            }
+        }
+    }
+
+    // チャンネルデータ格納
+    always_ff {
+        if_reset {
+            channel_reg[0] = 24'd0;
+            channel_reg[1] = 24'd0;
+            channel_reg[2] = 24'd0;
+            channel_reg[3] = 24'd0;
+            channel_reg[4] = 24'd0;
+            channel_reg[5] = 24'd0;
+            channel_reg[6] = 24'd0;
+            channel_reg[7] = 24'd0;
+            valid_out      = 1'b0;
+        } else if data_valid {
+            // チャンネルデータを格納
+            channel_reg[channel] = data;
+            // 最後のチャンネル(7)受信で1回だけ出力有効
+            if channel == 3'd7 {
+                valid_out = 1'b1;
+            } else {
+                valid_out = 1'b0;
+            }
+        } else {
+            valid_out = 1'b0;
+        }
+    }
+}

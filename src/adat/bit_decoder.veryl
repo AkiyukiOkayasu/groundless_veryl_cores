@@ -1,0 +1,96 @@
+/// NRZIビットデコーダ
+///
+/// 遷移間の時間から1〜5ビットをデコードする。
+/// 時間ビニング方式を採用。
+///
+/// # NRZIエンコーディング
+/// - 遷移あり = '1'ビット
+/// - 遷移なし = '0'ビット
+/// - 最大5ビット連続（4データビット + 1同期ビット）
+///
+/// # 時間ビン
+/// - 0.5以上〜1.5 bit time未満 → 1 bit ("1")
+/// - 1.5以上〜2.5 bit time未満 → 2 bits ("01")
+/// - 2.5以上〜3.5 bit time未満 → 3 bits ("001")
+/// - 3.5以上〜4.5 bit time未満 → 4 bits ("0001")
+/// - 4.5 bit time以上 → 5 bits ("00001")
+module BitDecoder (
+    /// システムクロック
+    clk: input clock,
+    rst: input reset,
+    /// エッジ検出パルス
+    edge_pulse: input logic,
+    /// エッジ間隔時間
+    edge_time: input logic<12>,
+    /// フレーム時間
+    frame_time: input logic<12>,
+    /// 同期マスク (1=データ期間)
+    sync_mask: input logic,
+    /// デコードされたビット列 (LSB aligned)
+    bits: output logic<5>,
+    /// デコードされたビット数 (1-5)
+    bit_count: output logic<3>,
+    /// 出力有効
+    valid: output logic,
+) {
+    // 出力レジスタ
+    var r_bits : logic<5>;
+    var r_count: logic<3>;
+    var r_valid: logic   ;
+
+    assign bits      = r_bits;
+    assign bit_count = r_count;
+    assign valid     = r_valid;
+
+    always_ff {
+        if_reset {
+            r_bits  = 5'b00000;
+            r_count = 3'd0;
+            r_valid = 1'b0;
+        } else if edge_pulse && sync_mask {
+            r_valid = 1'b1;
+            // frame_timeを直接使った固定小数判定。
+            // timing_trackerのedge_timeは実エッジ間クロック数より1小さく見えるため+1する。
+            let edge_clocks : logic<13> = {1'b0, edge_time} + 13'd1;
+            let edge_scaled : logic<24> = ({11'd0, edge_clocks} << 9); // (edge_time + 1) * 512
+            let frame_scaled: logic<24> = {12'd0, frame_time};
+            let t1          : logic<24> = (frame_scaled << 1) + frame_scaled; // 1.5 * frame_time * 2
+            let t2          : logic<24> = (frame_scaled << 2) + frame_scaled; // 2.5 * frame_time * 2
+            let t3          : logic<24> = (frame_scaled << 2) + (frame_scaled << 1) + frame_scaled; // 3.5 * frame_time * 2
+            let t4          : logic<24> = (frame_scaled << 3) + frame_scaled; // 4.5 * frame_time * 2
+
+            // 時間ビンによるビット数判定
+            // NRZIデコード: 遷移で終わる→最後が'1'
+            // 境界値は上側binへ入れる。
+            // 50MHz/48kHzでは実測edge_time=6を2bit側に寄せる方が安定する。
+            if edge_scaled <: t1 {
+                // 1 bit: "1"
+                r_bits  = 5'b00001;
+                r_count = 3'd1;
+            } else if edge_scaled <: t2 {
+                // 2 bits: "01"
+                r_bits  = 5'b00010;
+                r_count = 3'd2;
+            } else if edge_scaled <: t3 {
+                // 3 bits: "001"
+                r_bits  = 5'b00100;
+                r_count = 3'd3;
+            } else if edge_scaled <: t4 {
+                // 4 bits: "0001"
+                r_bits  = 5'b01000;
+                r_count = 3'd4;
+            } else {
+                // 5 bits: "00001"
+                r_bits  = 5'b10000;
+                r_count = 3'd5;
+            }
+        } else if !sync_mask {
+            // 同期期間中はリセット
+            r_bits  = 5'b00000;
+            r_count = 3'd0;
+            r_valid = 1'b0;
+        } else {
+            r_valid = 1'b0;
+        }
+    }
+}

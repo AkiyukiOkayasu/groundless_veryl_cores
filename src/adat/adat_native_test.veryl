@@ -1,0 +1,505 @@
+/// ADAT内部コアのVeryl Nativeテスト
+
+import Adat::AdatFamily;
+
+#[test(test_adat_timing_tracker)]
+module test_adat_timing_tracker {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var edge_pulse : logic    ;
+    var edge_time  : logic<12>;
+    var sync_detect: logic    ;
+    var frame_time : logic<12>;
+
+    inst dut: TimingTracker ( clk, rst, edge_pulse, edge_time, sync_detect, frame_time );
+
+    function pulse_edge (
+        gap_cycles: input logic<12>,
+    ) {
+        edge_pulse = 1'b0;
+        clk.next(gap_cycles);
+        edge_pulse = 1'b1;
+        clk.next(1);
+        edge_pulse = 1'b0;
+    }
+
+    initial {
+        edge_pulse = 1'b0;
+        rst.assert();
+
+        // 短いエッジ間隔はデータ期間として扱う。
+        pulse_edge(12'd4);
+        $assert(sync_detect == 1'b1, "short interval should be data");
+
+        // 長いエッジ間隔はSYNC期間として扱う。
+        pulse_edge(12'd40);
+        $assert(sync_detect == 1'b0, "long interval should be sync");
+
+        // SYNC後にデータ期間へ復帰する。
+        pulse_edge(12'd4);
+        $assert(sync_detect == 1'b1, "data should resume after sync");
+        $assert(frame_time == 12'd1042, "initial frame time should be 1042");
+
+        $finish();
+    }
+}
+
+#[test(test_adat_bit_decoder)]
+module test_adat_bit_decoder {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var edge_pulse: logic    ;
+    var edge_time : logic<12>;
+    var frame_time: logic<12>;
+    var sync_mask : logic    ;
+    var bits      : logic<5> ;
+    var bit_count : logic<3> ;
+    var valid     : logic    ;
+
+    inst dut: BitDecoder ( clk, rst, edge_pulse, edge_time, frame_time, sync_mask, bits, bit_count, valid );
+
+    function trigger_edge (
+        interval: input logic<12>,
+    ) {
+        edge_time  = interval;
+        edge_pulse = 1'b1;
+        clk.next(1);
+        edge_pulse = 1'b0;
+    }
+
+    initial {
+        edge_pulse = 1'b0;
+        edge_time  = 12'd0;
+        frame_time = 12'd2048;
+        sync_mask  = 1'b1;
+        rst.assert();
+
+        trigger_edge(12'd1);
+        $assert(valid == 1'b1, "one-bit decode should be valid");
+        $assert(bit_count == 3'd1, "one-bit decode count mismatch");
+        $assert(bits == 5'b00001, "one-bit decode value mismatch");
+
+        trigger_edge(12'd16);
+        $assert(bit_count == 3'd2, "two-bit decode count mismatch");
+        $assert(bits == 5'b00010, "two-bit decode value mismatch");
+
+        trigger_edge(12'd40);
+        $assert(bit_count == 3'd5, "five-bit decode count mismatch");
+        $assert(bits == 5'b10000, "five-bit decode value mismatch");
+
+        sync_mask = 1'b0;
+        trigger_edge(12'd1);
+        $assert(valid == 1'b0, "sync interval should not emit data");
+
+        $finish();
+    }
+}
+
+#[test(test_adat_frame_parser)]
+module test_adat_frame_parser {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var bits      : logic<5> ;
+    var bit_count : logic<3> ;
+    var valid     : logic    ;
+    var sync      : logic    ;
+    var user_bits : logic<4> ;
+    var data      : logic<24>;
+    var channel   : logic<3> ;
+    var data_valid: logic    ;
+
+    inst dut: FrameParser (
+        clk       : clk       ,
+        rst       : rst       ,
+        bits      : bits      ,
+        bit_count : bit_count ,
+        valid     : valid     ,
+        sync      : sync      ,
+        user_bits : user_bits ,
+        data      : data      ,
+        channel   : channel   ,
+        data_valid: data_valid,
+    );
+
+    function push_bits (
+        value: input logic<5>,
+        count: input logic<3>,
+    ) {
+        bits      = value;
+        bit_count = count;
+        valid     = 1'b1;
+        clk.next(1);
+        valid = 1'b0;
+    }
+
+    initial {
+        bits      = 5'd0;
+        bit_count = 3'd0;
+        valid     = 1'b0;
+        sync      = 1'b1;
+        rst.assert();
+
+        // User=0xA。先頭のseparatorを含む反転済み入力。
+        push_bits(5'b10101, 3'd5);
+        $assert(user_bits == 4'hA, "user bits mismatch");
+
+        // CH0=0x123456。
+        push_bits(5'b11000, 3'd5);
+        push_bits(5'b10100, 3'd5);
+        push_bits(5'b11100, 3'd5);
+        push_bits(5'b10010, 3'd5);
+        push_bits(5'b11010, 3'd5);
+        push_bits(5'b10110, 3'd5);
+        $assert(data_valid == 1'b1, "CH0 should be valid");
+        $assert(channel == 3'd0, "CH0 channel index mismatch");
+        $assert(data == 24'h123456, "CH0 PCM data mismatch");
+
+        $finish();
+    }
+}
+
+#[test(test_adat_tx_frame_builder)]
+module test_adat_tx_frame_builder {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var channels : logic<24>  [8];
+    var user_bits: logic<4>      ;
+    var build    : logic         ;
+    var frame    : logic<256>    ;
+    var ready    : logic         ;
+
+    inst dut: TxFrameBuilder ( clk, rst, channels, user_bits, build, frame, ready );
+
+    initial {
+        channels[0] = 24'h123456;
+        channels[1] = 24'h789ABC;
+        channels[2] = 24'hDEF012;
+        channels[3] = 24'h345678;
+        channels[4] = 24'h9ABCDE;
+        channels[5] = 24'hF01234;
+        channels[6] = 24'h567890;
+        channels[7] = 24'hABCDEF;
+        user_bits   = 4'hA;
+        build       = 1'b0;
+        rst.assert();
+
+        build = 1'b1;
+        clk.next(1);
+        build = 1'b0;
+
+        $assert(ready == 1'b1, "frame builder should pulse ready");
+        $assert(frame[255:246] == 10'b0000000000, "SYNC zero field mismatch");
+        $assert(frame[245] == 1'b1, "SYNC separator mismatch");
+        $assert(frame[244:241] == 4'hA, "user field mismatch");
+        $assert(frame[240] == 1'b1, "user separator mismatch");
+        $assert(
+            frame[239:210] == {4'h1, 1'b1, 4'h2, 1'b1, 4'h3, 1'b1, 4'h4, 1'b1, 4'h5, 1'b1, 4'h6, 1'b1},
+            "CH0 frame encoding mismatch",
+        );
+        $assert(
+            frame[29:0] == {4'hA, 1'b1, 4'hB, 1'b1, 4'hC, 1'b1, 4'hD, 1'b1, 4'hE, 1'b1, 4'hF, 1'b1},
+            "CH7 frame encoding mismatch",
+        );
+
+        clk.next(1);
+        $assert(ready == 1'b0, "ready should be a one-cycle pulse");
+        $finish();
+    }
+}
+
+#[test(test_adat_tx_nrzi_encoder)]
+module test_adat_tx_nrzi_encoder {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var serial_bit: logic;
+    var valid     : logic;
+    var nrzi      : logic;
+
+    inst dut: TxNrziEncoder ( clk, rst, serial_bit, valid, nrzi );
+
+    function send_bit (
+        value: input logic,
+    ) {
+        serial_bit = value;
+        valid      = 1'b1;
+        clk.next(1);
+        valid = 1'b0;
+        clk.next(1);
+    }
+
+    initial {
+        serial_bit = 1'b0;
+        valid      = 1'b0;
+        rst.assert();
+        $assert(nrzi == 1'b0, "NRZI reset level mismatch");
+
+        send_bit(1'b1);
+        $assert(nrzi == 1'b1, "NRZI one should toggle");
+        send_bit(1'b0);
+        $assert(nrzi == 1'b1, "NRZI zero should hold");
+        send_bit(1'b1);
+        $assert(nrzi == 1'b0, "NRZI second one should toggle");
+
+        $finish();
+    }
+}
+
+#[test(test_adat_tx_bit_serializer)]
+module test_adat_tx_bit_serializer {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var frame     : logic     <256>;
+    var load      : logic          ;
+    var family    : AdatFamily     ;
+    var serial_bit: logic          ;
+    var bit_valid : logic          ;
+    var frame_done: logic          ;
+    var bit_count : logic     <9>  ;
+    var first_bit : logic          ;
+    var last_bit  : logic          ;
+    var done_seen : logic          ;
+
+    inst dut: TxBitSerializer #(
+        CLK_FREQ: 50_000_000,
+    ) (
+        clk         ,
+        rst         ,
+        frame       ,
+        load        ,
+        family      ,
+        serial_bit  ,
+        bit_valid   ,
+        frame_done  ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            bit_count = 0;
+            first_bit = 0;
+            last_bit  = 0;
+            done_seen = 0;
+        } else {
+            if bit_valid {
+                if bit_count == 0 {
+                    first_bit = serial_bit;
+                }
+                last_bit  = serial_bit;
+                bit_count = bit_count + 1;
+            }
+            if frame_done {
+                done_seen = 1;
+            }
+        }
+    }
+
+    initial {
+        frame  = {1'b1, 254'd0, 1'b1};
+        load   = 1'b0;
+        family = AdatFamily::F48K;
+        rst.assert();
+        clk.next(10);
+
+        load = 1'b1;
+        clk.next(1);
+        load = 1'b0;
+        // 256bit / 12.288Mbps at 50MHz is about 1042 clocks。
+        clk.next(1200);
+
+        $assert(bit_count == 9'd256, "serializer bit count mismatch");
+        $assert(first_bit == 1'b1, "serializer MSB order mismatch");
+        $assert(last_bit == 1'b1, "serializer LSB order mismatch");
+        $assert(done_seen == 1'b1, "serializer frame_done was not observed");
+        $finish();
+    }
+}
+
+#[test(test_adat_output_interface)]
+module test_adat_output_interface {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var frame_time : logic<12>    ;
+    var data       : logic<24>    ;
+    var channel    : logic<3>     ;
+    var data_valid : logic        ;
+    var sync       : logic        ;
+    var user_bits  : logic<4>     ;
+    var smux_active: logic        ;
+    var frame_clk  : logic        ;
+    var channels   : logic<24> [8];
+    var valid      : logic        ;
+    var locked     : logic        ;
+
+    inst dut: OutputInterface (
+        clk          ,
+        rst          ,
+        frame_time   ,
+        data         ,
+        channel      ,
+        data_valid   ,
+        sync         ,
+        user_bits    ,
+        smux_active  ,
+        frame_clk    ,
+        channels     ,
+        valid        ,
+        locked       ,
+    );
+
+    function push_channel (
+        index : input logic<3> ,
+        sample: input logic<24>,
+    ) {
+        channel    = index;
+        data       = sample;
+        data_valid = 1'b1;
+        clk.next(1);
+        data_valid = 1'b0;
+    }
+
+    initial {
+        frame_time = 12'd2048;
+        data       = 24'd0;
+        channel    = 3'd0;
+        data_valid = 1'b0;
+        sync       = 1'b1;
+        user_bits  = 4'b0010;
+        rst.assert();
+
+        push_channel(3'd0, 24'h100000);
+        push_channel(3'd1, 24'h200000);
+        push_channel(3'd2, 24'h300000);
+        push_channel(3'd3, 24'h400000);
+        push_channel(3'd4, 24'h500000);
+        push_channel(3'd5, 24'h600000);
+        push_channel(3'd6, 24'h700000);
+        push_channel(3'd7, 24'h7FFFFF);
+
+        $assert(valid == 1'b1, "complete frame should assert valid");
+        $assert(smux_active == 1'b1, "S/MUX flag mismatch");
+        $assert(channels[0] == 24'h100000, "channel 0 data mismatch");
+        $assert(channels[7] == 24'h7FFFFF, "channel 7 data mismatch");
+        $finish();
+    }
+}
+
+#[test(test_adat_loopback)]
+module test_adat_loopback {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var frame_clk_tx  : logic        ;
+    var channels_tx   : logic<24> [8];
+    var smux_active_tx: logic        ;
+    var adat_loopback : logic        ;
+    var frame_done_tx : logic        ;
+
+    var frame_clk_rx  : logic        ;
+    var smux_active_rx: logic        ;
+    var channels_rx   : logic<24> [8];
+    var valid_rx      : logic        ;
+    var locked_rx     : logic        ;
+
+    var sent_count      : logic<4>;
+    var valid_count     : logic<4>;
+    var done_count      : logic<4>;
+    var frame_valid_seen: logic   ;
+    var frame_done_seen : logic   ;
+    var locked_seen     : logic   ;
+    var complete        : logic   ;
+
+    inst tx: AdatTx #(
+        CLK_FREQ   : 50_000_000      ,
+        ADAT_FAMILY: AdatFamily::F48K,
+    ) (
+        clk        : clk           ,
+        rst        : rst           ,
+        frame_clk  : frame_clk_tx  ,
+        channels   : channels_tx   ,
+        smux_active: smux_active_tx,
+        adat       : adat_loopback ,
+        frame_done : frame_done_tx ,
+    );
+
+    inst rx: AdatRx (
+        clk        : clk           ,
+        rst        : rst           ,
+        adat       : adat_loopback ,
+        frame_clk  : frame_clk_rx  ,
+        smux_active: smux_active_rx,
+        channels   : channels_rx   ,
+        valid      : valid_rx      ,
+        locked     : locked_rx     ,
+    );
+
+    // TX完了イベントで次フレームを開始し、RXの完了フレーム数を記録する。
+    always_ff (clk, rst) {
+        if_reset {
+            frame_clk_tx     = 1'b0;
+            smux_active_tx   = 1'b0;
+            channels_tx[0]   = 24'h123456;
+            channels_tx[1]   = 24'h234567;
+            channels_tx[2]   = 24'h345678;
+            channels_tx[3]   = 24'h456789;
+            channels_tx[4]   = 24'h56789A;
+            channels_tx[5]   = 24'h6789AB;
+            channels_tx[6]   = 24'h789ABC;
+            channels_tx[7]   = 24'h89ABCD;
+            sent_count       = 4'd0;
+            valid_count      = 4'd0;
+            done_count       = 4'd0;
+            frame_valid_seen = 1'b0;
+            frame_done_seen  = 1'b0;
+            locked_seen      = 1'b0;
+            complete         = 1'b0;
+        } else {
+            frame_clk_tx = 1'b0;
+
+            // 最初のフレームを開始し、以降はframe_doneを待って開始する。
+            if sent_count == 4'd0 {
+                frame_clk_tx = 1'b1;
+                sent_count   = 4'd1;
+            } else if frame_valid_seen && frame_done_seen && sent_count <: 4'd11 {
+                frame_clk_tx     = 1'b1;
+                sent_count       = sent_count + 4'd1;
+                frame_valid_seen = 1'b0;
+                frame_done_seen  = 1'b0;
+            }
+
+            if valid_rx && valid_count <: 4'd15 {
+                valid_count      = valid_count + 4'd1;
+                frame_valid_seen = 1'b1;
+            }
+            if frame_done_tx && done_count <: 4'd15 {
+                done_count      = done_count + 4'd1;
+                frame_done_seen = 1'b1;
+            }
+            if locked_rx {
+                locked_seen = 1'b1;
+            }
+            if done_count == 4'd11 {
+                complete = 1'b1;
+            }
+        }
+    }
+
+    initial {
+        rst.assert();
+        // 11フレームが完了するまでの上限。送信開始自体はframe_done駆動。
+        clk.next(16_000);
+
+        $assert(complete == 1'b1, "ADAT loopback did not complete");
+        $assert(valid_count == 4'd11, "ADAT loopback valid count mismatch");
+        $assert(locked_seen == 1'b1, "ADAT loopback should lock");
+        $assert(smux_active_rx == 1'b0, "ADAT loopback S/MUX flag mismatch");
+        $assert(channels_rx[0] == 24'h123456, "ADAT loopback CH0 mismatch");
+        $assert(channels_rx[7] == 24'h89ABCD, "ADAT loopback CH7 mismatch");
+        $finish();
+    }
+}

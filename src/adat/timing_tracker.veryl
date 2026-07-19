@@ -1,0 +1,115 @@
+/// タイミング追跡モジュール
+///
+/// エッジ間の時間を計測し、最大時間を追跡して同期パターンを検出する。
+/// フレーム時間も計測してビットデコードの基準を提供。
+///
+/// # アルゴリズム
+/// 1. エッジ間の時間をカウント
+/// 2. 最大時間を追跡（遅い減衰付き）
+/// 3. 最大時間の3/4を超えたら同期パターンと判定
+/// 4. 同期→同期間の時間をフレーム時間として記録
+///
+/// # SYNC検出の原理
+/// ADATのSYNCパターンは10個の連続'0'で、これはフレーム内で唯一の
+/// 長時間無遷移期間（約814ns）となる。通常データは最大5ビット連続まで。
+module TimingTracker (
+    /// システムクロック
+    clk: input clock,
+    rst: input reset,
+    /// エッジ検出パルス入力
+    edge_pulse: input logic,
+    /// 現在のエッジ間隔時間
+    edge_time: output logic<12>,
+    /// 同期検出フラグ (アクティブハイ=データ期間、ロー=同期期間)
+    sync_detect: output logic,
+    /// フレーム時間
+    frame_time: output logic<12>,
+) {
+    // エッジ間時間カウンタ
+    var cur_time: logic<12>;
+    // 直前のエッジ間隔時間
+    var edge_time_reg: logic<12>;
+    // 最大時間レジスタ (同期パターン検出用)
+    var max_time: logic<10>;
+    // 最大時間減衰用ウェイトカウンタ
+    var wait_count: logic<16>;
+    // 3/4閾値
+    var threshold: logic<10>;
+    // 同期マスク (1=データ期間、0=同期期間)
+    var sync_mask: logic;
+    // 同期マスクエッジ検出用
+    var sync_ff: logic<2>;
+    // フレーム時間カウンタ
+    var frame_count: logic<12>;
+    // 初回同期検出フラグ
+    var have_prev_sync: logic;
+    // フレーム時間レジスタ
+    var frame_time_reg: logic<12>;
+
+    assign threshold   = (max_time >> 1) + (max_time >> 2); // 3/4 = 1/2 + 1/4
+    assign edge_time   = edge_time_reg;
+    assign sync_detect = sync_mask;
+    assign frame_time  = frame_time_reg;
+
+    // 遷移間時間カウンタと最大時間追跡
+    always_ff {
+        if_reset {
+            cur_time      = 12'd0;
+            edge_time_reg = 12'd0;
+            max_time      = 10'd10; // 初期値: 40クロック/4 = 10 (cur_time[11:2], 50MHz)
+            wait_count    = 16'd0;
+        } else if edge_pulse {
+            // エッジでカウンタをリセット、最大値を更新
+            edge_time_reg = cur_time;
+            if cur_time[11:2] >: max_time {
+                max_time = cur_time[11:2];
+            }
+            cur_time = 12'd0;
+        } else {
+            cur_time = cur_time + 12'd1;
+            // 徐々にmax_timeを減少（AGC的動作でジッタに対応）
+            if wait_count == 16'hFFFF {
+                if max_time >: 10'd1 {
+                    max_time = max_time - 10'd1;
+                }
+                wait_count = 16'd0;
+            } else {
+                wait_count = wait_count + 16'd1;
+            }
+        }
+    }
+
+    // 同期検出: エッジ間隔が閾値以下ならデータ期間
+    // エッジ到来時に判定し、次のエッジまで保持
+    always_ff {
+        if_reset {
+            sync_mask = 1'b0;
+        } else if edge_pulse {
+            sync_mask = cur_time[11:2] <= threshold;
+        }
+    }
+
+    // フレーム時間測定: sync_maskの立ち上がりでキャプチャ
+    always_ff {
+        if_reset {
+            sync_ff        = 2'b00;
+            frame_count    = 12'd0;
+            frame_time_reg = 12'd1042;
+            have_prev_sync = 1'b0;
+        } else {
+            sync_ff[1] = sync_ff[0];
+            sync_ff[0] = sync_mask;
+            // sync間隔(長いエッジ間隔)の終了時にフレーム時間をキャプチャ
+            if edge_pulse && (cur_time[11:2] >: threshold) {
+                if have_prev_sync {
+                    frame_time_reg = frame_count;
+                } else {
+                    have_prev_sync = 1'b1;
+                }
+                frame_count = 12'd0;
+            } else {
+                frame_count = frame_count + 12'd1;
+            }
+        }
+    }
+}

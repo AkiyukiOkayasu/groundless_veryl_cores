@@ -1,0 +1,116 @@
+import Adat::AdatFamily;
+
+/// ADAT TXトップモジュール
+///
+/// 8ch 24bit PCMをADATフレームへ変換し、NRZI信号として出力する。
+/// 送信パイプラインは以下の3段で構成される。
+///
+/// 1. `tx_frame_builder`
+///    - `frame_clk`立ち上がりをトリガに256bit ADATフレームを構築
+/// 2. `tx_bit_serializer`
+///    - 256bitフレームをMSB-firstでシリアル化
+///    - `ADAT_FAMILY`に応じて44.1kHz系/48kHz系のビット周期を選択
+/// 3. `tx_nrzi_encoder`
+///    - シリアルビットをNRZIへ変換して`adat`へ出力
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'clk', wave: 'p................' },
+///     { name: 'frame_clk', wave: '0..10.............' },
+///     { name: 'frame_build_pulse', wave: '0...10............' },
+///     { name: 'frame_ready', wave: '0....10...........' },
+///     { name: 'serial_bit_valid', wave: '0........1.1.1.1.1' },
+///     { name: 'serial_frame_done', wave: '0................10' },
+///     { name: 'adat', wave: '0........x.1.x.0.x' }
+///   ]
+/// }
+/// ```
+pub module AdatTx #(
+    /// システムクロック周波数 [Hz]
+    param CLK_FREQ: u32 = 50_000_000,
+    /// ADATビットレートファミリー (1'b0=F44K1[44.1kHz系], 1'b1=F48K[48kHz系])
+    param ADAT_FAMILY: AdatFamily = AdatFamily::F48K,
+) (
+    /// システムクロック (50MHz)
+    clk: input clock,
+    rst: input reset,
+    /// 外部フレームクロック立ち上がりで新規フレーム送信開始
+    frame_clk: input logic,
+    /// 8ch 24bit PCM入力
+    channels: input logic<24> [8],
+    /// S/MUX有効フラグ入力
+    smux_active: input logic,
+    /// ADAT NRZI出力
+    adat: output logic,
+    /// 256bitフレーム送信完了パルス
+    frame_done: output logic,
+) {
+    var frame_build_pulse: logic     ;
+    var frame_data       : logic<256>;
+    var frame_ready      : logic     ;
+    var serial_bit       : logic     ;
+    var serial_bit_valid : logic     ;
+    var serial_frame_done: logic     ;
+
+    assign frame_done = serial_frame_done;
+
+    // TimecodeやMIDIなどのユーザーデータは常に0とする
+    // - U0: Timecode 常に0
+    // - U1: MIDI     常に0
+    // - U2: S/MUXフラグはsmux_activeに従う
+    // - U3: reserved 常に0
+    var user_bits: logic<4>;
+    always_comb {
+        if smux_active {
+            user_bits = 4'b0010;
+        } else {
+            user_bits = 4'b0000;
+        }
+    }
+
+    // フレームクロック立ち上がり検出
+    inst u_frame_clk_edge: $std::edge_detector (
+        i_clk    : clk              ,
+        i_rst    : rst              ,
+        i_clear  : 0                ,
+        i_data   : frame_clk        ,
+        o_edge   : _                ,
+        o_posedge: frame_build_pulse,
+        o_negedge: _                ,
+    );
+
+    // フレーム構築
+    inst u_frame_builder: TxFrameBuilder (
+        clk                         ,
+        rst                         ,
+        channels                    ,
+        user_bits: user_bits        ,
+        build    : frame_build_pulse,
+        frame    : frame_data       ,
+        ready    : frame_ready      ,
+    );
+
+    // 256bitフレームのシリアル化
+    inst u_serializer: TxBitSerializer #(
+        CLK_FREQ  ,
+    ) (
+        clk                          ,
+        rst                          ,
+        frame     : frame_data       ,
+        load      : frame_ready      ,
+        family    : ADAT_FAMILY      ,
+        serial_bit: serial_bit       ,
+        bit_valid : serial_bit_valid ,
+        frame_done: serial_frame_done,
+    );
+
+    // NRZIエンコード
+    inst u_nrzi_encoder: TxNrziEncoder (
+        clk                         ,
+        rst                         ,
+        serial_bit: serial_bit      ,
+        valid     : serial_bit_valid,
+        nrzi      : adat            ,
+    );
+}

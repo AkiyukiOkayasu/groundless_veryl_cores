@@ -1,0 +1,311 @@
+/// ADATレシーバ トップモジュール
+///
+/// ADAT光入力から8チャンネル24ビットPCMをデコードする。
+/// クロックはADAT信号から自動復元される（外部PLLは不要）。
+///
+/// # 対応サンプルレート
+/// - 48kHz: 8チャンネル
+/// - 96kHz: 4チャンネル (S/MUX2)
+/// - 192kHz: 2チャンネル (S/MUX4)
+///
+/// # S/MUX時のチャンネルマッピング（利用側で実装）
+/// 本モジュールは `channels[8]` を物理スロットとして出力し、S/MUXの論理チャンネル再構成は行わない。
+///
+/// - S/MUX2 (96kHz / 88.2kHz, 4ch)
+///   - Logical CH0 <= `channels[0]` + `channels[1]`
+///   - Logical CH1 <= `channels[2]` + `channels[3]`
+///   - Logical CH2 <= `channels[4]` + `channels[5]`
+///   - Logical CH3 <= `channels[6]` + `channels[7]`
+/// - S/MUX4 (192kHz / 176.4kHz, 2ch)
+///   - Logical CH0 <= `channels[0]` + `channels[1]` + `channels[2]` + `channels[3]`
+///   - Logical CH1 <= `channels[4]` + `channels[5]` + `channels[6]` + `channels[7]`
+///
+/// 時間順は、各Logical CH内では添字の小さいスロットが先のサンプル。
+///
+/// # ADATフレーム構造 (256 bits @ 48kHz = 20.83us)
+///
+/// 5ビットニブル単位で構成。各ニブル: [4bit data][1bit separator=1]
+///
+/// ## シリアル伝送順とビット有意性の定義
+/// - シリアル伝送順: フレーム先頭から順方向（`build_frame[255]` → `build_frame[0]`）。
+/// - 5bitニブルの伝送順: `D23..D20` のように data部は MSB-first。
+/// - PCM 24bit語のビット有意性: `channels[x][23]` がMSB、`channels[x][0]` がLSB。
+/// - したがって nibble 列 `D23..D20, D19..D16, ... D3..D0` は
+///   `23:20, 19:16, ... 3:0` にそのまま対応する。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     {
+///       name: 'Field',
+///       wave: 'x3.........45...46...46...46...46...46...46...47...47...47...47...47...47...48...48...48...48...48...48...49...49...49...49...49...49...46...46...46...46...46...46...47...47...47...47...47...47...48...48...48...48...48...48...49...49...49...49...49...49...4x',
+///       data: [
+///         'SYNC', 'spr',
+///         'UserBit', 'spr',
+///         'CH0 nibble0', 'spr',
+///         'CH0 nibble1', 'spr',
+///         'CH0 nibble2', 'spr',
+///         'CH0 nibble3', 'spr',
+///         'CH0 nibble4', 'spr',
+///         'CH0 nibble5', 'spr',
+///         'CH1 nibble0', 'spr',
+///         'CH1 nibble1', 'spr',
+///         'CH1 nibble2', 'spr',
+///         'CH1 nibble3', 'spr',
+///         'CH1 nibble4', 'spr',
+///         'CH1 nibble5', 'spr',
+///         'CH2 nibble0', 'spr',
+///         'CH2 nibble1', 'spr',
+///         'CH2 nibble2', 'spr',
+///         'CH2 nibble3', 'spr',
+///         'CH2 nibble4', 'spr',
+///         'CH2 nibble5', 'spr',
+///         'CH3 nibble0', 'spr',
+///         'CH3 nibble1', 'spr',
+///         'CH3 nibble2', 'spr',
+///         'CH3 nibble3', 'spr',
+///         'CH3 nibble4', 'spr',
+///         'CH3 nibble5', 'spr',
+///         'CH4 nibble0', 'spr',
+///         'CH4 nibble1', 'spr',
+///         'CH4 nibble2', 'spr',
+///         'CH4 nibble3', 'spr',
+///         'CH4 nibble4', 'spr',
+///         'CH4 nibble5', 'spr',
+///         'CH5 nibble0', 'spr',
+///         'CH5 nibble1', 'spr',
+///         'CH5 nibble2', 'spr',
+///         'CH5 nibble3', 'spr',
+///         'CH5 nibble4', 'spr',
+///         'CH5 nibble5', 'spr',
+///         'CH6 nibble0', 'spr',
+///         'CH6 nibble1', 'spr',
+///         'CH6 nibble2', 'spr',
+///         'CH6 nibble3', 'spr',
+///         'CH6 nibble4', 'spr',
+///         'CH6 nibble5', 'spr',
+///         'CH7 nibble0', 'spr',
+///         'CH7 nibble1', 'spr',
+///         'CH7 nibble2', 'spr',
+///         'CH7 nibble3', 'spr',
+///         'CH7 nibble4', 'spr',
+///         'CH7 nibble5', 'spr',
+///       ]
+///     },
+///     {
+///       name: 'ADAT in',
+///       wave: '10.........1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1====1x',
+///       data: [
+///         'U3', 'U2', 'U1', 'U0',
+///         'D23', 'D22', 'D21', 'D20',
+///         'D19', 'D18', 'D17', 'D16',
+///         'D15', 'D14', 'D13', 'D12',
+///         'D11', 'D10', 'D9', 'D8',
+///         'D7', 'D6', 'D5', 'D4',
+///         'D3', 'D2', 'D1', 'D0',
+///         'D23', 'D22', 'D21', 'D20',
+///         'D19', 'D18', 'D17', 'D16',
+///         'D15', 'D14', 'D13', 'D12',
+///         'D11', 'D10', 'D9', 'D8',
+///         'D7', 'D6', 'D5', 'D4',
+///         'D3', 'D2', 'D1', 'D0',
+///         'D23', 'D22', 'D21', 'D20',
+///         'D19', 'D18', 'D17', 'D16',
+///         'D15', 'D14', 'D13', 'D12',
+///         'D11', 'D10', 'D9', 'D8',
+///         'D7', 'D6', 'D5', 'D4',
+///         'D3', 'D2', 'D1', 'D0',
+///         'D23', 'D22', 'D21', 'D20',
+///         'D19', 'D18', 'D17', 'D16',
+///         'D15', 'D14', 'D13', 'D12',
+///         'D11', 'D10', 'D9', 'D8',
+///         'D7', 'D6', 'D5', 'D4',
+///         'D3', 'D2', 'D1', 'D0',
+///         'D23', 'D22', 'D21', 'D20',
+///         'D19', 'D18', 'D17', 'D16',
+///         'D15', 'D14', 'D13', 'D12',
+///         'D11', 'D10', 'D9', 'D8',
+///         'D7', 'D6', 'D5', 'D4',
+///         'D3', 'D2', 'D1', 'D0',
+///         'D23', 'D22', 'D21', 'D20',
+///         'D19', 'D18', 'D17', 'D16',
+///         'D15', 'D14', 'D13', 'D12',
+///         'D11', 'D10', 'D9', 'D8',
+///         'D7', 'D6', 'D5', 'D4',
+///         'D3', 'D2', 'D1', 'D0',
+///         'D23', 'D22', 'D21', 'D20',
+///         'D19', 'D18', 'D17', 'D16',
+///         'D15', 'D14', 'D13', 'D12',
+///         'D11', 'D10', 'D9', 'D8',
+///         'D7', 'D6', 'D5', 'D4',
+///         'D3', 'D2', 'D1', 'D0',
+///         'D23', 'D22', 'D21', 'D20',
+///         'D19', 'D18', 'D17', 'D16',
+///         'D15', 'D14', 'D13', 'D12',
+///         'D11', 'D10', 'D9', 'D8',
+///         'D7', 'D6', 'D5', 'D4',
+///         'D3', 'D2', 'D1', 'D0'
+///       ]
+///     }
+///   ],
+///   head: { text: 'ADAT frame', tick: -1, every: 5 }
+/// }
+/// ```
+///
+/// ## 詳細構成（5ビットニブル単位）
+///
+/// | ビット | 内容 | 説明 |
+/// |--------|------|------|
+/// | 0-10 | 0000000000 + 1 | SYNC: 10ビットの0（NRZIで無遷移） + separator=1|
+/// | 11-15 | U3-U0 + 1 | User nibble: User bits[3:0] + separator|
+/// | 16-20 | D23-D20 + 1 | CH0 nibble0: audio[23:20] + separator |
+/// | 21-25 | D19-D16 + 1 | CH0 nibble1: audio[19:16] + separator |
+/// | 26-30 | D15-D12 + 1 | CH0 nibble2: audio[15:12] + separator |
+/// | 31-35 | D11-D8 + 1 | CH0 nibble3: audio[11:8] + separator |
+/// | 36-40 | D7-D4 + 1 | CH0 nibble4: audio[7:4] + separator |
+/// | 41-45 | D3-D0 + 1 | CH0 nibble5: audio[3:0] + separator |
+/// | 46-75 | ... | CH1 (上記と同じ6 nibbles) |
+/// | ... | ... | CH2-CH7 (各30ビット) |
+///
+/// ## セパレーターの役割
+/// - 各5ビットニブルの最後に「1」が配置される
+/// - これによりNRZIエンコーディングで必ず遷移が発生
+/// - 最大5ビット連続で無遷移になるのを防ぎ、同期を維持
+///
+/// # 使用例
+/// ```veryl
+/// inst adat: AdatRx (
+///     clk        : sys_clk_50mhz,
+///     rst        : reset,
+///     adat       : toslink_in,
+///     channels   : audio,
+///     frame_clk  : frame_clk,
+///     smux_active: smux_active,
+///     valid      : valid,
+///     locked     : locked,
+/// );
+/// ```
+///
+/// # タイミング
+/// - 推奨クロック: 50MHz
+/// - ADAT入力: TOSLINK光→電気変換済み信号
+pub module AdatRx (
+    /// システムクロック (50MHz推奨)
+    clk: input clock,
+    rst: input reset,
+    /// ADAT入力 (光→電気変換済み)
+    adat: input logic,
+    /// ADATフレーム周期のクロック出力（sample rateではない）
+    /// 通常は44.1/48kHz。
+    /// warning: S/MUX有効時でも44.1kHz/48kHzが出力されることに注意
+    frame_clk: output logic,
+    /// UserBit2に基づいて検出されたS/MUX有効状態 (1: enabled, 0: disabled)
+    /// warning: S/MUX2とS/MUX4の判別は原理的に不可能なので、あくまでS/MUXが有効or無効のみを示す
+    smux_active: output logic,
+    /// 8チャンネルPCMデータ出力（ADAT物理スロット）
+    /// warning: S/MUX有効時の論理チャンネル再構成は利用側の実装が必要
+    channels: output logic<24> [8],
+    /// データ有効信号
+    valid: output logic,
+    /// 同期ロック状態
+    locked: output logic,
+) {
+    // 内部信号
+    var adat_edge  : logic    ;
+    var synced     : logic    ;
+    var edge_time  : logic<12>;
+    var sync_detect: logic    ;
+    var frame_time : logic<12>;
+
+    var bits      : logic<5> ;
+    var bit_count : logic<3> ;
+    var bits_valid: logic    ;
+    var pcm_data  : logic<24>;
+    var channel   : logic<3> ;
+    var data_valid: logic    ;
+
+    // 非同期ADAT入力の同期化
+    inst u_sync: $std::synchronizer_basic (
+        i_clk: clk   ,
+        i_rst: rst   ,
+        i_d  : adat  ,
+        o_d  : synced,
+    );
+
+    // エッジ検出
+    inst u_edge_detector: $std::edge_detector (
+        i_clk    : clk      ,
+        i_rst    : rst      ,
+        i_clear  : 0        ,
+        i_data   : synced   ,
+        o_edge   : adat_edge,
+        o_posedge: _        ,
+        o_negedge: _        ,
+    );
+
+    // タイミング追跡モジュール
+    inst u_timing_tracker: TimingTracker (
+        clk        : clk        ,
+        rst        : rst        ,
+        edge_pulse : adat_edge  ,
+        edge_time  : edge_time  ,
+        sync_detect: sync_detect,
+        frame_time : frame_time ,
+    );
+
+    // ビットデコーダ入力を1サイクル遅延
+    var edge_delay: logic;
+    inst u_delay_edge: $std::delay (
+        i_clk: clk       ,
+        i_rst: rst       ,
+        i_d  : adat_edge ,
+        o_d  : edge_delay,
+    );
+
+    // ビットデコーダモジュール
+    inst u_bit_decoder: BitDecoder (
+        clk       : clk        ,
+        rst       : rst        ,
+        edge_pulse: edge_delay ,
+        edge_time : edge_time  ,
+        frame_time: frame_time ,
+        sync_mask : sync_detect,
+        bits      : bits       ,
+        bit_count : bit_count  ,
+        valid     : bits_valid ,
+    );
+
+    // UserBits出力信号
+    var user_bits: logic<4>;
+
+    // フレームパーサモジュール
+    inst u_frame_parser: FrameParser (
+        clk       : clk        ,
+        rst       : rst        ,
+        bits      : bits       ,
+        bit_count : bit_count  ,
+        valid     : bits_valid ,
+        sync      : sync_detect,
+        user_bits : user_bits  ,
+        data      : pcm_data   ,
+        channel   : channel    ,
+        data_valid: data_valid ,
+    );
+
+    // 出力インターフェースモジュール
+    inst u_output_interface: OutputInterface (
+        clk        : clk        ,
+        rst        : rst        ,
+        frame_time : frame_time ,
+        data       : pcm_data   ,
+        channel    : channel    ,
+        data_valid : data_valid ,
+        sync       : sync_detect,
+        user_bits  : user_bits  ,
+        smux_active: smux_active,
+        frame_clk  : frame_clk  ,
+        channels   : channels   ,
+        valid      : valid      ,
+        locked     : locked     ,
+    );
+}
