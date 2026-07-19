@@ -1,0 +1,45 @@
+/// S/PDIF固有の型とchannel statusコード。
+import Iec60958::Preamble;
+import Iec60958::SampleRate;
+
+pub package Spdif {
+    enum SpdifPreamble: Preamble {
+        B = 4'b1000,
+        M = 4'b0100,
+        W = 4'b0010,
+    }
+
+    enum SampleRateCode: logic<4> {
+        Fs44100 = 4'b0000,
+        NotIndicated = 4'b0001,
+        Fs48000 = 4'b0010,
+        Fs32000 = 4'b0011,
+        Fs22050 = 4'b0100,
+        Fs24000 = 4'b0110,
+        Fs88200 = 4'b1000,
+        Fs768000 = 4'b1001,
+        Fs96000 = 4'b1010,
+        Fs176400 = 4'b1100,
+        Fs192000 = 4'b1110,
+        Reserved = 4'b1111,
+    }
+
+    function sample_rate_to_code (
+        sample_rate: input SampleRate,
+    ) -> SampleRateCode {
+        return case sample_rate {
+            SampleRate::Fs44100 : SampleRateCode::Fs44100,
+            SampleRate::Fs48000 : SampleRateCode::Fs48000,
+            SampleRate::Fs32000 : SampleRateCode::Fs32000,
+            SampleRate::Fs22050 : SampleRateCode::Fs22050,
+            SampleRate::Fs24000 : SampleRateCode::Fs24000,
+            SampleRate::Fs88200 : SampleRateCode::Fs88200,
+            SampleRate::Fs96000 : SampleRateCode::Fs96000,
+            SampleRate::Fs176400: SampleRateCode::Fs176400,
+            SampleRate::Fs192000: SampleRateCode::Fs192000,
+            SampleRate::Fs768000: SampleRateCode::Fs768000,
+            SampleRate::Reserved: SampleRateCode::Reserved,
+            default             : SampleRateCode::NotIndicated,
+        };
+    }
+}

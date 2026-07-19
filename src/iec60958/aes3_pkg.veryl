@@ -1,0 +1,93 @@
+/// AES3固有のpreambleとchannel status生成。
+import Iec60958::Preamble;
+import Iec60958::SampleRate;
+
+pub package Aes3 {
+    enum Aes3Preamble: Preamble {
+        Z = 4'b1110,
+        X = 4'b0001,
+        Y = 4'b1101,
+    }
+
+    enum ChannelMode: logic<4> {
+        NotIndicated = 4'b0000,
+        TwoChannel = 4'b1000,
+        SingleChannel = 4'b0100,
+        PrimarySecondary = 4'b1100,
+        StereoPair = 4'b0010,
+        UserDefined = 4'b0110,
+    }
+
+    enum SampleRateBaseCode: logic<2> {
+        NotIndicated = 2'b00,
+        Fs44100 = 2'b01,
+        Fs48000 = 2'b10,
+        Fs32000 = 2'b11,
+    }
+
+    enum SampleRateExtendedCode: logic<4> {
+        NotIndicated = 4'b0000,
+        Fs22050 = 4'b1001,
+        Fs24000 = 4'b0001,
+        Fs88200 = 4'b1010,
+        Fs96000 = 4'b0010,
+        Fs176400 = 4'b1011,
+        Fs192000 = 4'b0011,
+    }
+
+    function sample_rate_to_base_code (
+        sample_rate: input SampleRate,
+    ) -> SampleRateBaseCode {
+        return case sample_rate {
+            SampleRate::Fs44100: SampleRateBaseCode::Fs44100,
+            SampleRate::Fs48000: SampleRateBaseCode::Fs48000,
+            SampleRate::Fs32000: SampleRateBaseCode::Fs32000,
+            default            : SampleRateBaseCode::NotIndicated,
+        };
+    }
+
+    function sample_rate_to_extended_code (
+        sample_rate: input SampleRate,
+    ) -> SampleRateExtendedCode {
+        return case sample_rate {
+            SampleRate::Fs22050 : SampleRateExtendedCode::Fs22050,
+            SampleRate::Fs24000 : SampleRateExtendedCode::Fs24000,
+            SampleRate::Fs88200 : SampleRateExtendedCode::Fs88200,
+            SampleRate::Fs96000 : SampleRateExtendedCode::Fs96000,
+            SampleRate::Fs176400: SampleRateExtendedCode::Fs176400,
+            SampleRate::Fs192000: SampleRateExtendedCode::Fs192000,
+            default             : SampleRateExtendedCode::NotIndicated,
+        };
+    }
+
+    /// AES3 professional channel statusのCRCを除く184bit目までを生成する。
+    function channel_status_bit (
+        bit_index   : input logic      <8>,
+        sample_rate : input SampleRate    ,
+        channel_mode: input ChannelMode   ,
+    ) -> logic {
+        let rate_base    : SampleRateBaseCode        = sample_rate_to_base_code(sample_rate);
+        let rate_extended: SampleRateExtendedCode    = sample_rate_to_extended_code(sample_rate);
+        let byte0        : logic                 <8> = {rate_base, 1'b0, 3'b000, 1'b0, 1'b1};
+        let byte1        : logic                 <8> = {4'b0000, channel_mode};
+        let byte2        : logic                 <8> = {2'b00, 3'b101, 3'b100};
+        let byte3        : logic                 <8> = {1'b0, 7'b0000000};
+        let byte4        : logic                 <8> = {1'b0, rate_extended, 1'b0, 2'b00};
+        let byte_index   : logic                 <5> = bit_index[7:3];
+        let bit_in_byte  : logic                 <3> = bit_index[2:0];
+        let selected_byte: logic                 <8> = case byte_index {
+            5'd0   : byte0,
+            5'd1   : byte1,
+            5'd2   : byte2,
+            5'd3   : byte3,
+            5'd4   : byte4,
+            default: 8'h00,
+        };
+
+        if bit_index >= 8'd184 {
+            return 1'b0;
+        } else {
+            return selected_byte[bit_in_byte];
+        }
+    }
+}
