@@ -1,0 +1,73 @@
+/// S/MUX2のサンプル順序を検証するVeryl Native test。
+
+#[test(test_smux2_pack_unpack)]
+module test_smux2_pack_unpack {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var input_valid     : logic        ;
+    var input_samples   : logic<24> [4];
+    var packed_channels : logic<24> [8];
+    var packed_valid    : logic        ;
+    var unpacked_samples: logic<24> [4];
+    var unpacked_valid  : logic        ;
+
+    inst packer: Smux2Packer (
+        clk         : clk            ,
+        rst         : rst            ,
+        sample_valid: input_valid    ,
+        samples     : input_samples  ,
+        channels    : packed_channels,
+        frame_valid : packed_valid   ,
+    );
+    inst unpacker: Smux2Unpacker (
+        clk         : clk             ,
+        rst         : rst             ,
+        channels    : packed_channels ,
+        frame_valid : packed_valid    ,
+        samples     : unpacked_samples,
+        sample_valid: unpacked_valid  ,
+    );
+
+    initial {
+        input_valid      = 1'b0;
+        input_samples[0] = 24'h000001;
+        input_samples[1] = 24'h000002;
+        input_samples[2] = 24'h000003;
+        input_samples[3] = 24'h000004;
+        rst.assert();
+
+        input_valid = 1'b1;
+        clk.next(1);
+        input_valid = 1'b0;
+        $assert(packed_valid == 1'b0, "first sample must be buffered");
+
+        input_samples[0] = 24'h100001;
+        input_samples[1] = 24'h100002;
+        input_samples[2] = 24'h100003;
+        input_samples[3] = 24'h100004;
+        input_valid      = 1'b1;
+        clk.next(1);
+        input_valid = 1'b0;
+
+        $assert(packed_valid == 1'b1, "second sample must complete a frame");
+        $assert(packed_channels[0] == 24'h000001, "CH0 first sample mismatch");
+        $assert(packed_channels[1] == 24'h100001, "CH0 second sample mismatch");
+        $assert(packed_channels[2] == 24'h000002, "CH1 first sample mismatch");
+        $assert(packed_channels[3] == 24'h100002, "CH1 second sample mismatch");
+
+        clk.next(1);
+        $assert(unpacked_valid == 1'b1, "first unpacked sample must be valid");
+        $assert(unpacked_samples[0] == 24'h000001, "unpacked CH0 first mismatch");
+        $assert(unpacked_samples[3] == 24'h000004, "unpacked CH3 first mismatch");
+
+        clk.next(1);
+        $assert(unpacked_valid == 1'b1, "second unpacked sample must be valid");
+        $assert(unpacked_samples[0] == 24'h100001, "unpacked CH0 second mismatch");
+        $assert(unpacked_samples[3] == 24'h100004, "unpacked CH3 second mismatch");
+
+        clk.next(1);
+        $assert(unpacked_valid == 1'b0, "unpacker valid must be a pulse");
+        $finish();
+    }
+}

@@ -1,0 +1,61 @@
+/// 4chの高速サンプルをS/MUX2の8物理スロットへ並べ替える。
+///
+/// `sample_valid`を96kHz側のサンプル受理パルス、`frame_valid`を
+/// 48kHz側のADATフレーム受理パルスとして使う。2つの入力サンプルを
+/// 1フレームにまとめ、各チャンネルの先行サンプルを偶数スロット、
+/// 後続サンプルを奇数スロットへ配置する。
+pub module Smux2Packer #(
+    param SAMPLE_WIDTH: u32 = 24,
+) (
+    clk         : input  clock                  ,
+    rst         : input  reset                  ,
+    sample_valid: input  logic                  ,
+    samples     : input  logic<SAMPLE_WIDTH> [4],
+    channels    : output logic<SAMPLE_WIDTH> [8],
+    frame_valid : output logic                  ,
+) {
+    var first_samples: logic<SAMPLE_WIDTH> [4];
+    var have_first   : logic                  ;
+
+    always_ff {
+        if_reset {
+            first_samples[0] = 0;
+            first_samples[1] = 0;
+            first_samples[2] = 0;
+            first_samples[3] = 0;
+            channels[0]      = 0;
+            channels[1]      = 0;
+            channels[2]      = 0;
+            channels[3]      = 0;
+            channels[4]      = 0;
+            channels[5]      = 0;
+            channels[6]      = 0;
+            channels[7]      = 0;
+            have_first       = 1'b0;
+            frame_valid      = 1'b0;
+        } else {
+            frame_valid = 1'b0;
+
+            if sample_valid {
+                if !have_first {
+                    first_samples[0] = samples[0];
+                    first_samples[1] = samples[1];
+                    first_samples[2] = samples[2];
+                    first_samples[3] = samples[3];
+                    have_first       = 1'b1;
+                } else {
+                    channels[0] = first_samples[0];
+                    channels[1] = samples[0];
+                    channels[2] = first_samples[1];
+                    channels[3] = samples[1];
+                    channels[4] = first_samples[2];
+                    channels[5] = samples[2];
+                    channels[6] = first_samples[3];
+                    channels[7] = samples[3];
+                    have_first  = 1'b0;
+                    frame_valid = 1'b1;
+                }
+            }
+        }
+    }
+}

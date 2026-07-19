@@ -1,0 +1,55 @@
+/// S/MUX2の8物理スロットを4chの高速サンプルへ戻す。
+///
+/// 1つのADATフレームを受けたサイクルで先行サンプルを出力し、
+/// 次のシステムクロックで後続サンプルを出力する。したがって、
+/// `frame_valid` 1回に対して `sample_valid` は2回発生する。
+pub module Smux2Unpacker #(
+    param SAMPLE_WIDTH: u32 = 24,
+) (
+    clk         : input  clock                  ,
+    rst         : input  reset                  ,
+    channels    : input  logic<SAMPLE_WIDTH> [8],
+    frame_valid : input  logic                  ,
+    samples     : output logic<SAMPLE_WIDTH> [4],
+    sample_valid: output logic                  ,
+) {
+    var second_samples: logic<SAMPLE_WIDTH> [4];
+    var emit_second   : logic                  ;
+
+    always_ff {
+        if_reset {
+            second_samples[0] = 0;
+            second_samples[1] = 0;
+            second_samples[2] = 0;
+            second_samples[3] = 0;
+            samples[0]        = 0;
+            samples[1]        = 0;
+            samples[2]        = 0;
+            samples[3]        = 0;
+            emit_second       = 1'b0;
+            sample_valid      = 1'b0;
+        } else {
+            sample_valid = 1'b0;
+
+            if emit_second {
+                samples[0]   = second_samples[0];
+                samples[1]   = second_samples[1];
+                samples[2]   = second_samples[2];
+                samples[3]   = second_samples[3];
+                emit_second  = 1'b0;
+                sample_valid = 1'b1;
+            } else if frame_valid {
+                samples[0]        = channels[0];
+                samples[1]        = channels[2];
+                samples[2]        = channels[4];
+                samples[3]        = channels[6];
+                second_samples[0] = channels[1];
+                second_samples[1] = channels[3];
+                second_samples[2] = channels[5];
+                second_samples[3] = channels[7];
+                emit_second       = 1'b1;
+                sample_valid      = 1'b1;
+            }
+        }
+    }
+}
