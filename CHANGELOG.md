@@ -21,6 +21,7 @@
 - Smux2とデルタシグマのNative testを各実装ファイルへ統合
 - IEC 60958共通BMC送受信器とNativeループバックテストを追加
 - IEC 60958共通サブフレーム送受信コアとS/PDIF Nativeループバックテストを追加
+- S/PDIF用`SpdifTx`/`SpdifRx`ラッパーとNativeループバックテストを追加
 
 ### Changed
 
