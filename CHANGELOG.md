@@ -20,6 +20,7 @@
 - IEC 60958共通型、S/PDIF型、AES3型とchannel status生成関数を追加
 - Smux2とデルタシグマのNative testを各実装ファイルへ統合
 - IEC 60958共通BMC送受信器とNativeループバックテストを追加
+- IEC 60958共通サブフレーム送受信コアとS/PDIF Nativeループバックテストを追加
 
 ### Changed
 

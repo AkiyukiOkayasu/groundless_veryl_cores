@@ -1,0 +1,150 @@
+/// IEC 60958共通サブフレーム送信コア。
+///
+/// `LINK_TYPE`をビルド時に固定し、preamble選択・パリティ生成・
+/// BMC符号化を一つのストリームへまとめる。
+import Iec60958::AudioSample;
+import Iec60958::LinkType;
+import Iec60958::Preamble;
+import Iec60958::PreambleLineCode;
+import Spdif::SpdifPreamble;
+import Aes3::Aes3Preamble;
+
+pub module Iec60958Tx #(
+    param LINK_TYPE: LinkType = LinkType::Spdif,
+) (
+    clk           : input  clock      ,
+    rst           : input  reset      ,
+    audio         : input  AudioSample,
+    validity      : input  logic      ,
+    user          : input  logic      ,
+    channel_status: input  logic      ,
+    is_b          : input  logic      ,
+    block_start   : input  logic      ,
+    data_valid    : input  logic      ,
+    line_bit      : output logic      ,
+    line_valid    : output logic      ,
+    busy          : output logic      ,
+) {
+    var state        : logic<2>;
+    var payload_index: logic<5>;
+    var wait_slots   : logic<4>;
+
+    var audio_latched         : AudioSample         ;
+    var validity_latched      : logic               ;
+    var user_latched          : logic               ;
+    var channel_status_latched: logic               ;
+    var is_b_latched          : logic               ;
+    var block_start_latched   : logic               ;
+    var preamble_latched      : Preamble            ;
+    var preamble_line         : PreambleLineCode    ;
+    var frame_latched         : logic           <32>;
+    var bmc_data_bit          : logic               ;
+    var bmc_data_valid        : logic               ;
+    var bmc_preamble_valid    : logic               ;
+    var bmc_error             : logic               ;
+
+    inst bmc: Iec60958BmcTx (
+        clk           : clk               ,
+        rst           : rst               ,
+        data_bit      : bmc_data_bit      ,
+        data_valid    : bmc_data_valid    ,
+        preamble_valid: bmc_preamble_valid,
+        preamble      : preamble_line     ,
+        line_bit      : line_bit          ,
+        line_valid    : line_valid        ,
+        error         : bmc_error         ,
+    );
+
+    always_comb {
+        preamble_latched = SpdifPreamble::M;
+        if LINK_TYPE == LinkType::Spdif {
+            if is_b_latched {
+                preamble_latched = SpdifPreamble::W;
+            } else if block_start_latched {
+                preamble_latched = SpdifPreamble::B;
+            } else {
+                preamble_latched = SpdifPreamble::M;
+            }
+        } else {
+            if is_b_latched {
+                preamble_latched = Aes3Preamble::Y;
+            } else if block_start_latched {
+                preamble_latched = Aes3Preamble::Z;
+            } else {
+                preamble_latched = Aes3Preamble::X;
+            }
+        }
+
+        preamble_line = Iec60958::preamble_to_line_code(LINK_TYPE, preamble_latched);
+        frame_latched = {
+            preamble_latched, audio_latched, validity_latched, user_latched, channel_status_latched,
+            ^^{preamble_latched, audio_latched, validity_latched, user_latched, channel_status_latched,},
+        };
+    }
+
+    always_ff {
+        if_reset {
+            state                  = 2'd0;
+            payload_index          = 5'd0;
+            wait_slots             = 4'd0;
+            audio_latched          = 0;
+            validity_latched       = 1'b0;
+            user_latched           = 1'b0;
+            channel_status_latched = 1'b0;
+            is_b_latched           = 1'b0;
+            block_start_latched    = 1'b0;
+            bmc_data_bit           = 1'b0;
+            bmc_data_valid         = 1'b0;
+            bmc_preamble_valid     = 1'b0;
+            busy                   = 1'b0;
+        } else {
+            bmc_data_valid     = 1'b0;
+            bmc_preamble_valid = 1'b0;
+
+            if wait_slots != 4'd0 {
+                wait_slots = wait_slots - 4'd1;
+            }
+
+            if state == 2'd0 {
+                busy = 1'b0;
+                if data_valid {
+                    audio_latched          = audio;
+                    validity_latched       = validity;
+                    user_latched           = user;
+                    channel_status_latched = channel_status;
+                    is_b_latched           = is_b;
+                    block_start_latched    = block_start;
+                    payload_index          = 5'd27;
+                    wait_slots             = 4'd0;
+                    state                  = 2'd1;
+                    busy                   = 1'b1;
+                }
+            } else if state == 2'd1 {
+                busy = 1'b1;
+                if wait_slots == 4'd0 {
+                    bmc_preamble_valid = 1'b1;
+                    wait_slots         = 4'd7;
+                    state              = 2'd2;
+                }
+            } else if state == 2'd2 {
+                busy = 1'b1;
+                if wait_slots == 4'd0 {
+                    bmc_data_bit   = frame_latched[payload_index];
+                    bmc_data_valid = 1'b1;
+                    wait_slots     = 4'd1;
+                    if payload_index == 5'd0 {
+                        state = 2'd3;
+                    } else {
+                        payload_index = payload_index - 5'd1;
+                    }
+                }
+            } else {
+                busy = 1'b1;
+                if wait_slots == 4'd0 {
+                    state = 2'd0;
+                    busy  = 1'b0;
+                }
+            }
+        }
+    }
+}
