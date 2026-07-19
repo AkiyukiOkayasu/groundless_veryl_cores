@@ -227,9 +227,9 @@ module test_lpf_shift_basic {
     inst dut: LpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
-        enable     = false;
-        x          = 0;
-        rst.assert(clk);
+        enable = false;
+        x      = 0;
+        rst.assert();
 
         // リセット後は出力がゼロ
         $assert(y == 16'sd0);
@@ -239,18 +239,19 @@ module test_lpf_shift_basic {
         enable = true;
 
         // 数クロック後、徐々に増加していることを確認
-        clk.next  (10);
+        clk.next(10);
         y_after_10 = y;
-        $assert   (y_after_10 != 16'sd0); // 出力が変化している
+        $assert(y_after_10 != 16'sd0); // 出力が変化している
 
         // さらに進めて目標値に近づくことを確認
         clk.next(100);
-        $assert (y != y_after_10); // さらに変化している
+        $assert(y != y_after_10); // さらに変化している
 
         // 十分な時間が経過すると目標値にかなり近づく
         clk.next(1000);
         // 出力が目標値の近くに収束 (900-1100)
         $display("y = %d (expected ~1000)", y);
+        $assert(y >: 16'sd900 && y <: 16'sd1100, "LPF出力が目標値に収束していません");
 
         $finish();
     }
@@ -272,9 +273,9 @@ module test_lpf_shift_negative {
     inst dut: LpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
-        enable     = false;
-        x          = 0;
-        rst.assert(clk);
+        enable = false;
+        x      = 0;
+        rst.assert();
 
         // 負のステップ入力
         x      = -16'sd500;
@@ -283,10 +284,12 @@ module test_lpf_shift_negative {
         clk.next(10);
         // 負の方向に変化しているはず
         $display("y after 10 clocks = %d (expected < 0)", y);
+        $assert(y <: 16'sd0, "負の入力に対してLPF出力が負になっていません");
 
         // 十分な時間経過後
         clk.next(1000);
         $display("y final = %d (expected ~-500)", y);
+        $assert(y >: -16'sd550 && y <: -16'sd450, "LPF出力が負の目標値に収束していません");
 
         $finish();
     }
@@ -309,24 +312,24 @@ module test_lpf_shift_enable {
     inst dut: LpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
-        enable     = false;
-        x          = 16'sd1000;
-        rst.assert(clk);
+        enable = false;
+        x      = 16'sd1000;
+        rst.assert();
 
         // イネーブル=0の間は出力が変化しない
         clk.next(100);
-        $assert (y == 16'sd0);
+        $assert(y == 16'sd0);
 
         // イネーブルをONにすると変化開始
-        enable   = true;
+        enable = true;
         clk.next(10);
-        $assert (y != 16'sd0);
+        $assert(y != 16'sd0);
 
         // イネーブルをOFFにすると保持
-        enable   = false;
-        y_hold   = y;
+        enable = false;
+        y_hold = y;
         clk.next(100);
-        $assert (y == y_hold);
+        $assert(y == y_hold);
 
         $finish();
     }
@@ -351,10 +354,10 @@ module test_lpf_shift_variable {
     inst dut: LpfShiftVariableSigned #( DATA_WIDTH, MAX_SHIFT, SHIFT_BITS ) ( clk, rst, enable, shift, x, y );
 
     initial {
-        enable     = false;
-        shift      = 4;
-        x          = 0;
-        rst.assert(clk);
+        enable = false;
+        shift  = 4;
+        x      = 0;
+        rst.assert();
 
         // シフト量=4でテスト
         x      = 16'sd1000;
@@ -363,15 +366,16 @@ module test_lpf_shift_variable {
         clk.next(50);
         y_shift4 = y;
         $display("y with shift=4: %d", y_shift4);
-        $assert (y_shift4 != 16'sd0);
+        $assert(y_shift4 != 16'sd0);
 
         // リセットしてシフト量=2でテスト (より速い応答)
-        rst.assert(clk);
-        shift      = 2;
+        rst.assert();
+        shift = 2;
 
         clk.next(50);
         $display("y with shift=2: %d (should be > %d)", y, y_shift4);
         // shift=2はshift=4より速い応答なので、同じ時間でより大きい値になるはず
+        $assert(y >: y_shift4, "小さいシフト量のLPFが速く収束していません");
 
         $finish();
     }
@@ -394,9 +398,9 @@ module test_lpf_shift_unsigned_basic {
     inst dut: LpfShiftUnsigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
-        enable     = false;
-        x          = 0;
-        rst.assert(clk);
+        enable = false;
+        x      = 0;
+        rst.assert();
 
         // リセット後は出力がゼロ
         $assert(y == 16'd0);
@@ -406,18 +410,19 @@ module test_lpf_shift_unsigned_basic {
         enable = true;
 
         // 数クロック後、徐々に増加していることを確認
-        clk.next  (10);
+        clk.next(10);
         y_after_10 = y;
-        $assert   (y_after_10 != 16'd0);
-        $display  ("unsigned y after 10 clocks = %d", y_after_10);
+        $assert(y_after_10 != 16'd0);
+        $display("unsigned y after 10 clocks = %d", y_after_10);
 
         // さらに進めて目標値に近づくことを確認
         clk.next(100);
-        $assert (y != y_after_10);
+        $assert(y != y_after_10);
 
         // 十分な時間が経過すると目標値にかなり近づく
         clk.next(1000);
         $display("unsigned y final = %d (expected ~50000)", y);
+        $assert(y >: 16'd49000 && y <: 16'd51000, "符号なしLPF出力が目標値に収束していません");
 
         $finish();
     }
@@ -439,22 +444,25 @@ module test_lpf_shift_unsigned_decrease {
     inst dut: LpfShiftUnsigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
-        enable     = false;
-        x          = 16'd40000;
-        rst.assert(clk);
+        enable = false;
+        x      = 16'd40000;
+        rst.assert();
 
         // まず40000に収束させる
-        enable   = true;
+        enable = true;
         clk.next(1000);
         $display("unsigned converged to: %d", y);
+        $assert(y >: 16'd39000 && y <: 16'd41000, "符号なしLPFの初期値が収束していません");
 
         // 10000に変更して減少を確認
-        x        = 16'd10000;
+        x = 16'd10000;
         clk.next(100);
         $display("unsigned decreasing: %d (should be < 40000, > 10000)", y);
+        $assert(y <: 16'd40000 && y >: 16'd10000, "符号なしLPFの減少応答が不正です");
 
         clk.next(1000);
         $display("unsigned final: %d (expected ~10000)", y);
+        $assert(y >: 16'd9900 && y <: 16'd10100, "符号なしLPFの最終値が目標値に収束していません");
 
         $finish();
     }

@@ -24,8 +24,36 @@ pub module SawOscillator (
 ) {
     // 位相生成
     var phase: Phase::phase_t;
-    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
+    inst phasor: Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
 
     // ノコギリ波生成
     inst core: SawWaveCore ( phase, audio );
+}
+
+/// ノコギリ波コアの位相変換を検証
+#[test(test_saw_wave_core)]
+module test_saw_wave_core {
+    var phase: Phase::phase_t   ;
+    var audio: FixedPoint::q8_24;
+
+    inst dut: SawWaveCore ( phase, audio );
+
+    initial {
+        phase = 32'h0000_0000;
+        $assert(audio == FixedPoint::Q8_24_NEG_ONE, "ノコギリ波の開始点が不正です");
+
+        phase = 32'h8000_0000;
+        $assert(audio == FixedPoint::Q8_24_ZERO, "ノコギリ波の半周期点が不正です");
+
+        phase = 32'hFFFF_FFFF;
+        $assert(audio >: FixedPoint::Q8_24_ZERO && audio <: FixedPoint::Q8_24_POS_ONE, "ノコギリ波の最大値付近が不正です");
+
+        $finish();
+    }
 }

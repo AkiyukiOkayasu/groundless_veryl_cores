@@ -17,6 +17,7 @@ pub module UartRx #(
         Data,
         Stop,
     }
+    import State::*;
 
     var state  : State            ;
     var clk_cnt: u32              ;
@@ -25,7 +26,7 @@ pub module UartRx #(
 
     always_ff {
         if_reset {
-            state   = State::Idle;
+            state   = Idle;
             clk_cnt = 0;
             bit_cnt = 0;
             rx_reg  = 0;
@@ -36,38 +37,38 @@ pub module UartRx #(
             valid = 0;
 
             case state {
-                State::Idle: {
+                Idle: {
                     // Startビット(Low)を検出
                     if !rx {
-                        state = State::Start;
+                        state = Start;
                         // ビットの中央でサンプリングするため、サイクル数を半分に設定
                         // オフバイワン修正: カウンタはN→0でN+1サイクル待つため-1が必要
                         clk_cnt = CYCLES_PER_BIT / 2 - 1;
                     }
                 }
-                State::Start: {
+                Start: {
                     if clk_cnt == 0 {
                         if !rx {
                             // スタートビット確認OK、データ受信開始
-                            state   = State::Data;
+                            state   = Data;
                             clk_cnt = CYCLES_PER_BIT - 1;
                             bit_cnt = 0;
                         } else {
                             // 偽スタート検出、アイドルに戻る
-                            state = State::Idle;
+                            state = Idle;
                         }
                     } else {
                         clk_cnt = clk_cnt - 1;
                     }
                 }
-                State::Data: {
+                Data: {
                     if clk_cnt == 0 {
                         // LSBファーストで受信データをシフトレジスタに格納
                         rx_reg[bit_cnt] = rx;
                         clk_cnt         = CYCLES_PER_BIT - 1;
 
                         if bit_cnt == DATA_WIDTH - 1 {
-                            state = State::Stop;
+                            state = Stop;
                         } else {
                             bit_cnt = bit_cnt + 1;
                         }
@@ -75,9 +76,9 @@ pub module UartRx #(
                         clk_cnt = clk_cnt - 1;
                     }
                 }
-                State::Stop: {
+                Stop: {
                     if clk_cnt == 0 {
-                        state = State::Idle;
+                        state = Idle;
                         if rx {
                             // 正常なストップビット、受信完了
                             data  = rx_reg;
@@ -131,40 +132,40 @@ module test_uart_rx {
     const CYCLES_PER_BIT: u32 = 1600; // 50_000_000 / 31250
 
     initial {
-        rx         = 1; // アイドル (High)
-        rst.assert(clk);
-        clk.next  (10);
+        rx = 1; // アイドル (High)
+        rst.assert();
+        clk.next(10);
 
         // 0x90 (= 0b10010000) をLSBファーストで送信
         // スタートビット
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 0 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 1 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 2 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 3 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 4 = 1
-        rx       = 1;
+        rx = 1;
         clk.next(CYCLES_PER_BIT);
         // Bit 5 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 6 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 7 = 1
-        rx       = 1;
+        rx = 1;
         clk.next(CYCLES_PER_BIT);
         // ストップビット: 受信完了まで全クロック待つ
-        rx       = 1;
+        rx = 1;
         clk.next(CYCLES_PER_BIT);
 
         // valid パルスが来たことをラッチで確認 (valid 自体は既に 0 に戻っている)

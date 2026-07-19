@@ -39,8 +39,36 @@ pub module TriangleOscillator (
 ) {
     // 位相生成
     var phase: Phase::phase_t;
-    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
+    inst phasor: Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
 
     // 三角波生成
     inst core: TriangleWaveCore ( phase, audio );
+}
+
+/// 三角波コアの位相変換を検証
+#[test(test_triangle_wave_core)]
+module test_triangle_wave_core {
+    var phase: Phase::phase_t   ;
+    var audio: FixedPoint::q8_24;
+
+    inst dut: TriangleWaveCore ( phase, audio );
+
+    initial {
+        phase = 32'h0000_0000;
+        $assert(audio == FixedPoint::Q8_24_NEG_ONE, "三角波の開始点が不正です");
+
+        phase = 32'h4000_0000;
+        $assert(audio == FixedPoint::Q8_24_ZERO, "三角波の頂点が不正です");
+
+        phase = 32'h8000_0000;
+        $assert(audio >: FixedPoint::Q8_24_ZERO && audio <: FixedPoint::Q8_24_POS_ONE, "三角波の正の頂点が不正です");
+
+        $finish();
+    }
 }

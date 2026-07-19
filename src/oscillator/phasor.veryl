@@ -69,14 +69,20 @@ module test_phasor {
     var phase     : Phase::phase_t;
     var phase_rst : logic         ;
 
-    inst dut: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
+    inst dut: Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
 
     initial {
         // リセット実行
         phase_step = STEP;
         phase_rst  = 1;
-        clk.next  (1);
-        phase_rst  = 0;
+        clk.next(1);
+        phase_rst = 0;
 
         // リセット後は位相がゼロであることを確認
         $assert(phase == 32'd0);

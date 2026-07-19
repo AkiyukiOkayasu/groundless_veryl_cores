@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Veryl Native testを現行APIに更新し、`rst.assert()`とenum member importを採用
+- フィルタテストの収束条件を`$assert`で検証し、矩形波・三角波・ノコギリ波コアのNative testを追加
+- CIに生成チェックとNative backend間の整合性検証を追加
+
 ## [0.5.1] - 2026-05-20
 
 ### Added

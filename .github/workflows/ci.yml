@@ -2,7 +2,7 @@ name: CI
 
 on:
     push:
-        branches: ['main']
+        branches: ['main', 'dev']
     pull_request:
         branches: ['main']
         types: [opened, synchronize, reopened]
@@ -16,5 +16,9 @@ jobs:
             - uses: veryl-lang/setup-veryl@v1
             - run: veryl fmt --check
             - run: veryl check
+            - name: Build check
+              run: veryl build --check
             - name: Tests
               run: veryl test
+            - name: Native backend validation
+              run: veryl test --backend-validate

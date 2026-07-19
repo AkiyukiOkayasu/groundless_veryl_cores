@@ -51,7 +51,15 @@ module test_midi_rx {
     // CLK_FREQ=50MHz, BAUD_RATE=31250 → CYCLES_PER_BIT=1600
     const CYCLES_PER_BIT: u32 = 1600;
 
-    inst dut: MidiRx #( CLK_FREQ: 50_000_000 ) ( clk, rst, rx: rx, data: data, valid: valid );
+    inst dut: MidiRx #(
+        CLK_FREQ: 50_000_000,
+    ) (
+        clk         ,
+        rst         ,
+        rx   : rx   ,
+        data : data ,
+        valid: valid,
+    );
 
     // valid パルスをラッチ: valid==1 のクロックが来たら valid_seen を 1 にする
     always_ff (clk, rst) {
@@ -65,40 +73,40 @@ module test_midi_rx {
     }
 
     initial {
-        rx         = 1; // アイドル (High)
-        rst.assert(clk);
-        clk.next  (10); // 安定待ち
+        rx = 1; // アイドル (High)
+        rst.assert();
+        clk.next(10); // 安定待ち
 
         // 0x90 (= 0b10010000) を LSBファーストで送信
         // Start bit
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 0 (LSB) = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 1 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 2 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 3 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 4 = 1
-        rx       = 1;
+        rx = 1;
         clk.next(CYCLES_PER_BIT);
         // Bit 5 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 6 = 0
-        rx       = 0;
+        rx = 0;
         clk.next(CYCLES_PER_BIT);
         // Bit 7 (MSB) = 1
-        rx       = 1;
+        rx = 1;
         clk.next(CYCLES_PER_BIT);
         // Stop bit: 受信完了まで全クロック待つ
-        rx       = 1;
+        rx = 1;
         clk.next(CYCLES_PER_BIT);
 
         // synchronizer_basic (2段FF) 分の伝播遅延マージン

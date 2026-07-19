@@ -27,8 +27,43 @@ pub module PwmSquareOscillator (
 ) {
     // 位相生成
     var phase: Phase::phase_t;
-    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
+    inst phasor: Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
 
     // 矩形波生成
     inst core: SquareWaveCore ( phase, duty_cycle, audio );
+}
+
+/// 矩形波コアのしきい値判定を検証
+#[test(test_square_wave_core)]
+module test_square_wave_core {
+    var phase     : Phase::phase_t   ;
+    var duty_cycle: Phase::phase_t   ;
+    var audio     : FixedPoint::q8_24;
+
+    inst dut: SquareWaveCore ( phase, duty_cycle, audio );
+
+    initial {
+        duty_cycle = 32'h4000_0000;
+
+        phase = 32'h0000_0000;
+        $assert(audio == FixedPoint::Q8_24_POS_ONE, "矩形波のHigh区間が不正です");
+
+        phase = 32'h3FFF_FFFF;
+        $assert(audio == FixedPoint::Q8_24_POS_ONE, "矩形波のHigh区間終端が不正です");
+
+        phase = 32'h4000_0001;
+        $assert(audio == FixedPoint::Q8_24_NEG_ONE, "矩形波のLow区間が不正です");
+
+        duty_cycle = 32'h0000_0000;
+        phase      = 32'h0000_0001;
+        $assert(audio == FixedPoint::Q8_24_NEG_ONE, "デューティ0の矩形波がHighになっています");
+
+        $finish();
+    }
 }

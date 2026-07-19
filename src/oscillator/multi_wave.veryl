@@ -13,17 +13,20 @@ pub package WaveTypes {
     }
 }
 
+import WaveTypes::WaveType;
+import WaveTypes::WaveType::*;
+
 /// マルチ波形生成コアモジュール
 /// 位相入力から4種類の波形（Sine, Triangle, Saw, Pwm）を生成し、選択出力
 /// Sineは線形補間付きLUT、他は組み合わせ回路
 /// レイテンシ整合のため、全波形を1クロック遅延させて出力
 /// レイテンシー: 1クロック
 pub module MultiWaveCore (
-    clk       : input  clock              , /// クロック
-    phase     : input  Phase::phase_t     , /// 位相入力 (0 ~ 2^32-1)
-    wave_type : input  WaveTypes::WaveType, /// 波形タイプ選択
-    duty_cycle: input  Phase::phase_t     , /// PWMデューティ比 (Pwm以外では無視)
-    audio     : output FixedPoint::q8_24  , /// 出力波形 (Q8.24形式)
+    clk       : input  clock            , /// クロック
+    phase     : input  Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
+    wave_type : input  WaveType         , /// 波形タイプ選択
+    duty_cycle: input  Phase::phase_t   , /// PWMデューティ比 (Pwm以外では無視)
+    audio     : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 各波形コアの出力
     var sine_out    : FixedPoint::q8_24;
@@ -32,22 +35,36 @@ pub module MultiWaveCore (
     var square_out  : FixedPoint::q8_24;
 
     // サイン波コア (線形補間、1クロック遅延あり)
-    inst sine_core: SineWaveLerpCore ( clk, phase, audio: sine_out );
+    inst sine_core: SineWaveLerpCore (
+        clk            ,
+        phase          ,
+        audio: sine_out,
+    );
 
     // 三角波コア (組み合わせ回路、遅延なし)
-    inst triangle_core: TriangleWaveCore ( phase, audio: triangle_out );
+    inst triangle_core: TriangleWaveCore (
+        phase              ,
+        audio: triangle_out,
+    );
 
     // ノコギリ波コア (組み合わせ回路、遅延なし)
-    inst saw_core: SawWaveCore ( phase, audio: saw_out );
+    inst saw_core: SawWaveCore (
+        phase         ,
+        audio: saw_out,
+    );
 
     // 矩形波コア (組み合わせ回路、遅延なし)
-    inst square_core: SquareWaveCore ( phase, duty_cycle, audio: square_out );
+    inst square_core: SquareWaveCore (
+        phase                 ,
+        duty_cycle            ,
+        audio     : square_out,
+    );
 
     // 波形選択用レジスタ (1クロック遅延でサイン波とタイミング整合)
-    var triangle_out_d: FixedPoint::q8_24  ;
-    var saw_out_d     : FixedPoint::q8_24  ;
-    var square_out_d  : FixedPoint::q8_24  ;
-    var wave_type_d   : WaveTypes::WaveType;
+    var triangle_out_d: FixedPoint::q8_24;
+    var saw_out_d     : FixedPoint::q8_24;
+    var square_out_d  : FixedPoint::q8_24;
+    var wave_type_d   : WaveType         ;
 
     always_ff (clk) {
         triangle_out_d = triangle_out;
@@ -59,11 +76,11 @@ pub module MultiWaveCore (
     // 波形選択マルチプレクサ
     always_comb {
         case wave_type_d {
-            WaveTypes::WaveType::Sine    : audio = sine_out;
-            WaveTypes::WaveType::Triangle: audio = triangle_out_d;
-            WaveTypes::WaveType::Saw     : audio = saw_out_d;
-            WaveTypes::WaveType::Pwm     : audio = square_out_d;
-            default                      : audio = sine_out;
+            Sine    : audio = sine_out;
+            Triangle: audio = triangle_out_d;
+            Saw     : audio = saw_out_d;
+            Pwm     : audio = square_out_d;
+            default : audio = sine_out;
         }
     }
 }
@@ -74,16 +91,22 @@ pub module MultiWaveCore (
 /// 波形切り替え時のレイテンシ整合のため、全波形を1クロック遅延させて出力
 /// レイテンシー: 1クロック
 pub module MultiWaveOscillator (
-    clk       : input  clock              , /// クロック
-    phase_rst : input  logic              , /// 位相ゼロリセット (同期)
-    phase_step: input  Phase::step_t      , /// 1クロックあたりの位相ステップ量
-    wave_type : input  WaveTypes::WaveType, /// 波形タイプ選択
-    duty_cycle: input  Phase::phase_t     , /// PWMデューティ比 (Pwm以外では無視)
-    audio     : output FixedPoint::q8_24  , /// 出力波形 (Q8.24形式)
+    clk       : input  clock            , /// クロック
+    phase_rst : input  logic            , /// 位相ゼロリセット (同期)
+    phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量
+    wave_type : input  WaveType         , /// 波形タイプ選択
+    duty_cycle: input  Phase::phase_t   , /// PWMデューティ比 (Pwm以外では無視)
+    audio     : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
     // 位相生成 (共通Phasor)
     var phase: Phase::phase_t;
-    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
+    inst phasor: Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
 
     // マルチ波形生成コア
     inst core: MultiWaveCore ( clk, phase, wave_type, duty_cycle, audio );

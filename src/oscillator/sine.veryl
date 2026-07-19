@@ -35,7 +35,11 @@ pub module SineWaveCore (
     // ROM読み出し (0~90度の振幅データ)
     // ----------------------------------------------------
     var rom_data: logic<31>; // 符号なしの絶対値 (0 ~ 2^31-1)
-    inst u_rom: SineRomQuarter ( clk, addr: rom_addr, data: rom_data );
+    inst u_rom: SineRomQuarter (
+        clk           ,
+        addr: rom_addr,
+        data: rom_data,
+    );
 
     // ----------------------------------------------------
     // 符号処理
@@ -117,7 +121,13 @@ pub module SineWaveLerpCore (
     // サイン波の第一象限(0~90度)の波形データ10bit分をROMに持っている
     var val_a: logic<31>; //符号なしの絶対値 (0 ~ 2^31-1)
     var val_b: logic<31>; //符号なしの絶対値 (0 ~ 2^31-1)
-    inst rom: SineRomQuarterDual ( clk, addr_a, addr_b, data_a: val_a, data_b: val_b );
+    inst rom: SineRomQuarterDual (
+        clk          ,
+        addr_a       ,
+        addr_b       ,
+        data_a: val_a,
+        data_b: val_b,
+    );
 
     // ----------------------------------------------------
     // 線形補間
@@ -173,7 +183,13 @@ pub module SineOscillator (
 ) {
     // 位相生成 (Phase Accumulator)
     var phase: Phase::phase_t;
-    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
+    inst phasor: Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
 
     // サイン波生成
     inst core: SineWaveCore ( clk, phase, audio );
@@ -190,7 +206,13 @@ pub module SineOscillatorLerp (
 ) {
     // 位相生成
     var phase: Phase::phase_t;
-    inst phasor: Phasor ( clk, phase_rst, phase_step, phase, eoc: _ );
+    inst phasor: Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
 
     // サイン波生成 (線形補間付き)
     inst core: SineWaveLerpCore ( clk, phase, audio );
