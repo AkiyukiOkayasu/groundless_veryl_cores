@@ -1,5 +1,10 @@
 /// 固定小数点型と定数や変換関数
 pub package FixedPoint {
+    /// 丸めモード値。0: truncation、1: round half up、2: round half away from zero。
+    const ROUND_TRUNCATION         : u32 = 0;
+    const ROUND_HALF_UP            : u32 = 1;
+    const ROUND_HALF_AWAY_FROM_ZERO: u32 = 2;
+
     //----------------------------------------------------------------
     // Q2.16形式 (+/-2.0 表示範囲)
     //----------------------------------------------------------------
@@ -167,4 +172,179 @@ pub package FixedPoint {
     ) -> q8_24 {
         return v >>> 7;
     }
+}
+
+/// signed値を算術右シフトし、指定モードで丸める。
+/// MODEにはFixedPoint::ROUND_*を指定する。
+pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: u32> (
+    value: input signed logic<WIDTH>,
+) -> signed logic<WIDTH> {
+    const HALF: u32 = if SHIFT == 0 ? 0 : 1 << (SHIFT - 1);
+
+    let value_ext : signed logic<WIDTH + 1> = $signed({value[msb], value});
+    let half_value: signed logic<WIDTH + 1> = HALF;
+    var result    : signed logic<WIDTH + 1>;
+
+    if SHIFT == 0 {
+        result = value_ext;
+    } else if MODE == 0 {
+        result = value_ext >>> SHIFT;
+    } else if MODE == 1 {
+        result = (value_ext + half_value) >>> SHIFT;
+    } else if value_ext[msb] == 1'b0 {
+        result = (value_ext + half_value) >>> SHIFT;
+    } else {
+        result = -((-value_ext + half_value) >>> SHIFT);
+    }
+
+    return $signed(result[WIDTH - 1:0]);
+}
+
+/// unsigned値を右シフトし、指定モードで丸める。
+pub function round_shift_unsigned::<WIDTH: u32, SHIFT: u32, MODE: u32> (
+    value: input logic<WIDTH>,
+) -> logic<WIDTH> {
+    const HALF: u32 = if SHIFT == 0 ? 0 : 1 << (SHIFT - 1);
+
+    let value_ext: logic<WIDTH + 1> = {1'b0, value};
+    var result   : logic<WIDTH + 1>;
+
+    if SHIFT == 0 {
+        result = value_ext;
+    } else if MODE == 0 {
+        result = value_ext >> SHIFT;
+    } else {
+        result = (value_ext + HALF) >> SHIFT;
+    }
+
+    return result[WIDTH - 1:0];
+}
+
+/// signed値を指定幅へ飽和させる。
+pub function saturate_signed::<IN_WIDTH: u32, OUT_WIDTH: u32> (
+    value: input signed logic<IN_WIDTH>,
+) -> signed logic<OUT_WIDTH> {
+    const WORK_WIDTH  : u32 = if IN_WIDTH >= OUT_WIDTH ? IN_WIDTH + 1 : OUT_WIDTH + 1;
+    const BODY_WIDTH  : u32 = OUT_WIDTH - 1;
+    const EXTEND_WIDTH: u32 = WORK_WIDTH - OUT_WIDTH;
+
+    let value_ext: signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - IN_WIDTH, value});
+    let max_value: signed logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
+    let min_value: signed logic<WORK_WIDTH> = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
+
+    if value_ext >: max_value {
+        return $signed(max_value[OUT_WIDTH - 1:0]);
+    } else if value_ext <: min_value {
+        return $signed(min_value[OUT_WIDTH - 1:0]);
+    } else {
+        return $signed(value_ext[OUT_WIDTH - 1:0]);
+    }
+}
+
+/// unsigned値を指定幅へ飽和させる。
+pub function saturate_unsigned::<IN_WIDTH: u32, OUT_WIDTH: u32> (
+    value: input logic<IN_WIDTH>,
+) -> logic<OUT_WIDTH> {
+    const WORK_WIDTH  : u32 = if IN_WIDTH >= OUT_WIDTH ? IN_WIDTH + 1 : OUT_WIDTH + 1;
+    const EXTEND_WIDTH: u32 = WORK_WIDTH - OUT_WIDTH;
+
+    let value_ext: logic<WORK_WIDTH> = {1'b0 repeat WORK_WIDTH - IN_WIDTH, value};
+    let max_value: logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b1 repeat OUT_WIDTH};
+
+    if value_ext >: max_value {
+        return max_value[OUT_WIDTH - 1:0];
+    } else {
+        return value_ext[OUT_WIDTH - 1:0];
+    }
+}
+
+/// signed値を任意の上下限へ制限する。
+pub function clamp_signed::<WIDTH: u32> (
+    value: input signed logic<WIDTH>,
+    lower: input signed logic<WIDTH>,
+    upper: input signed logic<WIDTH>,
+) -> signed logic<WIDTH> {
+    if value <: lower {
+        return lower;
+    } else if value >: upper {
+        return upper;
+    } else {
+        return value;
+    }
+}
+
+/// unsigned値を任意の上下限へ制限する。
+pub function clamp_unsigned::<WIDTH: u32> (
+    value: input logic<WIDTH>,
+    lower: input logic<WIDTH>,
+    upper: input logic<WIDTH>,
+) -> logic<WIDTH> {
+    if value <: lower {
+        return lower;
+    } else if value >: upper {
+        return upper;
+    } else {
+        return value;
+    }
+}
+
+/// signed固定小数点値を小数ビット数と出力幅ごと変換する。
+/// MODEにはFixedPoint::ROUND_*を指定する。
+pub function fixed_resize_signed::<IN_WIDTH: u32, IN_FRAC: u32, OUT_WIDTH: u32, OUT_FRAC: u32, MODE: u32> (
+    value: input signed logic<IN_WIDTH>,
+) -> signed logic<OUT_WIDTH> {
+    const LEFT_SHIFT  : u32 = if IN_FRAC >= OUT_FRAC ? 0 : OUT_FRAC - IN_FRAC;
+    const RIGHT_SHIFT : u32 = if OUT_FRAC >= IN_FRAC ? 0 : IN_FRAC - OUT_FRAC;
+    const WORK_WIDTH  : u32 = if IN_WIDTH + LEFT_SHIFT >= OUT_WIDTH ? IN_WIDTH + LEFT_SHIFT + 2 : OUT_WIDTH + 2;
+    const HALF        : u32 = if RIGHT_SHIFT == 0 ? 0 : 1 << (RIGHT_SHIFT - 1);
+    const BODY_WIDTH  : u32 = OUT_WIDTH - 1;
+    const EXTEND_WIDTH: u32 = WORK_WIDTH - OUT_WIDTH;
+
+    let value_ext : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - IN_WIDTH, value});
+    let half_value: signed logic<WORK_WIDTH> = HALF;
+    var aligned   : signed logic<WORK_WIDTH>;
+
+    if RIGHT_SHIFT != 0 {
+        if MODE == 0 {
+            aligned = value_ext >>> RIGHT_SHIFT;
+        } else if MODE == 1 {
+            aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
+        } else if value_ext[msb] == 1'b0 {
+            aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
+        } else {
+            aligned = -((-value_ext + half_value) >>> RIGHT_SHIFT);
+        }
+    } else {
+        aligned = value_ext <<< LEFT_SHIFT;
+    }
+
+    let max_value: signed logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
+    let min_value: signed logic<WORK_WIDTH> = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
+
+    if aligned[msb] == 1'b1 {
+        if aligned <: min_value {
+            return $signed(min_value[OUT_WIDTH - 1:0]);
+        } else {
+            return $signed(aligned[OUT_WIDTH - 1:0]);
+        }
+    } else if aligned >: max_value {
+        return $signed(max_value[OUT_WIDTH - 1:0]);
+    } else {
+        return $signed(aligned[OUT_WIDTH - 1:0]);
+    }
+}
+
+/// signed整数同士を、入力幅の合計幅で乗算する。
+/// 結果の幅はA_WIDTH+B_WIDTH、小数ビット数は入力の小数ビット数の合計とする。
+/// 出力変換時は、この積をfixed_resize_signedへ渡して小数位置を調整する。
+pub function fixed_mul::<A_WIDTH: u32, B_WIDTH: u32> (
+    a: input signed logic<A_WIDTH>,
+    b: input signed logic<B_WIDTH>,
+) -> signed logic<A_WIDTH + B_WIDTH> {
+    const PRODUCT_WIDTH: u32 = A_WIDTH + B_WIDTH;
+
+    let a_ext: signed logic<PRODUCT_WIDTH> = $signed({a[msb] repeat B_WIDTH, a});
+    let b_ext: signed logic<PRODUCT_WIDTH> = $signed({b[msb] repeat A_WIDTH, b});
+
+    return a_ext * b_ext;
 }

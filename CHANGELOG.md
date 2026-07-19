@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- 固定小数点共通演算を追加
+  - 丸め付き右シフト（truncation / round half up / round half away from zero）
+  - signed/unsigned saturation
+  - signed/unsigned clamp
+  - signed固定小数点resize（小数位置調整 → 丸め → 飽和）
+  - signed multiply helper
+- 固定小数点Native testを追加
+- ADAT RX/TXコアを`src/adat/`へ移行し、groundlessの命名規則に統一
+- ADAT内部テストをVeryl Native testへ移行
+- ADATの利用例とNRZI説明を現行API名に更新
+
 ### Changed
 
 - Veryl Native testを現行APIに更新し、`rst.assert()`とenum member importを採用
