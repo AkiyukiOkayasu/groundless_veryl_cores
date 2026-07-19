@@ -1,0 +1,120 @@
+/// AES3用IEC 60958受信器。
+import Iec60958::AudioSample;
+import Iec60958::LinkType;
+
+pub module Aes3Rx (
+    clk           : input  clock      ,
+    rst           : input  reset      ,
+    line_bit      : input  logic      ,
+    line_valid    : input  logic      ,
+    audio         : output AudioSample,
+    validity      : output logic      ,
+    user          : output logic      ,
+    channel_status: output logic      ,
+    is_b          : output logic      ,
+    block_start   : output logic      ,
+    data_valid    : output logic      ,
+    parity_error  : output logic      ,
+    preamble_error: output logic      ,
+) {
+    inst core: Iec60958Rx #(
+        LINK_TYPE: LinkType::Aes3,
+    ) (
+        clk           : clk           ,
+        rst           : rst           ,
+        line_bit      : line_bit      ,
+        line_valid    : line_valid    ,
+        audio         : audio         ,
+        validity      : validity      ,
+        user          : user          ,
+        channel_status: channel_status,
+        is_b          : is_b          ,
+        block_start   : block_start   ,
+        data_valid    : data_valid    ,
+        parity_error  : parity_error  ,
+        preamble_error: preamble_error,
+    );
+}
+
+/// AES3ラッパーを通した音声とprofessional channel statusを検証する。
+#[test(test_aes3_tx_rx_loopback)]
+module test_aes3_tx_rx_loopback {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var audio_in          : Iec60958::AudioSample;
+    var sample_rate       : Iec60958::SampleRate ;
+    var channel_mode      : Aes3::ChannelMode    ;
+    var data_valid_in     : logic                ;
+    var line_bit          : logic                ;
+    var line_valid        : logic                ;
+    var busy              : logic                ;
+    var audio_out         : Iec60958::AudioSample;
+    var validity_out      : logic                ;
+    var user_out          : logic                ;
+    var channel_status_out: logic                ;
+    var is_b_out          : logic                ;
+    var block_start_out   : logic                ;
+    var data_valid_out    : logic                ;
+    var parity_error      : logic                ;
+    var preamble_error    : logic                ;
+    var seen              : logic                ;
+
+    inst tx: Aes3Tx (
+        clk         : clk          ,
+        rst         : rst          ,
+        audio       : audio_in     ,
+        sample_rate : sample_rate  ,
+        channel_mode: channel_mode ,
+        is_b        : 1'b0         ,
+        data_valid  : data_valid_in,
+        line_bit    : line_bit     ,
+        line_valid  : line_valid   ,
+        busy        : busy         ,
+    );
+    inst rx: Aes3Rx (
+        clk           : clk               ,
+        rst           : rst               ,
+        line_bit      : line_bit          ,
+        line_valid    : line_valid        ,
+        audio         : audio_out         ,
+        validity      : validity_out      ,
+        user          : user_out          ,
+        channel_status: channel_status_out,
+        is_b          : is_b_out          ,
+        block_start   : block_start_out   ,
+        data_valid    : data_valid_out    ,
+        parity_error  : parity_error      ,
+        preamble_error: preamble_error    ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            seen = 1'b0;
+        } else if data_valid_out {
+            seen = 1'b1;
+            $assert(audio_out == 24'sh654321, "AES3 audio mismatch");
+            $assert(validity_out == 1'b0, "AES3 validity mismatch");
+            $assert(user_out == 1'b0, "AES3 user mismatch");
+            $assert(channel_status_out == 1'b1, "AES3 channel status mismatch");
+            $assert(is_b_out == 1'b0, "AES3 preamble channel mismatch");
+            $assert(block_start_out == 1'b1, "AES3 block start mismatch");
+        }
+    }
+
+    initial {
+        audio_in      = 24'sh654321;
+        sample_rate   = Iec60958::SampleRate::Fs48000;
+        channel_mode  = Aes3::ChannelMode::TwoChannel;
+        data_valid_in = 1'b0;
+        rst.assert();
+        data_valid_in = 1'b1;
+        clk.next(1);
+        data_valid_in = 1'b0;
+        clk.next(120);
+
+        $assert(seen == 1'b1, "AES3 wrapper loopback did not complete");
+        $assert(parity_error == 1'b0 && preamble_error == 1'b0, "AES3 error asserted");
+        $finish();
+    }
+}
