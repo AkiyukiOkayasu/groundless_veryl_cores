@@ -16,6 +16,7 @@
 - ADATの利用例とNRZI説明を現行API名に更新
 - `AdatTx`にフレーム送信完了パルスを追加し、TX→RXイベント駆動ループバックテストを追加
 - S/MUX2用の`Smux2Packer`/`Smux2Unpacker`とNative往復テストを追加
+- `DeltaSigma1st`/`DeltaSigma2nd`を追加し、Q1.31入力に対するPDM密度をNative testで検証
 
 ### Changed
 

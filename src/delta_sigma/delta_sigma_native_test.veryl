@@ -1,0 +1,133 @@
+/// デルタシグマ変調器のPDM密度を検証するVeryl Native test。
+
+#[test(test_delta_sigma_1st_density)]
+module test_delta_sigma_1st_density {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var zero_audio    : FixedPoint::q1_31   ;
+    var positive_audio: FixedPoint::q1_31   ;
+    var negative_audio: FixedPoint::q1_31   ;
+    var zero_pdm      : logic               ;
+    var positive_pdm  : logic               ;
+    var negative_pdm  : logic               ;
+    var zero_ones     : logic            <8>;
+    var positive_ones : logic            <8>;
+    var negative_ones : logic            <8>;
+
+    inst zero: DeltaSigma1st (
+        clk  : clk       ,
+        rst  : rst       ,
+        audio: zero_audio,
+        pdm  : zero_pdm  ,
+    );
+    inst positive: DeltaSigma1st (
+        clk  : clk           ,
+        rst  : rst           ,
+        audio: positive_audio,
+        pdm  : positive_pdm  ,
+    );
+    inst negative: DeltaSigma1st (
+        clk  : clk           ,
+        rst  : rst           ,
+        audio: negative_audio,
+        pdm  : negative_pdm  ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            zero_ones     = 0;
+            positive_ones = 0;
+            negative_ones = 0;
+        } else {
+            if zero_pdm {
+                zero_ones = zero_ones + 1;
+            }
+            if positive_pdm {
+                positive_ones = positive_ones + 1;
+            }
+            if negative_pdm {
+                negative_ones = negative_ones + 1;
+            }
+        }
+    }
+
+    initial {
+        zero_audio     = 0;
+        positive_audio = FixedPoint::Q1_31_POS_MAX;
+        negative_audio = FixedPoint::Q1_31_NEG_MAX;
+        rst.assert();
+        clk.next(64);
+
+        $assert(zero_ones >: 8'd24 && zero_ones <: 8'd40, "1st order zero density mismatch");
+        $assert(positive_ones >: 8'd56, "1st order positive density is too low");
+        $assert(negative_ones <: 8'd8, "1st order negative density is too high");
+        $finish();
+    }
+}
+
+#[test(test_delta_sigma_2nd_density)]
+module test_delta_sigma_2nd_density {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var zero_audio    : FixedPoint::q1_31   ;
+    var positive_audio: FixedPoint::q1_31   ;
+    var negative_audio: FixedPoint::q1_31   ;
+    var zero_pdm      : logic               ;
+    var positive_pdm  : logic               ;
+    var negative_pdm  : logic               ;
+    var zero_ones     : logic            <8>;
+    var positive_ones : logic            <8>;
+    var negative_ones : logic            <8>;
+
+    inst zero: DeltaSigma2nd (
+        clk  : clk       ,
+        rst  : rst       ,
+        audio: zero_audio,
+        pdm  : zero_pdm  ,
+    );
+    inst positive: DeltaSigma2nd (
+        clk  : clk           ,
+        rst  : rst           ,
+        audio: positive_audio,
+        pdm  : positive_pdm  ,
+    );
+    inst negative: DeltaSigma2nd (
+        clk  : clk           ,
+        rst  : rst           ,
+        audio: negative_audio,
+        pdm  : negative_pdm  ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            zero_ones     = 0;
+            positive_ones = 0;
+            negative_ones = 0;
+        } else {
+            if zero_pdm {
+                zero_ones = zero_ones + 1;
+            }
+            if positive_pdm {
+                positive_ones = positive_ones + 1;
+            }
+            if negative_pdm {
+                negative_ones = negative_ones + 1;
+            }
+        }
+    }
+
+    initial {
+        zero_audio     = 0;
+        positive_audio = FixedPoint::Q1_31_POS_MAX;
+        negative_audio = FixedPoint::Q1_31_NEG_MAX;
+        rst.assert();
+        clk.next(128);
+
+        $assert(zero_ones >: 8'd40 && zero_ones <: 8'd88, "2nd order zero density mismatch");
+        $assert(positive_ones >: 8'd88, "2nd order positive density is too low");
+        $assert(negative_ones <: 8'd40, "2nd order negative density is too high");
+        $finish();
+    }
+}
