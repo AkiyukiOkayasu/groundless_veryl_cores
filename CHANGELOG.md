@@ -23,6 +23,7 @@
 - IEC 60958共通サブフレーム送受信コアとS/PDIF Nativeループバックテストを追加
 - S/PDIF用`SpdifTx`/`SpdifRx`ラッパーとNativeループバックテストを追加
 - AES3用`Aes3Tx`/`Aes3Rx`ラッパー、channel status CRC、Nativeループバックテストを追加
+- 固定小数点とADATのNative単体テストを各実装ファイルへ統合
 
 ### Changed
 

@@ -348,3 +348,244 @@ pub function fixed_mul::<A_WIDTH: u32, B_WIDTH: u32> (
 
     return a_ext * b_ext;
 }
+
+/// 丸め付き右シフトの動作を検証する。
+#[test(test_fixed_point_round_shift)]
+module test_fixed_point_round_shift {
+    inst clk: $tb::clock_gen;
+
+    var signed_input   : signed logic<8>;
+    var signed_trunc   : signed logic<8>;
+    var signed_halfup  : signed logic<8>;
+    var signed_zero    : signed logic<8>;
+    var signed_away    : signed logic<8>;
+    var unsigned_input : logic       <8>;
+    var unsigned_trunc : logic       <8>;
+    var unsigned_halfup: logic       <8>;
+    var unsigned_away  : logic       <8>;
+    var unsigned_zero  : logic       <8>;
+
+    always_comb {
+        signed_trunc    = round_shift_signed::<8, 1, FixedPoint::ROUND_TRUNCATION>(signed_input);
+        signed_halfup   = round_shift_signed::<8, 1, FixedPoint::ROUND_HALF_UP>(signed_input);
+        signed_zero     = round_shift_signed::<8, 0, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(signed_input);
+        signed_away     = round_shift_signed::<8, 1, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(signed_input);
+        unsigned_trunc  = round_shift_unsigned::<8, 1, FixedPoint::ROUND_TRUNCATION>(unsigned_input);
+        unsigned_halfup = round_shift_unsigned::<8, 1, FixedPoint::ROUND_HALF_UP>(unsigned_input);
+        unsigned_away   = round_shift_unsigned::<8, 1, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(unsigned_input);
+        unsigned_zero   = round_shift_unsigned::<8, 0, FixedPoint::ROUND_HALF_UP>(unsigned_input);
+    }
+
+    initial {
+        signed_input   = 7;
+        unsigned_input = 7;
+        clk.next();
+        $assert(signed_trunc == 8'sd3, "signed truncation mismatch for positive value");
+        $assert(signed_halfup == 8'sd4, "signed half up mismatch for positive value");
+        $assert(signed_away == 8'sd4, "signed half away mismatch for positive value");
+        $assert(unsigned_trunc == 8'd3, "unsigned truncation mismatch");
+        $assert(unsigned_halfup == 8'd4, "unsigned half up mismatch");
+        $assert(unsigned_away == 8'd4, "unsigned half away mismatch");
+
+        signed_input   = -7;
+        unsigned_input = 2;
+        clk.next();
+        $assert(signed_trunc == -8'sd4, "signed truncation mismatch for negative value");
+        $assert(signed_halfup == -8'sd3, "signed half up mismatch for negative value");
+        $assert(signed_away == -8'sd4, "signed half away mismatch for negative value");
+        $assert(unsigned_trunc == 8'd1, "unsigned truncation mismatch for exact value");
+        $assert(unsigned_halfup == 8'd1, "unsigned half up mismatch for exact value");
+
+        signed_input   = -1;
+        unsigned_input = 1;
+        clk.next();
+        $assert(signed_away == -8'sd1, "signed half away must round -0.5 away from zero");
+        $assert(unsigned_halfup == 8'd1, "unsigned half up must round 0.5 upward");
+
+        signed_input = 127;
+        clk.next();
+        $assert(signed_away == 8'sd64, "positive rounding carry mismatch");
+
+        signed_input = -128;
+        clk.next();
+        $assert(signed_away == -8'sd64, "signed minimum rounding mismatch");
+
+        signed_input   = -7;
+        unsigned_input = 7;
+        clk.next();
+        $assert(signed_input == -8'sd7, "shift zero signed input setup mismatch");
+        $assert(unsigned_input == 8'd7, "shift zero unsigned input setup mismatch");
+        $assert(signed_zero == -8'sd7, "signed shift zero mismatch");
+        $assert(unsigned_zero == 8'd7, "unsigned shift zero mismatch");
+
+        $finish();
+    }
+}
+
+/// signed/unsigned saturationの動作を検証する。
+#[test(test_fixed_point_saturation)]
+module test_fixed_point_saturation {
+    inst clk: $tb::clock_gen;
+
+    var signed_input  : signed logic<8> ;
+    var signed_small  : signed logic<4> ;
+    var signed_wide   : signed logic<10>;
+    var unsigned_input: logic       <8> ;
+    var unsigned_small: logic       <4> ;
+    var unsigned_wide : logic       <10>;
+
+    always_comb {
+        signed_small   = saturate_signed::<8, 4>(signed_input);
+        signed_wide    = saturate_signed::<8, 10>(signed_input);
+        unsigned_small = saturate_unsigned::<8, 4>(unsigned_input);
+        unsigned_wide  = saturate_unsigned::<8, 10>(unsigned_input);
+    }
+
+    initial {
+        signed_input   = 127;
+        unsigned_input = 255;
+        clk.next();
+        $assert(signed_small == 4'sd7, "signed positive saturation mismatch");
+        $assert(signed_wide == 10'sd127, "signed widening mismatch");
+        $assert(unsigned_small == 4'd15, "unsigned saturation mismatch");
+        $assert(unsigned_wide == 10'd255, "unsigned widening mismatch");
+
+        signed_input   = 8;
+        unsigned_input = 16;
+        clk.next();
+        $assert(signed_small == 4'sd7, "signed upper boundary saturation mismatch");
+        $assert(unsigned_small == 4'd15, "unsigned upper boundary saturation mismatch");
+
+        signed_input   = -9;
+        unsigned_input = 14;
+        clk.next();
+        $assert(signed_small == -4'sd8, "signed negative saturation mismatch");
+        $assert(unsigned_small == 4'd14, "unsigned in-range value mismatch");
+
+        signed_input   = -2;
+        unsigned_input = 5;
+        clk.next();
+        $assert(signed_small == -4'sd2, "signed negative in-range saturation mismatch");
+        $assert(signed_wide == -10'sd2, "signed negative widening mismatch");
+        $assert(unsigned_small == 4'd5, "unsigned in-range saturation mismatch");
+
+        signed_input   = -128;
+        unsigned_input = 0;
+        clk.next();
+        $assert(signed_small == -4'sd8, "signed minimum saturation mismatch");
+        $assert(unsigned_small == 4'd0, "unsigned zero saturation mismatch");
+
+        $finish();
+    }
+}
+
+/// signed/unsigned clampの動作を検証する。
+#[test(test_fixed_point_clamp)]
+module test_fixed_point_clamp {
+    inst clk: $tb::clock_gen;
+
+    var signed_value    : signed logic<8>;
+    var signed_clamped  : signed logic<8>;
+    var unsigned_value  : logic       <8>;
+    var unsigned_clamped: logic       <8>;
+
+    always_comb {
+        signed_clamped   = clamp_signed::<8>(signed_value, -8'sd3, 8'sd5);
+        unsigned_clamped = clamp_unsigned::<8>(unsigned_value, 8'd3, 8'd10);
+    }
+
+    initial {
+        signed_value   = -10;
+        unsigned_value = 0;
+        clk.next();
+        $assert(signed_clamped == -8'sd3, "signed lower clamp mismatch");
+        $assert(unsigned_clamped == 8'd3, "unsigned lower clamp mismatch");
+
+        signed_value   = 2;
+        unsigned_value = 7;
+        clk.next();
+        $assert(signed_clamped == 8'sd2, "signed in-range clamp mismatch");
+        $assert(unsigned_clamped == 8'd7, "unsigned in-range clamp mismatch");
+
+        signed_value   = 10;
+        unsigned_value = 20;
+        clk.next();
+        $assert(signed_clamped == 8'sd5, "signed upper clamp mismatch");
+        $assert(unsigned_clamped == 8'd10, "unsigned upper clamp mismatch");
+
+        $finish();
+    }
+}
+
+/// fixed resizeとmultiply helperの動作を検証する。
+#[test(test_fixed_point_resize_and_mul)]
+module test_fixed_point_resize_and_mul {
+    inst clk: $tb::clock_gen;
+
+    var resize_input   : signed logic<8> ;
+    var resize_down    : signed logic<8> ;
+    var resize_up      : signed logic<10>;
+    var resize_sat_in  : signed logic<12>;
+    var resize_sat     : signed logic<8> ;
+    var resize_ext     : signed logic<10>;
+    var resize_direct  : signed logic<10>;
+    var a              : signed logic<8> ;
+    var b              : signed logic<8> ;
+    var product        : signed logic<16>;
+    var product_resized: signed logic<8> ;
+
+    always_comb {
+        resize_down     = fixed_resize_signed::<8, 4, 8, 2, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(resize_input);
+        resize_up       = fixed_resize_signed::<8, 2, 10, 4, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(resize_input);
+        resize_sat      = fixed_resize_signed::<12, 4, 8, 2, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(resize_sat_in);
+        resize_ext      = $signed({resize_input[msb] repeat 2, resize_input});
+        resize_direct   = round_shift_signed::<10, 2, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(resize_ext);
+        product         = fixed_mul::<8, 8>(a, b);
+        product_resized = fixed_resize_signed::<16, 4, 8, 2, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(product);
+    }
+
+    initial {
+        resize_input  = 6;
+        resize_sat_in = 0;
+        a             = 0;
+        b             = 0;
+        clk.next();
+        $assert(resize_down == 8'sd2, "fractional reduction rounding mismatch");
+        $assert(resize_up == 10'sd24, "fractional expansion mismatch");
+
+        resize_input = -6;
+        clk.next();
+        $assert(resize_ext == -10'sd6, "resize sign extension mismatch");
+        $assert(resize_direct == -10'sd2, "direct resize rounding mismatch");
+        $assert(resize_down == -8'sd2, "negative fractional reduction rounding mismatch");
+        $assert(resize_up == -10'sd24, "negative fractional expansion mismatch");
+
+        resize_sat_in = 2047;
+        clk.next();
+        $assert(resize_sat == 8'sd127, "resize positive saturation mismatch");
+
+        resize_sat_in = -2048;
+        clk.next();
+        $assert(resize_sat == -8'sd128, "resize negative saturation mismatch");
+
+        a = 6;
+        b = 2;
+        clk.next();
+        $assert(product == 16'sd12, "positive product mismatch");
+        $assert(product_resized == 8'sd3, "positive product resize mismatch");
+
+        a = -6;
+        b = 2;
+        clk.next();
+        $assert(product == -16'sd12, "negative product mismatch");
+        $assert(product_resized == -8'sd3, "negative product resize mismatch");
+
+        a = -6;
+        b = -2;
+        clk.next();
+        $assert(product == 16'sd12, "negative times negative product mismatch");
+        $assert(product_resized == 8'sd3, "negative times negative resize mismatch");
+
+        $finish();
+    }
+}
