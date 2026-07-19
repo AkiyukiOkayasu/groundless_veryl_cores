@@ -1,0 +1,144 @@
+/// IEC 60958共通BMC送信器。
+///
+/// 通常データは1bitを2タイムスロットへ符号化し、preambleは
+/// 規格で定められた8スロットの違反パターンとして送出する。
+import Iec60958::BmcBit;
+import Iec60958::BmcBitValid;
+import Iec60958::BmcSync;
+import Iec60958::PreambleLineCode;
+
+pub module Iec60958BmcTx (
+    clk           : input  clock           ,
+    rst           : input  reset           ,
+    data_bit      : input  BmcBit          ,
+    data_valid    : input  BmcBitValid     ,
+    preamble_valid: input  BmcSync         ,
+    preamble      : input  PreambleLineCode,
+    line_bit      : output BmcBit          ,
+    line_valid    : output BmcBitValid     ,
+    error         : output logic           ,
+) {
+    var level             : logic   ;
+    var data_latched      : logic   ;
+    var emit_second       : logic   ;
+    var emit_preamble     : logic   ;
+    var preamble_shift    : logic<8>;
+    var preamble_remaining: logic<3>;
+
+    always_ff {
+        if_reset {
+            level              = 1'b0;
+            data_latched       = 1'b0;
+            emit_second        = 1'b0;
+            emit_preamble      = 1'b0;
+            preamble_shift     = 8'd0;
+            preamble_remaining = 3'd0;
+            line_bit           = 1'b0;
+            line_valid         = 1'b0;
+            error              = 1'b0;
+        } else {
+            line_valid = 1'b0;
+            error      = 1'b0;
+
+            if emit_preamble {
+                line_bit       = preamble_shift[7];
+                level          = preamble_shift[7];
+                line_valid     = 1'b1;
+                preamble_shift = {preamble_shift[6:0], 1'b0};
+                if preamble_remaining == 3'd1 {
+                    emit_preamble      = 1'b0;
+                    preamble_remaining = 3'd0;
+                } else {
+                    preamble_remaining = preamble_remaining - 3'd1;
+                }
+            } else if emit_second {
+                if data_latched {
+                    line_bit = ~level;
+                    level    = ~level;
+                } else {
+                    line_bit = level;
+                }
+                line_valid  = 1'b1;
+                emit_second = 1'b0;
+            } else if data_valid || preamble_valid {
+                if preamble_valid {
+                    if level {
+                        line_bit       = ~preamble[7];
+                        level          = ~preamble[7];
+                        preamble_shift = {~preamble[6:0], 1'b0};
+                    } else {
+                        line_bit       = preamble[7];
+                        level          = preamble[7];
+                        preamble_shift = {preamble[6:0], 1'b0};
+                    }
+                    line_valid         = 1'b1;
+                    emit_preamble      = 1'b1;
+                    preamble_remaining = 3'd7;
+                } else {
+                    line_bit     = ~level;
+                    level        = ~level;
+                    data_latched = data_bit;
+                    line_valid   = 1'b1;
+                    emit_second  = 1'b1;
+                }
+            }
+        }
+    }
+}
+
+/// BMC preambleの先頭から8スロットが正しく送出されることを確認する。
+#[test(test_iec60958_bmc_tx_preamble)]
+module test_iec60958_bmc_tx_preamble {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var data_bit      : logic                        ;
+    var data_valid    : logic                        ;
+    var preamble_valid: logic                        ;
+    var preamble      : Iec60958::PreambleLineCode   ;
+    var line_bit      : logic                        ;
+    var line_valid    : logic                        ;
+    var error         : logic                        ;
+    var captured      : logic                     <8>;
+    var slot_count    : logic                     <4>;
+
+    inst dut: Iec60958BmcTx (
+        clk           : clk           ,
+        rst           : rst           ,
+        data_bit      : data_bit      ,
+        data_valid    : data_valid    ,
+        preamble_valid: preamble_valid,
+        preamble      : preamble      ,
+        line_bit      : line_bit      ,
+        line_valid    : line_valid    ,
+        error         : error         ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            captured   = 0;
+            slot_count = 0;
+        } else if line_valid {
+            captured   = {captured[6:0], line_bit};
+            slot_count = slot_count + 1;
+        }
+    }
+
+    initial {
+        data_bit       = 1'b0;
+        data_valid     = 1'b0;
+        preamble_valid = 1'b0;
+        preamble       = Iec60958::PreambleLineCode::X;
+        rst.assert();
+
+        preamble_valid = 1'b1;
+        clk.next(1);
+        preamble_valid = 1'b0;
+        clk.next(8);
+
+        $assert(slot_count == 4'd8, "BMC preamble slot count mismatch");
+        $assert(captured == Iec60958::PreambleLineCode::X, "BMC preamble line code mismatch");
+        $assert(error == 1'b0, "BMC TX must not report an error");
+        $finish();
+    }
+}

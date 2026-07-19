@@ -1,0 +1,209 @@
+/// IEC 60958共通BMC受信器。
+///
+/// ラインの2スロットを1bitへ復元し、8スロット窓から正規化した
+/// preambleを検出する。preambleの極性反転も同じ値として扱う。
+import Iec60958::BmcBit;
+import Iec60958::BmcBitValid;
+import Iec60958::PreambleLineCode;
+
+pub module Iec60958BmcRx (
+    clk           : input  clock           ,
+    rst           : input  reset           ,
+    line_bit      : input  BmcBit          ,
+    line_valid    : input  BmcBitValid     ,
+    data_bit      : output BmcBit          ,
+    data_valid    : output BmcBitValid     ,
+    error         : output logic           ,
+    preamble      : output PreambleLineCode,
+    preamble_valid: output logic           ,
+    preamble_error: output logic           ,
+) {
+    var have_slot0         : logic   ;
+    var slot0              : logic   ;
+    var expect_preamble    : logic   ;
+    var preamble_shift     : logic<8>;
+    var preamble_slot_count: logic<3>;
+    var payload_slot_count : logic<6>;
+
+    always_ff {
+        if_reset {
+            have_slot0          = 1'b0;
+            slot0               = 1'b0;
+            expect_preamble     = 1'b1;
+            preamble_shift      = 8'd0;
+            preamble_slot_count = 3'd0;
+            payload_slot_count  = 6'd0;
+            data_bit            = 1'b0;
+            data_valid          = 1'b0;
+            error               = 1'b0;
+            preamble            = PreambleLineCode::X;
+            preamble_valid      = 1'b0;
+            preamble_error      = 1'b0;
+        } else {
+            data_valid     = 1'b0;
+            error          = 1'b0;
+            preamble_valid = 1'b0;
+            preamble_error = 1'b0;
+
+            if expect_preamble {
+                if line_valid {
+                    let window        : logic<8> = {preamble_shift[6:0], line_bit};
+                    preamble_shift = window;
+
+                    if preamble_slot_count == 3'd7 {
+                        if window == PreambleLineCode::Z || window == ~PreambleLineCode::Z {
+                            preamble       = PreambleLineCode::Z;
+                            preamble_valid = 1'b1;
+                        } else if window == PreambleLineCode::X || window == ~PreambleLineCode::X {
+                            preamble       = PreambleLineCode::X;
+                            preamble_valid = 1'b1;
+                        } else if window == PreambleLineCode::Y || window == ~PreambleLineCode::Y {
+                            preamble       = PreambleLineCode::Y;
+                            preamble_valid = 1'b1;
+                        } else {
+                            preamble_error = 1'b1;
+                        }
+                        expect_preamble     = 1'b0;
+                        preamble_slot_count = 3'd0;
+                        payload_slot_count  = 6'd0;
+                        have_slot0          = 1'b0;
+                    } else {
+                        preamble_slot_count = preamble_slot_count + 3'd1;
+                    }
+                }
+            } else if line_valid {
+                if have_slot0 {
+                    data_bit   = slot0 != line_bit;
+                    data_valid = 1'b1;
+                    have_slot0 = 1'b0;
+                } else {
+                    slot0      = line_bit;
+                    have_slot0 = 1'b1;
+                }
+
+                if payload_slot_count == 6'd55 {
+                    expect_preamble    = 1'b1;
+                    payload_slot_count = 6'd0;
+                    have_slot0         = 1'b0;
+                } else {
+                    payload_slot_count = payload_slot_count + 6'd1;
+                }
+            } else if have_slot0 {
+                error      = 1'b1;
+                have_slot0 = 1'b0;
+            }
+        }
+    }
+}
+
+/// BMC送受信を直結し、preambleとデータbitを復元できることを確認する。
+#[test(test_iec60958_bmc_loopback)]
+module test_iec60958_bmc_loopback {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var tx_data_bit      : logic                        ;
+    var tx_data_valid    : logic                        ;
+    var tx_preamble_valid: logic                        ;
+    var tx_preamble      : Iec60958::PreambleLineCode   ;
+    var line_bit         : logic                        ;
+    var line_valid       : logic                        ;
+    var tx_error         : logic                        ;
+    var rx_data_bit      : logic                        ;
+    var rx_data_valid    : logic                        ;
+    var rx_error         : logic                        ;
+    var rx_preamble      : Iec60958::PreambleLineCode   ;
+    var rx_preamble_valid: logic                        ;
+    var rx_preamble_error: logic                        ;
+    var preamble_seen    : logic                        ;
+    var data_count       : logic                     <4>;
+    var first_data       : logic                        ;
+    var second_data      : logic                        ;
+    var third_data       : logic                        ;
+
+    inst tx: Iec60958BmcTx (
+        clk           : clk              ,
+        rst           : rst              ,
+        data_bit      : tx_data_bit      ,
+        data_valid    : tx_data_valid    ,
+        preamble_valid: tx_preamble_valid,
+        preamble      : tx_preamble      ,
+        line_bit      : line_bit         ,
+        line_valid    : line_valid       ,
+        error         : tx_error         ,
+    );
+    inst rx: Iec60958BmcRx (
+        clk           : clk              ,
+        rst           : rst              ,
+        line_bit      : line_bit         ,
+        line_valid    : line_valid       ,
+        data_bit      : rx_data_bit      ,
+        data_valid    : rx_data_valid    ,
+        error         : rx_error         ,
+        preamble      : rx_preamble      ,
+        preamble_valid: rx_preamble_valid,
+        preamble_error: rx_preamble_error,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            preamble_seen = 1'b0;
+            data_count    = 0;
+            first_data    = 1'b0;
+            second_data   = 1'b0;
+            third_data    = 1'b0;
+        } else {
+            if rx_preamble_valid {
+                preamble_seen = 1'b1;
+            }
+            if rx_data_valid {
+                if data_count == 0 {
+                    first_data = rx_data_bit;
+                } else if data_count == 1 {
+                    second_data = rx_data_bit;
+                } else if data_count == 2 {
+                    third_data = rx_data_bit;
+                }
+                data_count = data_count + 1;
+            }
+        }
+    }
+
+    initial {
+        tx_data_bit       = 1'b0;
+        tx_data_valid     = 1'b0;
+        tx_preamble_valid = 1'b0;
+        tx_preamble       = Iec60958::PreambleLineCode::X;
+        rst.assert();
+
+        tx_preamble_valid = 1'b1;
+        clk.next(1);
+        tx_preamble_valid = 1'b0;
+        clk.next(8);
+
+        tx_data_bit   = 1'b1;
+        tx_data_valid = 1'b1;
+        clk.next(1);
+        tx_data_valid = 1'b0;
+        clk.next(1);
+        tx_data_bit   = 1'b0;
+        tx_data_valid = 1'b1;
+        clk.next(1);
+        tx_data_valid = 1'b0;
+        clk.next(1);
+        tx_data_bit   = 1'b1;
+        tx_data_valid = 1'b1;
+        clk.next(1);
+        tx_data_valid = 1'b0;
+        clk.next(16);
+
+        $assert(preamble_seen == 1'b1, "BMC preamble was not detected");
+        $assert(rx_preamble == Iec60958::PreambleLineCode::X, "BMC preamble mismatch");
+        $assert(data_count == 4'd3, "BMC data count mismatch");
+        $assert(first_data == 1'b1, "BMC first data mismatch");
+        $assert(second_data == 1'b0, "BMC second data mismatch");
+        $assert(third_data == 1'b1, "BMC third data mismatch");
+        $assert(tx_error == 1'b0 && rx_error == 1'b0 && rx_preamble_error == 1'b0, "BMC error asserted");
+        $finish();
+    }
+}

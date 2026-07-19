@@ -19,6 +19,7 @@
 - `DeltaSigma1st`/`DeltaSigma2nd`を追加し、Q1.31入力に対するPDM密度をNative testで検証
 - IEC 60958共通型、S/PDIF型、AES3型とchannel status生成関数を追加
 - Smux2とデルタシグマのNative testを各実装ファイルへ統合
+- IEC 60958共通BMC送受信器とNativeループバックテストを追加
 
 ### Changed
 
