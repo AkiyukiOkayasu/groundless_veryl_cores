@@ -36,6 +36,7 @@
 
 ### Changed
 
+- 初期のIEC60958 BMC/subframe/S/PDIF/AES3実装を、共通codecとstereo transceiverへ整理
 - Veryl Native testを現行APIに更新し、`rst.assert()`とenum member importを採用
 - フィルタテストの収束条件を`$assert`で検証し、矩形波・三角波・ノコギリ波コアのNative testを追加
 - CIに生成チェックとNative backend間の整合性検証を追加
