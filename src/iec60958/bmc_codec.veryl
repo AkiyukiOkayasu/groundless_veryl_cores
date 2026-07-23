@@ -1,0 +1,327 @@
+/// IEC60958 BMC serializer。
+///
+/// 1 subframeは8cellのpreambleと28bit payloadの56cellで構成する。
+/// `cell_tick`が到来したときだけ次のcellへ進み、入力は1エントリpending
+/// bufferへ先行受理できる。
+import Iec60958::PreambleLineCode;
+import Iec60958::Payload;
+
+pub module Iec60958BmcSerializer (
+    clk           : input  clock           ,
+    rst           : input  reset           ,
+    cell_tick     : input  logic           ,
+    subframe_valid: input  logic           ,
+    subframe_ready: output logic           ,
+    preamble      : input  PreambleLineCode,
+    payload       : input  Payload         ,
+    line_bit      : output logic           ,
+    line_valid    : output logic           ,
+    busy          : output logic           ,
+) {
+    var active          : logic    ;
+    var pending_valid   : logic    ;
+    var pending_preamble: logic<8> ;
+    var pending_payload : logic<28>;
+    var preamble_shift  : logic<8> ;
+    var payload_shift   : logic<28>;
+    var data_latched    : logic    ;
+    var cell_index      : logic<6> ;
+    var level           : logic    ;
+
+    always_comb {
+        busy           = active;
+        line_valid     = active;
+        subframe_ready = !active || !pending_valid;
+    }
+
+    always_ff {
+        if_reset {
+            active           = 0;
+            pending_valid    = 0;
+            pending_preamble = 0;
+            pending_payload  = 0;
+            preamble_shift   = 0;
+            payload_shift    = 0;
+            data_latched     = 0;
+            cell_index       = 0;
+            level            = 0;
+            line_bit         = 0;
+        } else if !active {
+            if subframe_valid {
+                let encoded_preamble: logic<8> = if level ? ~preamble : preamble;
+                active           = 1;
+                preamble_shift   = encoded_preamble;
+                payload_shift    = payload;
+                data_latched     = 0;
+                cell_index       = 0;
+                line_bit         = encoded_preamble[7];
+                level            = encoded_preamble[7];
+            }
+        } else if cell_tick && cell_index == 6'd63 {
+            // 最終cellはtick直前のline_bitで消費され、ここで次の先頭cellを準備する。
+            if pending_valid {
+                let encoded_preamble: logic<8> = if level ? ~pending_preamble : pending_preamble;
+                preamble_shift   = encoded_preamble;
+                payload_shift    = pending_payload;
+                data_latched     = 0;
+                cell_index       = 0;
+                line_bit         = encoded_preamble[7];
+                level            = encoded_preamble[7];
+                pending_valid    = 0;
+            } else if subframe_valid {
+                let encoded_preamble: logic<8> = if level ? ~preamble : preamble;
+                preamble_shift   = encoded_preamble;
+                payload_shift    = payload;
+                data_latched     = 0;
+                cell_index       = 0;
+                line_bit         = encoded_preamble[7];
+                level            = encoded_preamble[7];
+            } else {
+                active     = 0;
+                cell_index = 0;
+            }
+        } else {
+            if subframe_valid && subframe_ready {
+                pending_valid    = 1;
+                pending_preamble = preamble;
+                pending_payload  = payload;
+            }
+
+            if cell_tick {
+                if cell_index <: 6'd7 {
+                    line_bit       = preamble_shift[6];
+                    level          = preamble_shift[6];
+                    preamble_shift = {preamble_shift[6:0], 1'b0};
+                    cell_index     = cell_index + 6'd1;
+                } else if cell_index == 6'd7 {
+                    line_bit     = ~level;
+                    level        = ~level;
+                    data_latched = payload_shift[27];
+                    cell_index   = cell_index + 6'd1;
+                } else if !cell_index[0] {
+                    if data_latched {
+                        line_bit = ~level;
+                        level    = ~level;
+                    } else {
+                        line_bit = level;
+                    }
+                    cell_index = cell_index + 6'd1;
+                } else {
+                    line_bit      = ~level;
+                    level         = ~level;
+                    payload_shift = {payload_shift[26:0], 1'b0};
+                    data_latched  = payload_shift[26];
+                    cell_index    = cell_index + 6'd1;
+                }
+            }
+        }
+    }
+}
+
+/// IEC60958 BMC deserializer。
+///
+/// cell_tickでline_bitをサンプルし、8cell sliding windowでpreambleを
+/// 探索する。通常payloadの先頭cellに必要な遷移も検証する。
+pub module Iec60958BmcDeserializer (
+    clk           : input  clock           ,
+    rst           : input  reset           ,
+    cell_tick     : input  logic           ,
+    line_valid    : input  logic           ,
+    line_bit      : input  logic           ,
+    preamble      : output PreambleLineCode,
+    preamble_valid: output logic           ,
+    payload       : output Payload         ,
+    payload_valid : output logic           ,
+    bmc_locked    : output logic           ,
+    preamble_error: output logic           ,
+    bmc_error     : output logic           ,
+) {
+    var preamble_shift    : logic<8> ;
+    var hunt_count        : logic<3> ;
+    var previous_cell     : logic    ;
+    var first_cell        : logic    ;
+    var first_cell_valid  : logic    ;
+    var payload_shift     : logic<28>;
+    var payload_cell_count: logic<6> ;
+    var discard_frame     : logic    ;
+
+    always_ff {
+        if_reset {
+            preamble_shift     = 0;
+            hunt_count         = 0;
+            previous_cell      = 0;
+            first_cell         = 0;
+            first_cell_valid   = 0;
+            payload_shift      = 0;
+            payload_cell_count = 0;
+            discard_frame      = 0;
+            preamble           = PreambleLineCode::X;
+            preamble_valid     = 0;
+            payload            = 0;
+            payload_valid      = 0;
+            bmc_locked         = 0;
+            preamble_error     = 0;
+            bmc_error          = 0;
+        } else {
+            preamble_valid = 0;
+            payload_valid  = 0;
+            preamble_error = 0;
+            bmc_error      = 0;
+
+            if cell_tick && line_valid {
+                if !bmc_locked {
+                    let window        : logic<8> = {preamble_shift[6:0], line_bit};
+                    preamble_shift = window;
+
+                    if hunt_count == 3'd7 {
+                        if window == PreambleLineCode::Z || window == ~PreambleLineCode::Z {
+                            preamble       = PreambleLineCode::Z;
+                            preamble_valid = 1;
+                            bmc_locked     = 1;
+                        } else if window == PreambleLineCode::X || window == ~PreambleLineCode::X {
+                            preamble       = PreambleLineCode::X;
+                            preamble_valid = 1;
+                            bmc_locked     = 1;
+                        } else if window == PreambleLineCode::Y || window == ~PreambleLineCode::Y {
+                            preamble       = PreambleLineCode::Y;
+                            preamble_valid = 1;
+                            bmc_locked     = 1;
+                        } else {
+                            preamble_error = 1;
+                        }
+                    } else {
+                        hunt_count = hunt_count + 3'd1;
+                    }
+
+                    if window == PreambleLineCode::Z || window == ~PreambleLineCode::Z || window == PreambleLineCode::X
+                        || window == ~PreambleLineCode::X || window == PreambleLineCode::Y || window
+                        == ~PreambleLineCode::Y {
+                        previous_cell      = line_bit;
+                        first_cell_valid   = 0;
+                        payload_cell_count = 0;
+                        payload_shift      = 0;
+                        discard_frame      = 0;
+                    }
+                } else if !first_cell_valid {
+                    first_cell       = line_bit;
+                    first_cell_valid = 1;
+                    if line_bit == previous_cell {
+                        bmc_error     = 1;
+                        discard_frame = 1;
+                    }
+                } else {
+                    let data_bit        : logic   = first_cell != line_bit;
+                    let next_payload    : Payload = {payload_shift[26:0], data_bit};
+                    payload_shift    = next_payload;
+                    previous_cell    = line_bit;
+                    first_cell_valid = 0;
+
+                    if payload_cell_count == 6'd27 {
+                        if !discard_frame {
+                            payload       = next_payload;
+                            payload_valid = 1;
+                        }
+                        bmc_locked         = 0;
+                        payload_cell_count = 0;
+                        payload_shift      = 0;
+                        discard_frame      = 0;
+                    } else {
+                        payload_cell_count = payload_cell_count + 6'd1;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// BMC serializerとdeserializerをcell_tick直結で検証する。
+#[test(test_iec60958_bmc_codec)]
+module test_iec60958_bmc_codec {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var cell_tick        : logic                        ;
+    var subframe_valid   : logic                        ;
+    var subframe_ready   : logic                        ;
+    var preamble_in      : Iec60958::PreambleLineCode   ;
+    var payload_in       : Iec60958::Payload            ;
+    var line_bit         : logic                        ;
+    var line_valid       : logic                        ;
+    var busy             : logic                        ;
+    var preamble_out     : Iec60958::PreambleLineCode   ;
+    var preamble_seen    : logic                        ;
+    var payload_out      : Iec60958::Payload            ;
+    var payload_seen     : logic                        ;
+    var bmc_locked       : logic                        ;
+    var preamble_error   : logic                        ;
+    var bmc_error        : logic                        ;
+    var cell_count       : logic                     <7>;
+    var preamble_detected: logic                        ;
+    var payload_detected : logic                        ;
+
+    inst tx: Iec60958BmcSerializer (
+        clk           : clk           ,
+        rst           : rst           ,
+        cell_tick     : cell_tick     ,
+        subframe_valid: subframe_valid,
+        subframe_ready: subframe_ready,
+        preamble      : preamble_in   ,
+        payload       : payload_in    ,
+        line_bit      : line_bit      ,
+        line_valid    : line_valid    ,
+        busy          : busy          ,
+    );
+    inst rx: Iec60958BmcDeserializer (
+        clk           : clk           ,
+        rst           : rst           ,
+        cell_tick     : cell_tick     ,
+        line_valid    : line_valid    ,
+        line_bit      : line_bit      ,
+        preamble      : preamble_out  ,
+        preamble_valid: preamble_seen ,
+        payload       : payload_out   ,
+        payload_valid : payload_seen  ,
+        bmc_locked    : bmc_locked    ,
+        preamble_error: preamble_error,
+        bmc_error     : bmc_error     ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            cell_count        = 0;
+            preamble_detected = 0;
+            payload_detected  = 0;
+        } else {
+            if cell_tick && line_valid {
+                cell_count = cell_count + 7'd1;
+            }
+            if preamble_seen {
+                preamble_detected = 1;
+            }
+            if payload_seen {
+                payload_detected = 1;
+            }
+        }
+    }
+
+    initial {
+        cell_tick      = 1'b1;
+        subframe_valid = 1'b0;
+        preamble_in    = Iec60958::PreambleLineCode::X;
+        payload_in     = 28'h0A5A5A5;
+        rst.assert();
+
+        subframe_valid = 1'b1;
+        clk.next(1);
+        subframe_valid = 1'b0;
+        clk.next(68);
+
+        $assert(cell_count == 7'd64, "BMC serializer must emit 64 cells");
+        $assert(preamble_detected, "BMC deserializer did not find preamble");
+        $assert(payload_detected, "BMC deserializer did not emit payload");
+        $assert(preamble_out == Iec60958::PreambleLineCode::X, "BMC preamble mismatch");
+        $assert(payload_out == payload_in, "BMC payload loopback mismatch");
+        $assert(!preamble_error && !bmc_error, "BMC codec reported an unexpected error");
+        $finish();
+    }
+}
