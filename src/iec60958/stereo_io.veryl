@@ -143,6 +143,7 @@ pub module Iec60958StereoRx (
     right_user   : output logic      ,
     left_status  : output logic      ,
     right_status : output logic      ,
+    block_start  : output logic      ,
     error        : output logic      ,
 ) {
     var subframe_valid  : logic                 ;
@@ -160,6 +161,7 @@ pub module Iec60958StereoRx (
     var left_invalid_reg: logic                 ;
     var left_user_reg   : logic                 ;
     var left_status_reg : logic                 ;
+    var left_block_start: logic                 ;
 
     assign subframe_ready = !sample_valid || sample_ready;
 
@@ -192,14 +194,17 @@ pub module Iec60958StereoRx (
             right_user       = 0;
             left_status      = 0;
             right_status     = 0;
+            block_start      = 0;
             error            = 0;
             left_pending     = 0;
             left_audio_reg   = 0;
             left_invalid_reg = 0;
             left_user_reg    = 0;
             left_status_reg  = 0;
+            left_block_start = 0;
         } else {
-            error = 0;
+            block_start = 0;
+            error       = 0;
             if sample_valid && sample_ready {
                 sample_valid = 0;
             }
@@ -219,6 +224,7 @@ pub module Iec60958StereoRx (
                         right_user    = user;
                         left_status   = left_status_reg;
                         right_status  = status;
+                        block_start   = left_block_start;
                         sample_valid  = 1;
                         left_pending  = 0;
                     } else {
@@ -232,6 +238,7 @@ pub module Iec60958StereoRx (
                     left_invalid_reg = invalid;
                     left_user_reg    = user;
                     left_status_reg  = status;
+                    left_block_start = preamble_kind == Iec60958::PreambleKind::BlockStartA;
                     left_pending     = 1;
                 }
             }
@@ -272,8 +279,10 @@ module test_iec60958_stereo_io_loopback {
     var right_user_out   : logic                   ;
     var left_status_out  : logic                   ;
     var right_status_out : logic                   ;
+    var block_start_out  : logic                   ;
     var error            : logic                   ;
     var seen             : logic                   ;
+    var block_start_seen : logic                   ;
 
     inst tx: Iec60958StereoTx (
         clk              : clk              ,
@@ -312,14 +321,17 @@ module test_iec60958_stereo_io_loopback {
         right_user   : right_user_out   ,
         left_status  : left_status_out  ,
         right_status : right_status_out ,
+        block_start  : block_start_out  ,
         error        : error            ,
     );
 
     always_ff (clk, rst) {
         if_reset {
-            seen = 0;
+            seen             = 0;
+            block_start_seen = 0;
         } else if sample_valid_out {
-            seen = 1;
+            seen             = 1;
+            block_start_seen = block_start_out;
         }
     }
 
@@ -351,6 +363,7 @@ module test_iec60958_stereo_io_loopback {
         );
         $assert(left_user_out == left_user_in && right_user_out == right_user_in, "stereo user mismatch");
         $assert(left_status_out == left_status_in && right_status_out == right_status_in, "stereo status mismatch");
+        $assert(block_start_seen, "stereo block start mismatch");
         $assert(!error, "stereo IO loopback reported an error");
         $finish();
     }

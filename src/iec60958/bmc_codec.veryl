@@ -325,3 +325,58 @@ module test_iec60958_bmc_codec {
         $finish();
     }
 }
+
+/// BMC serializerがpreambleの8cell golden patternをそのまま送出することを確認する。
+#[test(test_iec60958_bmc_preamble_golden)]
+module test_iec60958_bmc_preamble_golden {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var cell_tick     : logic   ;
+    var subframe_valid: logic   ;
+    var subframe_ready: logic   ;
+    var line_bit      : logic   ;
+    var line_valid    : logic   ;
+    var busy          : logic   ;
+    var captured      : logic<8>;
+    var slot_count    : logic<4>;
+
+    inst dut: Iec60958BmcSerializer (
+        clk           : clk                          ,
+        rst           : rst                          ,
+        cell_tick     : cell_tick                    ,
+        subframe_valid: subframe_valid               ,
+        subframe_ready: subframe_ready               ,
+        preamble      : Iec60958::PreambleLineCode::X,
+        payload       : 28'h0                        ,
+        line_bit      : line_bit                     ,
+        line_valid    : line_valid                   ,
+        busy          : busy                         ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            captured   = 0;
+            slot_count = 0;
+        } else if cell_tick && line_valid && slot_count <: 4'd8 {
+            captured   =  {captured[6:0], line_bit};
+            slot_count += 1;
+        }
+    }
+
+    initial {
+        cell_tick      = 1;
+        subframe_valid = 0;
+        rst.assert();
+
+        subframe_valid = 1;
+        clk.next(1);
+        subframe_valid = 0;
+        clk.next(8);
+
+        $assert(slot_count == 4'd8, "BMC preamble slot count mismatch");
+        $assert(captured == Iec60958::PreambleLineCode::X, "BMC preamble line code mismatch");
+        $assert(busy, "BMC serializer must remain active after the golden preamble");
+        $finish();
+    }
+}

@@ -18,6 +18,8 @@
 - S/PDIF/AES3 channel status bit mapperとAES3 professional CRCを追加
 - IEC60958共通subframe TX/RX coreを新BMC codecへ接続し、Native loopbackを追加
 - AES3 status streamとS/PDIF/AES3のstereo transceiverを追加し、Native loopbackを追加
+- S/PDIF/AES3 receiverへblock start pulseを追加し、旧metadata loopbackの回帰assertを追加
+- BMC preambleの8cell golden Native testを追加
 - `LinearInterpolator`/`FarrowInterpolator`とFIFO接続型`LinearAsrc`を追加し、Native testを追加
 - 4サンプル窓の`FarrowAsrc`を追加し、Linear/Farrow ASRCのFIFO補充Native testを追加
 - ADAT RX/TXコアを`src/adat/`へ移行し、groundlessの命名規則に統一

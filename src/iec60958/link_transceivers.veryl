@@ -112,6 +112,7 @@ pub module SpdifReceiver (
     right_user   : output logic      ,
     left_status  : output logic      ,
     right_status : output logic      ,
+    block_start  : output logic      ,
     error        : output logic      ,
 ) {
     inst core: Iec60958StereoRx (
@@ -130,6 +131,7 @@ pub module SpdifReceiver (
         right_user   : right_user   ,
         left_status  : left_status  ,
         right_status : right_status ,
+        block_start  : block_start  ,
         error        : error        ,
     );
 }
@@ -212,6 +214,7 @@ pub module Aes3Receiver (
     right_user   : output logic      ,
     left_status  : output logic      ,
     right_status : output logic      ,
+    block_start  : output logic      ,
     error        : output logic      ,
 ) {
     inst core: Iec60958StereoRx (
@@ -230,6 +233,7 @@ pub module Aes3Receiver (
         right_user   : right_user   ,
         left_status  : left_status  ,
         right_status : right_status ,
+        block_start  : block_start  ,
         error        : error        ,
     );
 }
@@ -240,46 +244,50 @@ module test_iec60958_link_transceivers {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
 
-    var cell_tick         : logic                ;
-    var sample_valid      : logic                ;
-    var sample_ready_spdif: logic                ;
-    var sample_ready_aes3 : logic                ;
-    var left_audio        : Iec60958::AudioSample;
-    var right_audio       : Iec60958::AudioSample;
-    var left_invalid      : logic                ;
-    var right_invalid     : logic                ;
-    var left_user         : logic                ;
-    var right_user        : logic                ;
-    var line_spdif        : logic                ;
-    var valid_spdif       : logic                ;
-    var busy_spdif        : logic                ;
-    var line_aes3         : logic                ;
-    var valid_aes3        : logic                ;
-    var busy_aes3         : logic                ;
-    var spdif_valid       : logic                ;
-    var spdif_ready       : logic                ;
-    var spdif_left        : Iec60958::AudioSample;
-    var spdif_right       : Iec60958::AudioSample;
-    var spdif_li          : logic                ;
-    var spdif_ri          : logic                ;
-    var spdif_lu          : logic                ;
-    var spdif_ru          : logic                ;
-    var spdif_ls          : logic                ;
-    var spdif_rs          : logic                ;
-    var spdif_error       : logic                ;
-    var aes3_valid        : logic                ;
-    var aes3_ready        : logic                ;
-    var aes3_left         : Iec60958::AudioSample;
-    var aes3_right        : Iec60958::AudioSample;
-    var aes3_li           : logic                ;
-    var aes3_ri           : logic                ;
-    var aes3_lu           : logic                ;
-    var aes3_ru           : logic                ;
-    var aes3_ls           : logic                ;
-    var aes3_rs           : logic                ;
-    var aes3_error        : logic                ;
-    var spdif_seen        : logic                ;
-    var aes3_seen         : logic                ;
+    var cell_tick             : logic                ;
+    var sample_valid          : logic                ;
+    var sample_ready_spdif    : logic                ;
+    var sample_ready_aes3     : logic                ;
+    var left_audio            : Iec60958::AudioSample;
+    var right_audio           : Iec60958::AudioSample;
+    var left_invalid          : logic                ;
+    var right_invalid         : logic                ;
+    var left_user             : logic                ;
+    var right_user            : logic                ;
+    var line_spdif            : logic                ;
+    var valid_spdif           : logic                ;
+    var busy_spdif            : logic                ;
+    var line_aes3             : logic                ;
+    var valid_aes3            : logic                ;
+    var busy_aes3             : logic                ;
+    var spdif_valid           : logic                ;
+    var spdif_ready           : logic                ;
+    var spdif_left            : Iec60958::AudioSample;
+    var spdif_right           : Iec60958::AudioSample;
+    var spdif_li              : logic                ;
+    var spdif_ri              : logic                ;
+    var spdif_lu              : logic                ;
+    var spdif_ru              : logic                ;
+    var spdif_ls              : logic                ;
+    var spdif_rs              : logic                ;
+    var spdif_block_start     : logic                ;
+    var spdif_error           : logic                ;
+    var aes3_valid            : logic                ;
+    var aes3_ready            : logic                ;
+    var aes3_left             : Iec60958::AudioSample;
+    var aes3_right            : Iec60958::AudioSample;
+    var aes3_li               : logic                ;
+    var aes3_ri               : logic                ;
+    var aes3_lu               : logic                ;
+    var aes3_ru               : logic                ;
+    var aes3_ls               : logic                ;
+    var aes3_rs               : logic                ;
+    var aes3_block_start      : logic                ;
+    var aes3_error            : logic                ;
+    var spdif_seen            : logic                ;
+    var aes3_seen             : logic                ;
+    var spdif_block_start_seen: logic                ;
+    var aes3_block_start_seen : logic                ;
 
     inst spdif_tx: SpdifTransmitter (
         clk                 : clk                          ,
@@ -310,22 +318,23 @@ module test_iec60958_link_transceivers {
         busy                : busy_spdif                   ,
     );
     inst spdif_rx: SpdifReceiver (
-        clk          : clk        ,
-        rst          : rst        ,
-        cell_tick    : cell_tick  ,
-        line_bit     : line_spdif ,
-        line_valid   : valid_spdif,
-        sample_valid : spdif_valid,
-        sample_ready : spdif_ready,
-        left_audio   : spdif_left ,
-        right_audio  : spdif_right,
-        left_invalid : spdif_li   ,
-        right_invalid: spdif_ri   ,
-        left_user    : spdif_lu   ,
-        right_user   : spdif_ru   ,
-        left_status  : spdif_ls   ,
-        right_status : spdif_rs   ,
-        error        : spdif_error,
+        clk          : clk              ,
+        rst          : rst              ,
+        cell_tick    : cell_tick        ,
+        line_bit     : line_spdif       ,
+        line_valid   : valid_spdif      ,
+        sample_valid : spdif_valid      ,
+        sample_ready : spdif_ready      ,
+        left_audio   : spdif_left       ,
+        right_audio  : spdif_right      ,
+        left_invalid : spdif_li         ,
+        right_invalid: spdif_ri         ,
+        left_user    : spdif_lu         ,
+        right_user   : spdif_ru         ,
+        left_status  : spdif_ls         ,
+        right_status : spdif_rs         ,
+        block_start  : spdif_block_start,
+        error        : spdif_error      ,
     );
     inst aes3_tx: Aes3Transmitter (
         clk          : clk                          ,
@@ -344,34 +353,39 @@ module test_iec60958_link_transceivers {
         busy         : busy_aes3                    ,
     );
     inst aes3_rx: Aes3Receiver (
-        clk          : clk       ,
-        rst          : rst       ,
-        cell_tick    : cell_tick ,
-        line_bit     : line_aes3 ,
-        line_valid   : valid_aes3,
-        sample_valid : aes3_valid,
-        sample_ready : aes3_ready,
-        left_audio   : aes3_left ,
-        right_audio  : aes3_right,
-        left_invalid : aes3_li   ,
-        right_invalid: aes3_ri   ,
-        left_user    : aes3_lu   ,
-        right_user   : aes3_ru   ,
-        left_status  : aes3_ls   ,
-        right_status : aes3_rs   ,
-        error        : aes3_error,
+        clk          : clk             ,
+        rst          : rst             ,
+        cell_tick    : cell_tick       ,
+        line_bit     : line_aes3       ,
+        line_valid   : valid_aes3      ,
+        sample_valid : aes3_valid      ,
+        sample_ready : aes3_ready      ,
+        left_audio   : aes3_left       ,
+        right_audio  : aes3_right      ,
+        left_invalid : aes3_li         ,
+        right_invalid: aes3_ri         ,
+        left_user    : aes3_lu         ,
+        right_user   : aes3_ru         ,
+        left_status  : aes3_ls         ,
+        right_status : aes3_rs         ,
+        block_start  : aes3_block_start,
+        error        : aes3_error      ,
     );
 
     always_ff (clk, rst) {
         if_reset {
-            spdif_seen = 0;
-            aes3_seen  = 0;
+            spdif_seen             = 0;
+            aes3_seen              = 0;
+            spdif_block_start_seen = 0;
+            aes3_block_start_seen  = 0;
         } else {
             if spdif_valid {
-                spdif_seen = 1;
+                spdif_seen             = 1;
+                spdif_block_start_seen = spdif_block_start;
             }
             if aes3_valid {
-                aes3_seen = 1;
+                aes3_seen             = 1;
+                aes3_block_start_seen = aes3_block_start;
             }
         }
     }
@@ -399,8 +413,11 @@ module test_iec60958_link_transceivers {
         $assert(aes3_left == left_audio && aes3_right == right_audio, "AES3 link audio mismatch");
         $assert(spdif_li == left_invalid && spdif_ri == right_invalid, "S/PDIF validity mismatch");
         $assert(aes3_li == left_invalid && aes3_ri == right_invalid, "AES3 validity mismatch");
+        $assert(spdif_lu == left_user && spdif_ru == right_user, "S/PDIF user mismatch");
+        $assert(!aes3_lu && !aes3_ru, "AES3 user must be zero");
         $assert(!spdif_ls && !spdif_rs, "S/PDIF channel status mismatch");
-        $assert(aes3_ls == aes3_rs, "AES3 channel status pair mismatch");
+        $assert(aes3_ls && aes3_rs && aes3_ls == aes3_rs, "AES3 channel status mismatch");
+        $assert(spdif_block_start_seen && aes3_block_start_seen, "block start mismatch");
         $assert(!spdif_error && !aes3_error, "link transceiver reported an error");
         $finish();
     }
