@@ -11,6 +11,7 @@
   - signed固定小数点resize（小数位置調整 → 丸め → 飽和）
   - signed multiply helper
 - 固定小数点Native testを追加
+- `NcoTick`/`ClockEnableNco`と分数比clock-enable Native testを追加
 - ADAT RX/TXコアを`src/adat/`へ移行し、groundlessの命名規則に統一
 - ADAT内部テストをVeryl Native testへ移行
 - ADATの利用例とNRZI説明を現行API名に更新

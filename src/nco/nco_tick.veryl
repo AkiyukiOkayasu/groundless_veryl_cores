@@ -1,0 +1,240 @@
+/// 分数比から1クロック幅のtickを生成するNCO。
+///
+/// phaseはDDSの位相ではなく、modulus未満の剰余を保持する。
+/// そのため、tickの平均周波数はincrement / modulus * clkになる。
+pub module NcoTick #(
+    param WIDTH: u32 = 32,
+) (
+    clk         : input  clock       ,
+    rst         : input  reset       ,
+    enable      : input  logic       ,
+    update      : input  logic       ,
+    restart     : input  logic       ,
+    increment   : input  logic<WIDTH>,
+    modulus     : input  logic<WIDTH>,
+    tick        : output logic       ,
+    configured  : output logic       ,
+    config_error: output logic       ,
+) {
+    var increment_reg: logic<WIDTH>;
+    var modulus_reg  : logic<WIDTH>;
+    var phase        : logic<WIDTH>;
+
+    always_ff {
+        if_reset {
+            increment_reg = 0;
+            modulus_reg   = 0;
+            phase         = 0;
+            tick          = 0;
+            configured    = 0;
+            config_error  = 0;
+        } else if update {
+            increment_reg = increment;
+            modulus_reg   = modulus;
+            phase         = 0;
+            tick          = 0;
+
+            if modulus == 0 {
+                configured   = 0;
+                config_error = 1;
+            } else if increment == 0 {
+                configured   = 0;
+                config_error = 1;
+            } else if increment >= modulus {
+                configured   = 0;
+                config_error = 1;
+            } else {
+                configured   = 1;
+                config_error = 0;
+            }
+        } else if restart {
+            phase = 0;
+            tick  = 0;
+        } else if !enable {
+            tick = 0;
+        } else if configured && !config_error {
+            let sum: logic<WIDTH + 1> = {1'b0, phase} + {1'b0, increment_reg};
+            if sum >= {1'b0, modulus_reg} {
+                phase = sum - {1'b0, modulus_reg};
+                tick  = 1;
+            } else {
+                phase = sum;
+                tick  = 0;
+            }
+        } else {
+            tick = 0;
+        }
+    }
+}
+
+/// 固定クロック比のclock-enable NCO。
+///
+/// 固定値はreset解除後に自動でNcoTickへ設定される。
+pub module ClockEnableNco #(
+    param WIDTH      : u32 = 32        ,
+    param CLOCK_FREQ : u32 = 50_000_000,
+    param TARGET_FREQ: u32 = 12_288_000,
+) (
+    clk       : input  clock,
+    rst       : input  reset,
+    enable    : input  logic,
+    tick      : output logic,
+    configured: output logic,
+) {
+    const INCREMENT: logic<WIDTH> = TARGET_FREQ as WIDTH;
+    const MODULUS  : logic<WIDTH> = CLOCK_FREQ as WIDTH;
+
+    var update_init : logic;
+    var initialized : logic;
+    var config_error: logic;
+
+    inst nco: NcoTick #(
+        WIDTH: WIDTH,
+    ) (
+        clk                      ,
+        rst                      ,
+        enable                   ,
+        update      : update_init,
+        restart     : 1'b0       ,
+        increment   : INCREMENT  ,
+        modulus     : MODULUS    ,
+        tick                     ,
+        configured               ,
+        config_error             ,
+    );
+
+    always_ff {
+        if_reset {
+            update_init = 0;
+            initialized = 0;
+        } else if !initialized {
+            update_init = 1;
+            initialized = 1;
+        } else {
+            update_init = 0;
+        }
+    }
+}
+
+/// NcoTickの基本的な剰余計算を検証する。
+#[test(test_nco_tick_basic)]
+module test_nco_tick_basic {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    const TEST_WIDTH: u32 = 8;
+
+    var enable      : logic            ;
+    var update      : logic            ;
+    var restart     : logic            ;
+    var increment   : logic<TEST_WIDTH>;
+    var modulus     : logic<TEST_WIDTH>;
+    var tick        : logic            ;
+    var configured  : logic            ;
+    var config_error: logic            ;
+    var tick_count  : logic<8>         ;
+
+    inst dut: NcoTick #(
+        WIDTH: TEST_WIDTH,
+    ) (
+        clk           ,
+        rst           ,
+        enable        ,
+        update        ,
+        restart       ,
+        increment     ,
+        modulus       ,
+        tick          ,
+        configured    ,
+        config_error  ,
+    );
+
+    initial {
+        enable    = 1'b1;
+        update    = 1'b0;
+        restart   = 1'b0;
+        increment = 8'd3;
+        modulus   = 8'd10;
+        rst.assert();
+
+        update = 1'b1;
+        clk.next(1);
+        update = 1'b0;
+        $assert(configured, "NCO should accept a valid configuration");
+        $assert(!config_error, "NCO must not report a valid configuration as an error");
+
+        clk.next(21);
+        $assert(tick_count == 8'd6, "NCO tick count mismatch");
+
+        restart = 1'b1;
+        clk.next(1);
+        restart = 1'b0;
+        $assert(!tick, "NCO restart must suppress the tick");
+
+        increment = 8'd10;
+        update    = 1'b1;
+        clk.next(1);
+        update = 1'b0;
+        $assert(!configured, "NCO must reject increment >= modulus");
+        $assert(config_error, "NCO must report an invalid configuration");
+        clk.next(3);
+        $assert(!tick, "NCO must stop ticking after an invalid update");
+
+        $finish();
+    }
+
+    always_ff (clk, rst) {
+        if_reset {
+            tick_count = 0;
+        } else if tick {
+            tick_count = tick_count + 1;
+        }
+    }
+}
+
+/// 固定比NCOが自動初期化され、指定比率でtickを生成することを検証する。
+#[test(test_clock_enable_nco)]
+module test_clock_enable_nco {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    const TEST_WIDTH : u32 = 8;
+    const CLOCK_FREQ : u32 = 10;
+    const TARGET_FREQ: u32 = 3;
+
+    var enable    : logic   ;
+    var tick      : logic   ;
+    var configured: logic   ;
+    var tick_count: logic<8>;
+
+    inst dut: ClockEnableNco #(
+        WIDTH      : TEST_WIDTH ,
+        CLOCK_FREQ : CLOCK_FREQ ,
+        TARGET_FREQ: TARGET_FREQ,
+    ) (
+        clk         ,
+        rst         ,
+        enable      ,
+        tick        ,
+        configured  ,
+    );
+
+    initial {
+        enable = 1'b1;
+        rst.assert();
+        clk.next(2);
+        $assert(configured, "fixed-rate NCO must initialize itself");
+
+        clk.next(21);
+        $assert(tick_count == 8'd6, "fixed-rate NCO tick count mismatch");
+        $finish();
+    }
+
+    always_ff (clk, rst) {
+        if_reset {
+            tick_count = 0;
+        } else if tick {
+            tick_count = tick_count + 1;
+        }
+    }
+}
