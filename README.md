@@ -1,5 +1,7 @@
 # Groundless Electronics Veryl RTL core
 
+[![Documentation](https://github.com/AkiyukiOkayasu/groundless_veryl_cores/actions/workflows/pages.yml/badge.svg)](https://github.com/AkiyukiOkayasu/groundless_veryl_cores/actions/workflows/pages.yml)
+
 Verylで記述した、オーディオ信号処理・デジタルオーディオ伝送向けのRTLコア集です。
 各コアは単体で利用できる公開モジュールと、Veryl Native testによる回帰テストを持ちます。
 
@@ -14,7 +16,7 @@ Verylで記述した、オーディオ信号処理・デジタルオーディオ
 | フィルタ・発振器 | `LpfShift*`, `HpfShift*`, 各wave core | オーディオ信号処理 |
 | 周辺I/O | `SpiMaster`, `UartRx`, `MidiRx` | シリアルインターフェース |
 
-詳細なポート一覧と型は、`veryl doc`で生成される[`doc/`](doc/)を参照してください。
+詳細なポート一覧と型は、[公開ドキュメント](https://akiyukiokayasu.github.io/groundless_veryl_cores/)を参照してください。
 
 ## インターフェース方針
 

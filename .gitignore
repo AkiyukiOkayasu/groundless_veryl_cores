@@ -1,6 +1,7 @@
 .build/
 /target
 /dependencies
+/doc/
 .sisyphus
 *.fst
 
