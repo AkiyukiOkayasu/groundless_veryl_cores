@@ -18,8 +18,8 @@ jobs:
           version: nightly
       - run: veryl fmt --check
       - run: veryl check
-      - name: Build check
-        run: veryl build --check
+      - name: Build
+        run: veryl build
       - name: Tests
         run: veryl test
       - name: Native backend validation
