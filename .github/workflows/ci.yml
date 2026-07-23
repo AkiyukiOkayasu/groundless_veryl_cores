@@ -1,24 +1,26 @@
 name: CI
 
 on:
-    push:
-        branches: ['main', 'dev']
-    pull_request:
-        branches: ['main']
-        types: [opened, synchronize, reopened]
+  push:
+    branches: ['main', 'dev']
+  pull_request:
+    branches: ['main']
+    types: [opened, synchronize, reopened]
 
 jobs:
-    build:
-        runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-        steps:
-            - uses: actions/checkout@v6
-            - uses: veryl-lang/setup-veryl@v1
-            - run: veryl fmt --check
-            - run: veryl check
-            - name: Build check
-              run: veryl build --check
-            - name: Tests
-              run: veryl test
-            - name: Native backend validation
-              run: veryl test --backend-validate
+    steps:
+      - uses: actions/checkout@v6
+      - uses: veryl-lang/setup-veryl@v1
+        with:
+          version: nightly
+      - run: veryl fmt --check
+      - run: veryl check
+      - name: Build check
+        run: veryl build --check
+      - name: Tests
+        run: veryl test
+      - name: Native backend validation
+        run: veryl test --backend-validate
