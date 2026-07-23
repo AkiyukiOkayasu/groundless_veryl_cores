@@ -16,6 +16,7 @@
 - IEC60958共通BMC serializer/deserializerとNativeループバックテストを追加
 - IEC60958の192-frame block schedulerとpreamble巡回Native testを追加
 - S/PDIF/AES3 channel status bit mapperとAES3 professional CRCを追加
+- IEC60958共通subframe TX/RX coreを新BMC codecへ接続し、Native loopbackを追加
 - ADAT RX/TXコアを`src/adat/`へ移行し、groundlessの命名規則に統一
 - ADAT内部テストをVeryl Native testへ移行
 - ADATの利用例とNRZI説明を現行API名に更新

@@ -1,0 +1,256 @@
+/// IEC60958 subframeを共通payload/BMC codecへ接続する送信器。
+import Iec60958::AudioSample;
+import Iec60958::LinkType;
+import Iec60958::PreambleKind;
+import Iec60958::PreambleLineCode;
+import Iec60958::Payload;
+
+pub module Iec60958SubframeTx #(
+    param LINK_TYPE: LinkType = LinkType::Spdif,
+) (
+    clk           : input  clock       ,
+    rst           : input  reset       ,
+    cell_tick     : input  logic       ,
+    subframe_valid: input  logic       ,
+    subframe_ready: output logic       ,
+    preamble_kind : input  PreambleKind,
+    audio         : input  AudioSample ,
+    invalid       : input  logic       ,
+    user          : input  logic       ,
+    channel_status: input  logic       ,
+    line_bit      : output logic       ,
+    line_valid    : output logic       ,
+    busy          : output logic       ,
+) {
+    var payload      : Payload         ;
+    var preamble_line: PreambleLineCode;
+
+    assign preamble_line = Iec60958::preamble_kind_to_line_code(LINK_TYPE, preamble_kind);
+
+    inst packer: Iec60958SubframePacker (
+        audio         : audio         ,
+        invalid       : invalid       ,
+        user          : user          ,
+        channel_status: channel_status,
+        payload       : payload       ,
+    );
+    inst bmc: Iec60958BmcSerializer (
+        clk           : clk           ,
+        rst           : rst           ,
+        cell_tick     : cell_tick     ,
+        subframe_valid: subframe_valid,
+        subframe_ready: subframe_ready,
+        preamble      : preamble_line ,
+        payload       : payload       ,
+        line_bit      : line_bit      ,
+        line_valid    : line_valid    ,
+        busy          : busy          ,
+    );
+}
+
+/// IEC60958 BMC codecをsubframe fieldへ戻す受信器。
+pub module Iec60958SubframeRx (
+    clk           : input  clock       ,
+    rst           : input  reset       ,
+    cell_tick     : input  logic       ,
+    line_bit      : input  logic       ,
+    line_valid    : input  logic       ,
+    subframe_valid: output logic       ,
+    subframe_ready: input  logic       ,
+    preamble_kind : output PreambleKind,
+    audio         : output AudioSample ,
+    invalid       : output logic       ,
+    user          : output logic       ,
+    channel_status: output logic       ,
+    parity_error  : output logic       ,
+    preamble_error: output logic       ,
+    bmc_error     : output logic       ,
+) {
+    var bmc_preamble      : PreambleLineCode;
+    var bmc_preamble_valid: logic           ;
+    var bmc_payload       : Payload         ;
+    var bmc_payload_valid : logic           ;
+    var bmc_locked        : logic           ;
+    var bmc_preamble_error: logic           ;
+    var bmc_line_error    : logic           ;
+    var preamble_seen     : logic           ;
+    var preamble_kind_reg : PreambleKind    ;
+    var unpacked_audio    : AudioSample     ;
+    var unpacked_invalid  : logic           ;
+    var unpacked_user     : logic           ;
+    var unpacked_status   : logic           ;
+    var unpacked_parity   : logic           ;
+
+    inst bmc: Iec60958BmcDeserializer (
+        clk           : clk               ,
+        rst           : rst               ,
+        cell_tick     : cell_tick         ,
+        line_valid    : line_valid        ,
+        line_bit      : line_bit          ,
+        preamble      : bmc_preamble      ,
+        preamble_valid: bmc_preamble_valid,
+        payload       : bmc_payload       ,
+        payload_valid : bmc_payload_valid ,
+        bmc_locked    : bmc_locked        ,
+        preamble_error: bmc_preamble_error,
+        bmc_error     : bmc_line_error    ,
+    );
+    inst unpacker: Iec60958SubframeUnpacker (
+        payload       : bmc_payload     ,
+        audio         : unpacked_audio  ,
+        invalid       : unpacked_invalid,
+        user          : unpacked_user   ,
+        channel_status: unpacked_status ,
+        parity_error  : unpacked_parity ,
+    );
+
+    always_ff {
+        if_reset {
+            subframe_valid    = 0;
+            preamble_kind     = PreambleKind::BlockStartA;
+            audio             = 0;
+            invalid           = 0;
+            user              = 0;
+            channel_status    = 0;
+            parity_error      = 0;
+            preamble_error    = 0;
+            bmc_error         = 0;
+            preamble_seen     = 0;
+            preamble_kind_reg = PreambleKind::BlockStartA;
+        } else {
+            parity_error   = 0;
+            preamble_error = 0;
+            bmc_error      = 0;
+
+            if subframe_valid && subframe_ready {
+                subframe_valid = 0;
+            }
+
+            if bmc_preamble_error {
+                preamble_error = 1;
+                preamble_seen  = 0;
+            } else if bmc_preamble_valid {
+                preamble_kind_reg = Iec60958::line_code_to_preamble_kind(bmc_preamble);
+                preamble_seen     = 1;
+            }
+
+            if bmc_line_error {
+                bmc_error     = 1;
+                preamble_seen = 0;
+            }
+
+            if bmc_payload_valid {
+                if unpacked_parity {
+                    parity_error = 1;
+                } else if !preamble_seen {
+                    preamble_error = 1;
+                } else if subframe_valid && !subframe_ready {
+                    bmc_error = 1;
+                } else {
+                    preamble_kind  = preamble_kind_reg;
+                    audio          = unpacked_audio;
+                    invalid        = unpacked_invalid;
+                    user           = unpacked_user;
+                    channel_status = unpacked_status;
+                    subframe_valid = 1;
+                }
+                preamble_seen = 0;
+            }
+        }
+    }
+}
+
+/// 新しいsubframe codecのTX/RX接続をNative loopbackする。
+#[test(test_iec60958_subframe_io_loopback)]
+module test_iec60958_subframe_io_loopback {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var cell_tick     : logic                 ;
+    var subframe_valid: logic                 ;
+    var subframe_ready: logic                 ;
+    var preamble_kind : Iec60958::PreambleKind;
+    var audio_in      : Iec60958::AudioSample ;
+    var invalid_in    : logic                 ;
+    var user_in       : logic                 ;
+    var status_in     : logic                 ;
+    var line_bit      : logic                 ;
+    var line_valid    : logic                 ;
+    var busy          : logic                 ;
+    var valid_out     : logic                 ;
+    var audio_out     : Iec60958::AudioSample ;
+    var invalid_out   : logic                 ;
+    var user_out      : logic                 ;
+    var status_out    : logic                 ;
+    var preamble_out  : Iec60958::PreambleKind;
+    var parity_error  : logic                 ;
+    var preamble_error: logic                 ;
+    var bmc_error     : logic                 ;
+    var seen          : logic                 ;
+
+    inst tx: Iec60958SubframeTx (
+        clk           : clk           ,
+        rst           : rst           ,
+        cell_tick     : cell_tick     ,
+        subframe_valid: subframe_valid,
+        subframe_ready: subframe_ready,
+        preamble_kind : preamble_kind ,
+        audio         : audio_in      ,
+        invalid       : invalid_in    ,
+        user          : user_in       ,
+        channel_status: status_in     ,
+        line_bit      : line_bit      ,
+        line_valid    : line_valid    ,
+        busy          : busy          ,
+    );
+    inst rx: Iec60958SubframeRx (
+        clk           : clk           ,
+        rst           : rst           ,
+        cell_tick     : cell_tick     ,
+        line_bit      : line_bit      ,
+        line_valid    : line_valid    ,
+        subframe_valid: valid_out     ,
+        subframe_ready: 1'b1          ,
+        preamble_kind : preamble_out  ,
+        audio         : audio_out     ,
+        invalid       : invalid_out   ,
+        user          : user_out      ,
+        channel_status: status_out    ,
+        parity_error  : parity_error  ,
+        preamble_error: preamble_error,
+        bmc_error     : bmc_error     ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            seen = 0;
+        } else if valid_out {
+            seen = 1;
+        }
+    }
+
+    initial {
+        cell_tick      = 1;
+        subframe_valid = 0;
+        preamble_kind  = Iec60958::PreambleKind::BlockStartA;
+        audio_in       = 24'sh654321;
+        invalid_in     = 1;
+        user_in        = 0;
+        status_in      = 1;
+        rst.assert();
+
+        subframe_valid = 1;
+        clk.next(1);
+        subframe_valid = 0;
+        clk.next(68);
+
+        $assert(seen, "subframe IO loopback did not complete");
+        $assert(preamble_out == preamble_kind, "subframe preamble kind mismatch");
+        $assert(audio_out == audio_in, "subframe IO audio mismatch");
+        $assert(invalid_out == invalid_in, "subframe IO validity mismatch");
+        $assert(user_out == user_in, "subframe IO user mismatch");
+        $assert(status_out == status_in, "subframe IO channel status mismatch");
+        $assert(!parity_error && !preamble_error && !bmc_error, "subframe IO reported an unexpected error");
+        $finish();
+    }
+}
