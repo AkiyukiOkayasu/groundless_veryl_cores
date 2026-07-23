@@ -1,0 +1,133 @@
+/// S/PDIF consumer channel statusのbit mapper。
+///
+/// IEC 60958-3の代表的なPCMプロファイルを扱う。未使用byteは0とし、
+/// 呼び出し側がbit_indexを0..191で走査してsubframeのC bitへ供給する。
+import Iec60958::SampleRate;
+import Spdif::SampleRateCode;
+import Aes3::ChannelMode;
+
+pub module SpdifChannelStatusBit (
+    bit_index           : input  logic     <8>,
+    sample_rate         : input  SampleRate   ,
+    original_sample_rate: input  SampleRate   ,
+    category_code       : input  logic     <7>,
+    source_number       : input  logic     <4>,
+    channel_number      : input  logic     <4>,
+    copy_permitted      : input  logic        ,
+    non_audio           : input  logic        ,
+    emphasis            : input  logic     <2>,
+    mode                : input  logic     <2>,
+    clock_accuracy      : input  logic     <2>,
+    original            : input  logic        ,
+    status_bit          : output logic        ,
+) {
+    always_comb {
+        let rate_code         : SampleRateCode    = Spdif::sample_rate_to_code(sample_rate);
+        let original_rate_code: SampleRateCode    = Spdif::sample_rate_to_code(original_sample_rate);
+        let byte0             : logic         <8> = {mode, emphasis, copy_permitted, non_audio, 2'b00};
+        let byte1             : logic         <8> = {original, category_code};
+        let byte2             : logic         <8> = {channel_number, source_number};
+        let byte3             : logic         <8> = {clock_accuracy, rate_code};
+        let byte4             : logic         <8> = {4'b0000, original_rate_code};
+        let byte_index        : logic         <5> = bit_index[7:3];
+        let bit_in_byte       : logic         <3> = bit_index[2:0];
+        let selected_byte     : logic         <8> = case byte_index {
+            5'd0   : byte0,
+            5'd1   : byte1,
+            5'd2   : byte2,
+            5'd3   : byte3,
+            5'd4   : byte4,
+            default: 8'h00,
+        };
+
+        if bit_index <: 8'd40 {
+            status_bit = selected_byte[bit_in_byte];
+        } else {
+            status_bit = 0;
+        }
+    }
+}
+
+/// AES3 professional channel statusのbit mapper。
+///
+/// CRC byte（bit 184..191）は`Aes3ChannelStatusCrc`で別途生成する。
+
+pub module Aes3ChannelStatusBit (
+    bit_index   : input  logic               <8>,
+    sample_rate : input  Iec60958::SampleRate   ,
+    channel_mode: input  ChannelMode            ,
+    status_bit  : output logic                  ,
+) {
+    always_comb {
+        status_bit = Aes3::channel_status_bit(bit_index, sample_rate, channel_mode);
+    }
+}
+
+/// S/PDIFとAES3のchannel status bit orderingを確認する。
+#[test(test_iec60958_channel_status_bit)]
+module test_iec60958_channel_status_bit {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var bit_index           : logic               <8>;
+    var sample_rate         : Iec60958::SampleRate   ;
+    var original_sample_rate: Iec60958::SampleRate   ;
+    var category_code       : logic               <7>;
+    var source_number       : logic               <4>;
+    var channel_number      : logic               <4>;
+    var copy_permitted      : logic                  ;
+    var non_audio           : logic                  ;
+    var emphasis            : logic               <2>;
+    var mode                : logic               <2>;
+    var clock_accuracy      : logic               <2>;
+    var original            : logic                  ;
+    var spdif_bit           : logic                  ;
+    var aes3_bit            : logic                  ;
+
+    inst spdif: SpdifChannelStatusBit (
+        bit_index           : bit_index           ,
+        sample_rate         : sample_rate         ,
+        original_sample_rate: original_sample_rate,
+        category_code       : category_code       ,
+        source_number       : source_number       ,
+        channel_number      : channel_number      ,
+        copy_permitted      : copy_permitted      ,
+        non_audio           : non_audio           ,
+        emphasis            : emphasis            ,
+        mode                : mode                ,
+        clock_accuracy      : clock_accuracy      ,
+        original            : original            ,
+        status_bit          : spdif_bit           ,
+    );
+    inst aes3: Aes3ChannelStatusBit (
+        bit_index   : bit_index                    ,
+        sample_rate : sample_rate                  ,
+        channel_mode: Aes3::ChannelMode::TwoChannel,
+        status_bit  : aes3_bit                     ,
+    );
+
+    initial {
+        bit_index            = 0;
+        sample_rate          = Iec60958::SampleRate::Fs48000;
+        original_sample_rate = Iec60958::SampleRate::Fs48000;
+        category_code        = 7'h7F;
+        source_number        = 4'hA;
+        channel_number       = 4'h5;
+        copy_permitted       = 1;
+        non_audio            = 0;
+        emphasis             = 2'b01;
+        mode                 = 2'b10;
+        clock_accuracy       = 2'b01;
+        original             = 1;
+        rst.assert();
+
+        $assert(!spdif_bit && aes3_bit, "channel status byte zero bit ordering mismatch");
+        bit_index = 8'd7;
+        $assert(spdif_bit && aes3_bit, "channel status byte MSB mismatch");
+        bit_index = 8'd15;
+        $assert(spdif_bit, "S/PDIF category/original bit mismatch");
+        bit_index = 8'd33;
+        $assert(spdif_bit, "S/PDIF original sample rate bit mismatch");
+        $finish();
+    }
+}

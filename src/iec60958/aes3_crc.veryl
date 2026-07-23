@@ -1,0 +1,96 @@
+/// AES3 professional channel statusのCRC-8を計算する。
+///
+/// CRC対象はblock先頭からの184bitで、LSB first・初期値FFh・
+/// 生成多項式x^8+x^4+x^3+x^2+1（反転表現B8h）を用いる。
+/// 1クロックに1bitを処理するため、50MHz動作でも回路規模を抑えられる。
+pub module Aes3ChannelStatusCrc (
+    clk   : input  clock     ,
+    rst   : input  reset     ,
+    start : input  logic     ,
+    status: input  logic<184>,
+    busy  : output logic     ,
+    done  : output logic     ,
+    crc   : output logic<8>  ,
+) {
+    var status_reg: logic<184>;
+    var bit_index : logic<8>  ;
+
+    always_ff {
+        if_reset {
+            status_reg = 0;
+            bit_index  = 0;
+            busy       = 0;
+            done       = 0;
+            crc        = 8'hFF;
+        } else {
+            done = 0;
+
+            if start && !busy {
+                status_reg = status;
+                bit_index  = 0;
+                busy       = 1;
+                crc        = 8'hFF;
+            } else if busy {
+                let feedback: logic = crc[0] ^ status_reg[bit_index];
+                if feedback {
+                    crc = (crc >> 1) ^ 8'hB8;
+                } else {
+                    crc = crc >> 1;
+                }
+
+                if bit_index == 8'd183 {
+                    busy = 0;
+                    done = 1;
+                } else {
+                    bit_index = bit_index + 8'd1;
+                }
+            }
+        }
+    }
+}
+
+/// AES3 CRCのLSB first処理と初期値を固定ベクトルで検証する。
+#[test(test_aes3_channel_status_crc)]
+module test_aes3_channel_status_crc {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var start : logic     ;
+    var status: logic<184>;
+    var busy  : logic     ;
+    var done  : logic     ;
+    var crc   : logic<8>  ;
+
+    inst dut: Aes3ChannelStatusCrc (
+        clk   : clk   ,
+        rst   : rst   ,
+        start : start ,
+        status: status,
+        busy  : busy  ,
+        done  : done  ,
+        crc   : crc   ,
+    );
+
+    initial {
+        start  = 0;
+        status = 0;
+        rst.assert();
+
+        status = 184'h1;
+        start  = 1;
+        clk.next(1);
+        start = 0;
+        $assert(busy, "AES3 CRC must become busy after start");
+        clk.next(184);
+        $assert(done && !busy, "AES3 CRC must finish after 184 bits");
+        $assert(crc == 8'h32, "AES3 CRC bit-zero vector mismatch");
+
+        status = 0;
+        start  = 1;
+        clk.next(1);
+        start = 0;
+        clk.next(184);
+        $assert(crc == 8'hB0, "AES3 CRC zero vector mismatch");
+        $finish();
+    }
+}
