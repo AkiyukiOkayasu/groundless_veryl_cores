@@ -1,0 +1,95 @@
+/// IEC60958のpreableを除いた28bit payloadを生成する。
+import Iec60958::AudioSample;
+
+pub module Iec60958SubframePacker (
+    audio         : input  AudioSample    ,
+    invalid       : input  logic          ,
+    user          : input  logic          ,
+    channel_status: input  logic          ,
+    payload       : output logic      <28>,
+) {
+    always_comb {
+        payload = {
+            audio, invalid, user, channel_status, Iec60958::payload_parity(audio, invalid, user, channel_status),
+        };
+    }
+}
+
+/// IEC60958の28bit payloadをaudioとV/U/C/Pへ分解する。
+pub module Iec60958SubframeUnpacker (
+    payload       : input  logic      <28>,
+    audio         : output AudioSample    ,
+    invalid       : output logic          ,
+    user          : output logic          ,
+    channel_status: output logic          ,
+    parity_error  : output logic          ,
+) {
+    always_comb {
+        audio          = payload[27:4];
+        invalid        = payload[3];
+        user           = payload[2];
+        channel_status = payload[1];
+        parity_error   = ^payload;
+    }
+}
+
+/// payloadのbit配置と偶数parityを固定golden値で検証する。
+#[test(test_iec60958_subframe_codec)]
+module test_iec60958_subframe_codec {
+    inst clk: $tb::clock_gen;
+
+    var audio                  : Iec60958::AudioSample    ;
+    var invalid                : logic                    ;
+    var user                   : logic                    ;
+    var channel_status         : logic                    ;
+    var payload                : logic                <28>;
+    var payload_for_unpacker   : logic                <28>;
+    var corrupt                : logic                    ;
+    var unpacked_audio         : Iec60958::AudioSample    ;
+    var unpacked_invalid       : logic                    ;
+    var unpacked_user          : logic                    ;
+    var unpacked_channel_status: logic                    ;
+    var parity_error           : logic                    ;
+
+    inst packer: Iec60958SubframePacker (
+        audio         : audio         ,
+        invalid       : invalid       ,
+        user          : user          ,
+        channel_status: channel_status,
+        payload       : payload       ,
+    );
+    inst unpacker: Iec60958SubframeUnpacker (
+        payload       : payload_for_unpacker   ,
+        audio         : unpacked_audio         ,
+        invalid       : unpacked_invalid       ,
+        user          : unpacked_user          ,
+        channel_status: unpacked_channel_status,
+        parity_error  : parity_error           ,
+    );
+
+    always_comb {
+        payload_for_unpacker    = payload;
+        payload_for_unpacker[0] = payload[0] ^ corrupt;
+    }
+
+    initial {
+        audio          = 24'sh123456;
+        invalid        = 1'b0;
+        user           = 1'b1;
+        channel_status = 1'b0;
+        corrupt        = 1'b0;
+        clk.next();
+
+        $assert(payload == 28'h1234564, "IEC60958 payload golden vector mismatch");
+        $assert(unpacked_audio == audio, "IEC60958 audio unpack mismatch");
+        $assert(unpacked_invalid == invalid, "IEC60958 invalid unpack mismatch");
+        $assert(unpacked_user == user, "IEC60958 user unpack mismatch");
+        $assert(unpacked_channel_status == channel_status, "IEC60958 C unpack mismatch");
+        $assert(!parity_error, "IEC60958 generated parity must be valid");
+
+        corrupt = 1'b1;
+        clk.next();
+        $assert(parity_error, "IEC60958 parity corruption was not detected");
+        $finish();
+    }
+}

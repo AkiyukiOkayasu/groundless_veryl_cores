@@ -24,6 +24,68 @@ pub package Iec60958 {
     type BmcBitValid = logic;
     type BmcSync     = logic;
 
+    /// 規格に依存しないサブフレームの意味。
+    enum PreambleKind {
+        BlockStartA,
+        ChannelA,
+        ChannelB,
+    }
+
+    /// preambleを除いた28bit payload。
+    /// bit[27:4]がaudio、bit[3:1]がV/U/C、bit[0]が偶数パリティ。
+    type Payload = logic<28>;
+
+    /// 規格共通のサブフレーム表現。
+    struct Subframe {
+        preamble_kind : PreambleKind,
+        audio         : AudioSample ,
+        invalid       : logic       ,
+        user          : logic       ,
+        channel_status: logic       ,
+    }
+
+    /// 高位TX/RXで扱うstereo audio frame。
+    struct StereoSample {
+        left_audio   : AudioSample,
+        right_audio  : AudioSample,
+        left_invalid : logic      ,
+        right_invalid: logic      ,
+        left_user    : logic      ,
+        right_user   : logic      ,
+    }
+
+    /// V/U/Cを含む28bit payloadの偶数パリティ。
+    function payload_parity (
+        audio         : input AudioSample,
+        invalid       : input logic      ,
+        user          : input logic      ,
+        channel_status: input logic      ,
+    ) -> logic {
+        return ^{audio, invalid, user, channel_status};
+    }
+
+    /// 規格共通preambleを規格ごとの8cellラインコードへ変換する。
+    function preamble_kind_to_line_code (
+        link: input LinkType    ,
+        kind: input PreambleKind,
+    ) -> PreambleLineCode {
+        if link == LinkType::Aes3 {
+            return case kind {
+                PreambleKind::BlockStartA: PreambleLineCode::Z,
+                PreambleKind::ChannelA   : PreambleLineCode::X,
+                PreambleKind::ChannelB   : PreambleLineCode::Y,
+                default                  : PreambleLineCode::Z,
+            };
+        } else {
+            return case kind {
+                PreambleKind::BlockStartA: PreambleLineCode::Z,
+                PreambleKind::ChannelA   : PreambleLineCode::X,
+                PreambleKind::ChannelB   : PreambleLineCode::Y,
+                default                  : PreambleLineCode::Z,
+            };
+        }
+    }
+
     /// 規格差を吸収したサンプルレート種別。
     enum SampleRate: logic<4> {
         Unknown = 4'b0000,

@@ -12,6 +12,7 @@
   - signed multiply helper
 - 固定小数点Native testを追加
 - `NcoTick`/`ClockEnableNco`と分数比clock-enable Native testを追加
+- IEC60958のpreamble/payload/stereo sample型とsubframe codecを追加
 - ADAT RX/TXコアを`src/adat/`へ移行し、groundlessの命名規則に統一
 - ADAT内部テストをVeryl Native testへ移行
 - ADATの利用例とNRZI説明を現行API名に更新
