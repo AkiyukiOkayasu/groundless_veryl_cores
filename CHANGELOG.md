@@ -18,6 +18,7 @@
 - S/PDIF/AES3 channel status bit mapperとAES3 professional CRCを追加
 - IEC60958共通subframe TX/RX coreを新BMC codecへ接続し、Native loopbackを追加
 - AES3 status streamとS/PDIF/AES3のstereo transceiverを追加し、Native loopbackを追加
+- Veryl STD FIFOを共通bare portとlevel付き`SyncFifo`へラップし、Native testを追加
 - ADAT RX/TXコアを`src/adat/`へ移行し、groundlessの命名規則に統一
 - ADAT内部テストをVeryl Native testへ移行
 - ADATの利用例とNRZI説明を現行API名に更新
