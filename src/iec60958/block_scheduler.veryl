@@ -1,0 +1,100 @@
+/// IEC 60958の192フレームblockを管理する共通scheduler。
+///
+/// `advance`を1回受けるたびに、A/Bのsubframeを1つ進める。
+/// 出力は常に次に送出すべきsubframeを指し、reset直後はblock先頭のAとなる。
+import Iec60958::PreambleKind;
+
+pub module Iec60958BlockScheduler #(
+    param FRAME_COUNT: u32 = 192,
+) (
+    clk          : input  clock          ,
+    rst          : input  reset          ,
+    advance      : input  logic          ,
+    frame_index  : output logic       <8>,
+    channel_b    : output logic          ,
+    block_start  : output logic          ,
+    preamble_kind: output PreambleKind   ,
+) {
+    var frame_index_reg: logic<8>;
+    var channel_b_reg  : logic   ;
+
+    always_comb {
+        frame_index = frame_index_reg;
+        channel_b   = channel_b_reg;
+        block_start = !channel_b_reg && frame_index_reg == 8'd0;
+        if channel_b_reg {
+            preamble_kind = PreambleKind::ChannelB;
+        } else if frame_index_reg == 8'd0 {
+            preamble_kind = PreambleKind::BlockStartA;
+        } else {
+            preamble_kind = PreambleKind::ChannelA;
+        }
+    }
+
+    always_ff {
+        if_reset {
+            frame_index_reg = 0;
+            channel_b_reg   = 0;
+        } else if advance {
+            if channel_b_reg {
+                channel_b_reg = 0;
+                if frame_index_reg == FRAME_COUNT - 1 {
+                    frame_index_reg = 0;
+                } else {
+                    frame_index_reg = frame_index_reg + 8'd1;
+                }
+            } else {
+                channel_b_reg = 1;
+            }
+        }
+    }
+}
+
+/// 192フレームでpreambleがB/A/Bへ巡回することを確認する。
+#[test(test_iec60958_block_scheduler)]
+module test_iec60958_block_scheduler {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var advance      : logic                    ;
+    var frame_index  : logic                 <8>;
+    var channel_b    : logic                    ;
+    var block_start  : logic                    ;
+    var preamble_kind: Iec60958::PreambleKind   ;
+
+    inst dut: Iec60958BlockScheduler (
+        clk          : clk          ,
+        rst          : rst          ,
+        advance      : advance      ,
+        frame_index  : frame_index  ,
+        channel_b    : channel_b    ,
+        block_start  : block_start  ,
+        preamble_kind: preamble_kind,
+    );
+
+    initial {
+        advance = 0;
+        rst.assert();
+
+        $assert(frame_index == 8'd0, "scheduler must start at frame zero");
+        $assert(!channel_b && block_start, "scheduler must start with block A");
+        $assert(preamble_kind == Iec60958::PreambleKind::BlockStartA, "block A preamble mismatch");
+
+        advance = 1;
+        clk.next(1);
+        $assert(channel_b && frame_index == 8'd0, "scheduler A to B transition mismatch");
+        $assert(preamble_kind == Iec60958::PreambleKind::ChannelB, "channel B preamble mismatch");
+
+        clk.next(1);
+        $assert(!channel_b && frame_index == 8'd1 && !block_start, "scheduler frame increment mismatch");
+        $assert(preamble_kind == Iec60958::PreambleKind::ChannelA, "channel A preamble mismatch");
+
+        clk.next(380);
+        $assert(!channel_b && frame_index == 8'd191, "scheduler frame count must reach final frame");
+        clk.next(1);
+        $assert(channel_b && frame_index == 8'd191, "scheduler final frame B mismatch");
+        clk.next(1);
+        $assert(!channel_b && frame_index == 8'd0 && block_start, "scheduler must wrap at block boundary");
+        $finish();
+    }
+}
