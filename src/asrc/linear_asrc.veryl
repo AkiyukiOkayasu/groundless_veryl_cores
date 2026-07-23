@@ -117,22 +117,22 @@ pub module LinearAsrc #(
     var phase           : logic       <PHASE_WIDTH> ;
     var interpolated    : signed logic<SAMPLE_WIDTH>;
 
-    inst input_fifo: SyncFifo #(
+    inst input_fifo: $std::fifo #(
         WIDTH: SAMPLE_WIDTH              ,
         TYPE : signed logic<SAMPLE_WIDTH>,
         DEPTH: INPUT_DEPTH               ,
     ) (
-        clk        : clk             ,
-        rst        : rst             ,
-        clear      : 1'b0            ,
-        push       : fifo_push       ,
-        data       : input_sample    ,
-        pop        : fifo_pop        ,
-        empty      : fifo_empty      ,
-        almost_full: fifo_almost_full,
-        full       : fifo_full       ,
-        level      : fifo_level      ,
-        q          : fifo_q          ,
+        i_clk        : clk             ,
+        i_rst        : rst             ,
+        i_clear      : 1'b0            ,
+        i_push       : fifo_push       ,
+        i_data       : input_sample    ,
+        i_pop        : fifo_pop        ,
+        o_empty      : fifo_empty      ,
+        o_almost_full: fifo_almost_full,
+        o_full       : fifo_full       ,
+        o_word_count : fifo_level      ,
+        o_data       : fifo_q          ,
     );
 
     inst interpolator: LinearInterpolator #(
@@ -240,22 +240,22 @@ pub module FarrowAsrc #(
     var phase           : logic       <PHASE_WIDTH> ;
     var interpolated    : signed logic<SAMPLE_WIDTH>;
 
-    inst input_fifo: SyncFifo #(
+    inst input_fifo: $std::fifo #(
         WIDTH: SAMPLE_WIDTH              ,
         TYPE : signed logic<SAMPLE_WIDTH>,
         DEPTH: INPUT_DEPTH               ,
     ) (
-        clk        : clk             ,
-        rst        : rst             ,
-        clear      : 1'b0            ,
-        push       : fifo_push       ,
-        data       : input_sample    ,
-        pop        : fifo_pop        ,
-        empty      : fifo_empty      ,
-        almost_full: fifo_almost_full,
-        full       : fifo_full       ,
-        level      : fifo_level      ,
-        q          : fifo_q          ,
+        i_clk        : clk             ,
+        i_rst        : rst             ,
+        i_clear      : 1'b0            ,
+        i_push       : fifo_push       ,
+        i_data       : input_sample    ,
+        i_pop        : fifo_pop        ,
+        o_empty      : fifo_empty      ,
+        o_almost_full: fifo_almost_full,
+        o_full       : fifo_full       ,
+        o_word_count : fifo_level      ,
+        o_data       : fifo_q          ,
     );
 
     inst interpolator: FarrowInterpolator #(

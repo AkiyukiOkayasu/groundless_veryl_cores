@@ -18,7 +18,6 @@
 - S/PDIF/AES3 channel status bit mapperとAES3 professional CRCを追加
 - IEC60958共通subframe TX/RX coreを新BMC codecへ接続し、Native loopbackを追加
 - AES3 status streamとS/PDIF/AES3のstereo transceiverを追加し、Native loopbackを追加
-- Veryl STD FIFOを共通bare portとlevel付き`SyncFifo`へラップし、Native testを追加
 - Veryl STD async FIFOを`AsyncFifo`へラップし、異なるclock domainのNative testを追加
 - `LinearInterpolator`/`FarrowInterpolator`とFIFO接続型`LinearAsrc`を追加し、Native testを追加
 - 4サンプル窓の`FarrowAsrc`を追加し、Linear/Farrow ASRCのFIFO補充Native testを追加
