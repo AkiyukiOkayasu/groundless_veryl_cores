@@ -21,6 +21,7 @@
 - Veryl STD FIFOを共通bare portとlevel付き`SyncFifo`へラップし、Native testを追加
 - Veryl STD async FIFOを`AsyncFifo`へラップし、異なるclock domainのNative testを追加
 - `LinearInterpolator`/`FarrowInterpolator`とFIFO接続型`LinearAsrc`を追加し、Native testを追加
+- 4サンプル窓の`FarrowAsrc`を追加し、Linear/Farrow ASRCのFIFO補充Native testを追加
 - ADAT RX/TXコアを`src/adat/`へ移行し、groundlessの命名規則に統一
 - ADAT内部テストをVeryl Native testへ移行
 - ADATの利用例とNRZI説明を現行API名に更新
