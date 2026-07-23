@@ -14,8 +14,8 @@ pub module SpdifTransmitter (
     sample_ready        : output logic         ,
     left_audio          : input  AudioSample   ,
     right_audio         : input  AudioSample   ,
-    left_invalid        : input  logic         ,
-    right_invalid       : input  logic         ,
+    left_invalid        : input  bbool         ,
+    right_invalid       : input  bbool         ,
     left_user           : input  logic         ,
     right_user          : input  logic         ,
     sample_rate         : input  SampleRate    ,
@@ -24,12 +24,12 @@ pub module SpdifTransmitter (
     source_number       : input  logic      <4>,
     left_channel_number : input  logic      <4>,
     right_channel_number: input  logic      <4>,
-    copy_permitted      : input  logic         ,
-    non_audio           : input  logic         ,
+    copy_permitted      : input  bbool         ,
+    non_audio           : input  bbool         ,
     emphasis            : input  logic      <2>,
     mode                : input  logic      <2>,
     clock_accuracy      : input  logic      <2>,
-    original            : input  logic         ,
+    original            : input  bbool         ,
     line_bit            : output logic         ,
     line_valid          : output logic         ,
     busy                : output logic         ,
@@ -96,6 +96,8 @@ pub module SpdifTransmitter (
 }
 
 /// S/PDIF consumer receiver。
+///
+/// 共通stereo receiverをS/PDIF向けの公開APIとして提供する薄いラッパー。
 pub module SpdifReceiver (
     clk          : input  clock      ,
     rst          : input  reset      ,
@@ -106,14 +108,14 @@ pub module SpdifReceiver (
     sample_ready : input  logic      ,
     left_audio   : output AudioSample,
     right_audio  : output AudioSample,
-    left_invalid : output logic      ,
-    right_invalid: output logic      ,
+    left_invalid : output bbool      ,
+    right_invalid: output bbool      ,
     left_user    : output logic      ,
     right_user   : output logic      ,
     left_status  : output logic      ,
     right_status : output logic      ,
     block_start  : output logic      ,
-    error        : output logic      ,
+    error        : output bbool      ,
 ) {
     inst core: Iec60958StereoRx (
         clk          : clk          ,
@@ -147,8 +149,8 @@ pub module Aes3Transmitter (
     sample_ready : output logic               ,
     left_audio   : input  AudioSample         ,
     right_audio  : input  AudioSample         ,
-    left_invalid : input  logic               ,
-    right_invalid: input  logic               ,
+    left_invalid : input  bbool               ,
+    right_invalid: input  bbool               ,
     sample_rate  : input  Iec60958::SampleRate,
     channel_mode : input  Aes3::ChannelMode   ,
     line_bit     : output logic               ,
@@ -198,6 +200,8 @@ pub module Aes3Transmitter (
 }
 
 /// AES3 professional receiver。
+///
+/// 共通stereo receiverをAES3向けの公開APIとして提供する薄いラッパー。
 pub module Aes3Receiver (
     clk          : input  clock      ,
     rst          : input  reset      ,
@@ -208,14 +212,14 @@ pub module Aes3Receiver (
     sample_ready : input  logic      ,
     left_audio   : output AudioSample,
     right_audio  : output AudioSample,
-    left_invalid : output logic      ,
-    right_invalid: output logic      ,
+    left_invalid : output bbool      ,
+    right_invalid: output bbool      ,
     left_user    : output logic      ,
     right_user   : output logic      ,
     left_status  : output logic      ,
     right_status : output logic      ,
     block_start  : output logic      ,
-    error        : output logic      ,
+    error        : output bbool      ,
 ) {
     inst core: Iec60958StereoRx (
         clk          : clk          ,
@@ -250,8 +254,8 @@ module test_iec60958_link_transceivers {
     var sample_ready_aes3     : logic                ;
     var left_audio            : Iec60958::AudioSample;
     var right_audio           : Iec60958::AudioSample;
-    var left_invalid          : logic                ;
-    var right_invalid         : logic                ;
+    var left_invalid          : bbool                ;
+    var right_invalid         : bbool                ;
     var left_user             : logic                ;
     var right_user            : logic                ;
     var line_spdif            : logic                ;
@@ -264,26 +268,26 @@ module test_iec60958_link_transceivers {
     var spdif_ready           : logic                ;
     var spdif_left            : Iec60958::AudioSample;
     var spdif_right           : Iec60958::AudioSample;
-    var spdif_li              : logic                ;
-    var spdif_ri              : logic                ;
+    var spdif_li              : bbool                ;
+    var spdif_ri              : bbool                ;
     var spdif_lu              : logic                ;
     var spdif_ru              : logic                ;
     var spdif_ls              : logic                ;
     var spdif_rs              : logic                ;
     var spdif_block_start     : logic                ;
-    var spdif_error           : logic                ;
+    var spdif_error           : bbool                ;
     var aes3_valid            : logic                ;
     var aes3_ready            : logic                ;
     var aes3_left             : Iec60958::AudioSample;
     var aes3_right            : Iec60958::AudioSample;
-    var aes3_li               : logic                ;
-    var aes3_ri               : logic                ;
+    var aes3_li               : bbool                ;
+    var aes3_ri               : bbool                ;
     var aes3_lu               : logic                ;
     var aes3_ru               : logic                ;
     var aes3_ls               : logic                ;
     var aes3_rs               : logic                ;
     var aes3_block_start      : logic                ;
-    var aes3_error            : logic                ;
+    var aes3_error            : bbool                ;
     var spdif_seen            : logic                ;
     var aes3_seen             : logic                ;
     var spdif_block_start_seen: logic                ;

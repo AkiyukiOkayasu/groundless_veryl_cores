@@ -30,7 +30,7 @@ pub package Phase {
 /// 負の周波数（位相の逆回転）にも対応
 pub module Phasor (
     clk       : input  clock         , /// システムクロック
-    phase_rst : input  logic         , /// 位相ゼロリセット (同期)
+    phase_rst : input  bbool         , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
     phase     : output Phase::phase_t, /// 位相出力 (0 ~ 2^32-1)
     eoc       : output logic         , /// 1周期完了パルス (End Of Cycle): 位相がラップアラウンドしたサイクルで1クロックだけHigh
@@ -67,7 +67,7 @@ module test_phasor {
 
     var phase_step: Phase::step_t ;
     var phase     : Phase::phase_t;
-    var phase_rst : logic         ;
+    var phase_rst : bbool         ;
 
     inst dut: Phasor (
         clk          ,

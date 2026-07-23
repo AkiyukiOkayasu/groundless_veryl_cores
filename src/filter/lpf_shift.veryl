@@ -118,7 +118,7 @@ pub module LpfShiftUnsigned #(
 ) (
     clk   : input  clock            , /// システムクロック
     rst   : input  reset            , /// リセット (出力を0に初期化)
-    enable: input  logic            , /// イネーブル信号 (highでフィルタ更新)
+    enable: input  bbool            , /// イネーブル信号 (trueでフィルタ更新)
     x     : input  logic<DATA_WIDTH>, /// 入力サンプル (符号なし)
     y     : output logic<DATA_WIDTH>, /// フィルタ出力 (符号なし)
 ) {
@@ -437,7 +437,7 @@ module test_lpf_shift_unsigned_decrease {
     const DATA_WIDTH: u32 = 16;
     const SHIFT     : u32 = 4;
 
-    var enable: logic            ;
+    var enable: bbool            ;
     var x     : logic<DATA_WIDTH>;
     var y     : logic<DATA_WIDTH>;
 

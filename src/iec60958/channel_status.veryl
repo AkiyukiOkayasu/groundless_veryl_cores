@@ -13,12 +13,12 @@ pub module SpdifChannelStatusBit (
     category_code       : input  logic     <7>,
     source_number       : input  logic     <4>,
     channel_number      : input  logic     <4>,
-    copy_permitted      : input  logic        ,
-    non_audio           : input  logic        ,
+    copy_permitted      : input  bbool        ,
+    non_audio           : input  bbool        ,
     emphasis            : input  logic     <2>,
     mode                : input  logic     <2>,
     clock_accuracy      : input  logic     <2>,
-    original            : input  logic        ,
+    original            : input  bbool        ,
     status_bit          : output logic        ,
 ) {
     always_comb {
@@ -75,12 +75,12 @@ module test_iec60958_channel_status_bit {
     var category_code       : logic               <7>;
     var source_number       : logic               <4>;
     var channel_number      : logic               <4>;
-    var copy_permitted      : logic                  ;
-    var non_audio           : logic                  ;
+    var copy_permitted      : bbool                  ;
+    var non_audio           : bbool                  ;
     var emphasis            : logic               <2>;
     var mode                : logic               <2>;
     var clock_accuracy      : logic               <2>;
-    var original            : logic                  ;
+    var original            : bbool                  ;
     var spdif_bit           : logic                  ;
     var aes3_bit            : logic                  ;
 

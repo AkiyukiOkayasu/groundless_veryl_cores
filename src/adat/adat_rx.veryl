@@ -203,14 +203,14 @@ pub module AdatRx (
     frame_clk: output logic,
     /// UserBit2に基づいて検出されたS/MUX有効状態 (1: enabled, 0: disabled)
     /// warning: S/MUX2とS/MUX4の判別は原理的に不可能なので、あくまでS/MUXが有効or無効のみを示す
-    smux_active: output logic,
+    smux_active: output bbool,
     /// 8チャンネルPCMデータ出力（ADAT物理スロット）
     /// warning: S/MUX有効時の論理チャンネル再構成は利用側の実装が必要
     channels: output logic<24> [8],
     /// データ有効信号
     valid: output logic,
     /// 同期ロック状態
-    locked: output logic,
+    locked: output bbool,
 ) {
     // 内部信号
     var adat_edge  : logic    ;
@@ -446,6 +446,15 @@ module test_adat_frame_parser {
         valid = 1'b0;
     }
 
+    function push_channel_123456 () {
+        push_bits(5'b11000, 3'd5);
+        push_bits(5'b10100, 3'd5);
+        push_bits(5'b11100, 3'd5);
+        push_bits(5'b10010, 3'd5);
+        push_bits(5'b11010, 3'd5);
+        push_bits(5'b10110, 3'd5);
+    }
+
     initial {
         bits      = 5'd0;
         bit_count = 3'd0;
@@ -457,16 +466,13 @@ module test_adat_frame_parser {
         push_bits(5'b10101, 3'd5);
         $assert(user_bits == 4'hA, "user bits mismatch");
 
-        // CH0=0x123456。
-        push_bits(5'b11000, 3'd5);
-        push_bits(5'b10100, 3'd5);
-        push_bits(5'b11100, 3'd5);
-        push_bits(5'b10010, 3'd5);
-        push_bits(5'b11010, 3'd5);
-        push_bits(5'b10110, 3'd5);
-        $assert(data_valid == 1'b1, "CH0 should be valid");
-        $assert(channel == 3'd0, "CH0 channel index mismatch");
-        $assert(data == 24'h123456, "CH0 PCM data mismatch");
+        // 同じPCM値を全8チャンネルへ送り、チャンネル抽出と番号を検証する。
+        for i in 0..8 {
+            push_channel_123456();
+            $assert(data_valid == 1'b1, "channel data should be valid");
+            $assert(channel == (i as 3), "channel index mismatch");
+            $assert(data == 24'h123456, "PCM data mismatch");
+        }
 
         $finish();
     }
@@ -510,6 +516,30 @@ module test_adat_tx_frame_builder {
         $assert(
             frame[239:210] == {4'h1, 1'b1, 4'h2, 1'b1, 4'h3, 1'b1, 4'h4, 1'b1, 4'h5, 1'b1, 4'h6, 1'b1},
             "CH0 frame encoding mismatch",
+        );
+        $assert(
+            frame[209:180] == {4'h7, 1'b1, 4'h8, 1'b1, 4'h9, 1'b1, 4'hA, 1'b1, 4'hB, 1'b1, 4'hC, 1'b1},
+            "CH1 frame encoding mismatch",
+        );
+        $assert(
+            frame[179:150] == {4'hD, 1'b1, 4'hE, 1'b1, 4'hF, 1'b1, 4'h0, 1'b1, 4'h1, 1'b1, 4'h2, 1'b1},
+            "CH2 frame encoding mismatch",
+        );
+        $assert(
+            frame[149:120] == {4'h3, 1'b1, 4'h4, 1'b1, 4'h5, 1'b1, 4'h6, 1'b1, 4'h7, 1'b1, 4'h8, 1'b1},
+            "CH3 frame encoding mismatch",
+        );
+        $assert(
+            frame[119:90] == {4'h9, 1'b1, 4'hA, 1'b1, 4'hB, 1'b1, 4'hC, 1'b1, 4'hD, 1'b1, 4'hE, 1'b1},
+            "CH4 frame encoding mismatch",
+        );
+        $assert(
+            frame[89:60] == {4'hF, 1'b1, 4'h0, 1'b1, 4'h1, 1'b1, 4'h2, 1'b1, 4'h3, 1'b1, 4'h4, 1'b1},
+            "CH5 frame encoding mismatch",
+        );
+        $assert(
+            frame[59:30] == {4'h5, 1'b1, 4'h6, 1'b1, 4'h7, 1'b1, 4'h8, 1'b1, 4'h9, 1'b1, 4'h0, 1'b1},
+            "CH6 frame encoding mismatch",
         );
         $assert(
             frame[29:0] == {4'hA, 1'b1, 4'hB, 1'b1, 4'hC, 1'b1, 4'hD, 1'b1, 4'hE, 1'b1, 4'hF, 1'b1},
@@ -641,11 +671,11 @@ module test_adat_output_interface {
     var data_valid : logic        ;
     var sync       : logic        ;
     var user_bits  : logic<4>     ;
-    var smux_active: logic        ;
+    var smux_active: bbool        ;
     var frame_clk  : logic        ;
     var channels   : logic<24> [8];
     var valid      : logic        ;
-    var locked     : logic        ;
+    var locked     : bbool        ;
 
     inst dut: OutputInterface (
         clk          ,
@@ -707,22 +737,22 @@ module test_adat_loopback {
 
     var frame_clk_tx  : logic        ;
     var channels_tx   : logic<24> [8];
-    var smux_active_tx: logic        ;
+    var smux_active_tx: bbool        ;
     var adat_loopback : logic        ;
     var frame_done_tx : logic        ;
 
     var frame_clk_rx  : logic        ;
-    var smux_active_rx: logic        ;
+    var smux_active_rx: bbool        ;
     var channels_rx   : logic<24> [8];
     var valid_rx      : logic        ;
-    var locked_rx     : logic        ;
+    var locked_rx     : bbool        ;
 
     var sent_count      : logic<4>;
     var valid_count     : logic<4>;
     var done_count      : logic<4>;
     var frame_valid_seen: logic   ;
     var frame_done_seen : logic   ;
-    var locked_seen     : logic   ;
+    var locked_seen     : bbool   ;
     var complete        : logic   ;
 
     inst tx: AdatTx #(

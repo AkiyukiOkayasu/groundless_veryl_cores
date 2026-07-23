@@ -156,6 +156,7 @@
                     <main>
                         <h1 id="spdifreceiver"><a class="header" href="#spdifreceiver">SpdifReceiver</a></h1>
 <p>S/PDIF consumer receiver。</p>
+<p>共通stereo receiverをS/PDIF向けの公開APIとして提供する薄いラッパー。</p>
 <h3 id="ports"><a class="header" href="#ports">Ports</a></h3>
 <hr>
 <table class="table_list">
@@ -226,14 +227,14 @@
 <tr>
     <th class="table_list_item">left_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">right_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -275,7 +276,7 @@
 <tr>
     <th class="table_list_item">error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 

@@ -7,14 +7,14 @@ pub module NcoTick #(
 ) (
     clk         : input  clock       ,
     rst         : input  reset       ,
-    enable      : input  logic       ,
+    enable      : input  bbool       ,
     update      : input  logic       ,
     restart     : input  logic       ,
     increment   : input  logic<WIDTH>,
     modulus     : input  logic<WIDTH>,
     tick        : output logic       ,
-    configured  : output logic       ,
-    config_error: output logic       ,
+    configured  : output bbool       ,
+    config_error: output bbool       ,
 ) {
     var increment_reg: logic<WIDTH>;
     var modulus_reg  : logic<WIDTH>;
@@ -77,16 +77,16 @@ pub module ClockEnableNco #(
 ) (
     clk       : input  clock,
     rst       : input  reset,
-    enable    : input  logic,
+    enable    : input  bbool,
     tick      : output logic,
-    configured: output logic,
+    configured: output bbool,
 ) {
     const INCREMENT: logic<WIDTH> = TARGET_FREQ as WIDTH;
     const MODULUS  : logic<WIDTH> = CLOCK_FREQ as WIDTH;
 
     var update_init : logic;
     var initialized : logic;
-    var config_error: logic;
+    var config_error: bbool;
 
     inst nco: NcoTick #(
         WIDTH: WIDTH,
@@ -124,14 +124,14 @@ module test_nco_tick_basic {
 
     const TEST_WIDTH: u32 = 8;
 
-    var enable      : logic            ;
+    var enable      : bbool            ;
     var update      : logic            ;
     var restart     : logic            ;
     var increment   : logic<TEST_WIDTH>;
     var modulus     : logic<TEST_WIDTH>;
     var tick        : logic            ;
-    var configured  : logic            ;
-    var config_error: logic            ;
+    var configured  : bbool            ;
+    var config_error: bbool            ;
     var tick_count  : logic<8>         ;
 
     inst dut: NcoTick #(
@@ -202,9 +202,9 @@ module test_clock_enable_nco {
     const CLOCK_FREQ : u32 = 10;
     const TARGET_FREQ: u32 = 3;
 
-    var enable    : logic   ;
+    var enable    : bbool   ;
     var tick      : logic   ;
-    var configured: logic   ;
+    var configured: bbool   ;
     var tick_count: logic<8>;
 
     inst dut: ClockEnableNco #(

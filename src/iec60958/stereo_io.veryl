@@ -13,8 +13,8 @@ pub module Iec60958StereoTx #(
     sample_ready     : output logic         ,
     left_audio       : input  AudioSample   ,
     right_audio      : input  AudioSample   ,
-    left_invalid     : input  logic         ,
-    right_invalid    : input  logic         ,
+    left_invalid     : input  bbool         ,
+    right_invalid    : input  bbool         ,
     left_user        : input  logic         ,
     right_user       : input  logic         ,
     left_status      : input  logic         ,
@@ -29,8 +29,8 @@ pub module Iec60958StereoTx #(
     var sample_active        : logic          ;
     var left_audio_reg       : AudioSample    ;
     var right_audio_reg      : AudioSample    ;
-    var left_invalid_reg     : logic          ;
-    var right_invalid_reg    : logic          ;
+    var left_invalid_reg     : bbool          ;
+    var right_invalid_reg    : bbool          ;
     var left_user_reg        : logic          ;
     var right_user_reg       : logic          ;
     var left_status_reg      : logic          ;
@@ -43,7 +43,7 @@ pub module Iec60958StereoTx #(
     var subframe_valid       : logic          ;
     var subframe_ready       : logic          ;
     var subframe_audio       : AudioSample    ;
-    var subframe_invalid     : logic          ;
+    var subframe_invalid     : bbool          ;
     var subframe_user        : logic          ;
     var subframe_status      : logic          ;
     var tx_busy              : logic          ;
@@ -137,28 +137,28 @@ pub module Iec60958StereoRx (
     sample_ready : input  logic      ,
     left_audio   : output AudioSample,
     right_audio  : output AudioSample,
-    left_invalid : output logic      ,
-    right_invalid: output logic      ,
+    left_invalid : output bbool      ,
+    right_invalid: output bbool      ,
     left_user    : output logic      ,
     right_user   : output logic      ,
     left_status  : output logic      ,
     right_status : output logic      ,
     block_start  : output logic      ,
-    error        : output logic      ,
+    error        : output bbool      ,
 ) {
     var subframe_valid  : logic                 ;
     var subframe_ready  : logic                 ;
     var preamble_kind   : Iec60958::PreambleKind;
     var audio           : AudioSample           ;
-    var invalid         : logic                 ;
+    var invalid         : bbool                 ;
     var user            : logic                 ;
     var status          : logic                 ;
-    var parity_error    : logic                 ;
-    var preamble_error  : logic                 ;
-    var bmc_error       : logic                 ;
+    var parity_error    : bbool                 ;
+    var preamble_error  : bbool                 ;
+    var bmc_error       : bbool                 ;
     var left_pending    : logic                 ;
     var left_audio_reg  : AudioSample           ;
-    var left_invalid_reg: logic                 ;
+    var left_invalid_reg: bbool                 ;
     var left_user_reg   : logic                 ;
     var left_status_reg : logic                 ;
     var left_block_start: logic                 ;
@@ -257,8 +257,8 @@ module test_iec60958_stereo_io_loopback {
     var sample_ready     : logic                   ;
     var left_audio_in    : Iec60958::AudioSample   ;
     var right_audio_in   : Iec60958::AudioSample   ;
-    var left_invalid_in  : logic                   ;
-    var right_invalid_in : logic                   ;
+    var left_invalid_in  : bbool                   ;
+    var right_invalid_in : bbool                   ;
     var left_user_in     : logic                   ;
     var right_user_in    : logic                   ;
     var left_status_in   : logic                   ;
@@ -273,14 +273,14 @@ module test_iec60958_stereo_io_loopback {
     var sample_ready_out : logic                   ;
     var left_audio_out   : Iec60958::AudioSample   ;
     var right_audio_out  : Iec60958::AudioSample   ;
-    var left_invalid_out : logic                   ;
-    var right_invalid_out: logic                   ;
+    var left_invalid_out : bbool                   ;
+    var right_invalid_out: bbool                   ;
     var left_user_out    : logic                   ;
     var right_user_out   : logic                   ;
     var left_status_out  : logic                   ;
     var right_status_out : logic                   ;
     var block_start_out  : logic                   ;
-    var error            : logic                   ;
+    var error            : bbool                   ;
     var seen             : logic                   ;
     var block_start_seen : logic                   ;
 

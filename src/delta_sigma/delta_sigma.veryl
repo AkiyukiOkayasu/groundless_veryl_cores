@@ -38,6 +38,7 @@ pub module DeltaSigma2nd (
     var integrator_1: signed logic<40>;
     var integrator_2: signed logic<40>;
 
+    // PDM帰還値: FEEDBACK_POS = 2^30 - 1、FEEDBACK_NEG = -2^30。
     const FEEDBACK_POS: signed logic<40> = 1073741823;
     const FEEDBACK_NEG: signed logic<40> = -1073741824;
 

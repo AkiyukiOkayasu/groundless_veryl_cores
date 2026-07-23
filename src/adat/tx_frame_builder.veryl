@@ -22,68 +22,26 @@ module TxFrameBuilder (
     /// フレーム有効パルス
     ready: output logic,
 ) {
-    var frame_reg  : logic<256>;
-    var r_ready    : logic     ;
-    var build_frame: logic<256>;
-    var ch0_encoded: logic<30> ;
-    var ch1_encoded: logic<30> ;
-    var ch2_encoded: logic<30> ;
-    var ch3_encoded: logic<30> ;
-    var ch4_encoded: logic<30> ;
-    var ch5_encoded: logic<30> ;
-    var ch6_encoded: logic<30> ;
-    var ch7_encoded: logic<30> ;
+    var frame_reg      : logic<256>    ;
+    var r_ready        : logic         ;
+    var build_frame    : logic<256>    ;
+    var channel_encoded: logic<30>  [8];
 
     assign frame = frame_reg;
     assign ready = r_ready;
 
-    always_comb {
-        ch0_encoded = {
-            channels[0][23:20], 1'b1, channels[0][19:16], 1'b1, channels[0][15:12], 1'b1, channels[0][11:8], 1'b1,
-            channels[0][7:4], 1'b1, channels[0][3:0], 1'b1
+    for i in 0..8 :g_encode {
+        assign channel_encoded[i] = {
+            channels[i][23:20], 1'b1, channels[i][19:16], 1'b1, channels[i][15:12], 1'b1, channels[i][11:8], 1'b1,
+            channels[i][7:4], 1'b1, channels[i][3:0], 1'b1
         };
-        ch1_encoded = {
-            channels[1][23:20], 1'b1, channels[1][19:16], 1'b1, channels[1][15:12], 1'b1, channels[1][11:8], 1'b1,
-            channels[1][7:4], 1'b1, channels[1][3:0], 1'b1
-        };
-        ch2_encoded = {
-            channels[2][23:20], 1'b1, channels[2][19:16], 1'b1, channels[2][15:12], 1'b1, channels[2][11:8], 1'b1,
-            channels[2][7:4], 1'b1, channels[2][3:0], 1'b1
-        };
-        ch3_encoded = {
-            channels[3][23:20], 1'b1, channels[3][19:16], 1'b1, channels[3][15:12], 1'b1, channels[3][11:8], 1'b1,
-            channels[3][7:4], 1'b1, channels[3][3:0], 1'b1
-        };
-        ch4_encoded = {
-            channels[4][23:20], 1'b1, channels[4][19:16], 1'b1, channels[4][15:12], 1'b1, channels[4][11:8], 1'b1,
-            channels[4][7:4], 1'b1, channels[4][3:0], 1'b1
-        };
-        ch5_encoded = {
-            channels[5][23:20], 1'b1, channels[5][19:16], 1'b1, channels[5][15:12], 1'b1, channels[5][11:8], 1'b1,
-            channels[5][7:4], 1'b1, channels[5][3:0], 1'b1
-        };
-        ch6_encoded = {
-            channels[6][23:20], 1'b1, channels[6][19:16], 1'b1, channels[6][15:12], 1'b1, channels[6][11:8], 1'b1,
-            channels[6][7:4], 1'b1, channels[6][3:0], 1'b1
-        };
-        ch7_encoded = {
-            channels[7][23:20], 1'b1, channels[7][19:16], 1'b1, channels[7][15:12], 1'b1, channels[7][11:8], 1'b1,
-            channels[7][7:4], 1'b1, channels[7][3:0], 1'b1
-        };
+    }
 
-        build_frame          = 256'd0;
-        build_frame[255:246] = 10'b0000000000;
-        build_frame[245]     = 1'b1;
-        build_frame[244:241] = user_bits;
-        build_frame[240]     = 1'b1;
-        build_frame[239:210] = ch0_encoded;
-        build_frame[209:180] = ch1_encoded;
-        build_frame[179:150] = ch2_encoded;
-        build_frame[149:120] = ch3_encoded;
-        build_frame[119:90]  = ch4_encoded;
-        build_frame[89:60]   = ch5_encoded;
-        build_frame[59:30]   = ch6_encoded;
-        build_frame[29:0]    = ch7_encoded;
+    always_comb {
+        build_frame = {
+            10'b0000000000, 1'b1, user_bits, 1'b1, channel_encoded[0], channel_encoded[1], channel_encoded[2],
+            channel_encoded[3], channel_encoded[4], channel_encoded[5], channel_encoded[6], channel_encoded[7],
+        };
     }
 
     always_ff {

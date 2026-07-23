@@ -115,74 +115,28 @@ module FrameParser (
 
             // 各位置でデータ抽出
             // フレーム構造: [Sync 10bit][1][User 4bit][1][Ch0 30bit]...[Ch7 30bit]
-            // 本実装は同期期間をフレーム境界として扱い、Sync 10bitはカウントしない
-            // ユーザーデータ終了: 1 + 4 = bit 5
-            // チャンネル終了位置: 5 + 30*n (Ch0: 35, Ch1: 65, Ch2: 95, etc.)
+            // 本実装は同期期間をフレーム境界として扱い、Sync 10bitはカウントしない。
+            // したがって、内部カウンタ上のチャンネル終了位置は35 + 30 * channelとなる。
             if bit_counter <: 8'd5 && next_count >: 8'd4 {
                 // ユーザーデータ: bits 1-4 (ビット順を反転)
                 r_user  = {shift_next[0], shift_next[1], shift_next[2], shift_next[3]};
                 r_valid = 1'b0;
-            } else if bit_counter <: 8'd35 && next_count >: 8'd34 {
-                // 30bit -> 24bit: 各5bitのnibbleから上位4bitを抽出
-                // LSBは同期用セパレーターのため破棄
-                // shift_reg[29:26], [24:21], [19:16], [14:11], [9:6], [4:1]
-                r_data    = {
-                    shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
-                    shift_next[4:1]
-                };
-                r_channel = 3'd0;
-                r_valid   = 1'b1;
-            } else if bit_counter <: 8'd65 && next_count >: 8'd64 {
-                r_data    = {
-                    shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
-                    shift_next[4:1]
-                };
-                r_channel = 3'd1;
-                r_valid   = 1'b1;
-            } else if bit_counter <: 8'd95 && next_count >: 8'd94 {
-                r_data    = {
-                    shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
-                    shift_next[4:1]
-                };
-                r_channel = 3'd2;
-                r_valid   = 1'b1;
-            } else if bit_counter <: 8'd125 && next_count >: 8'd124 {
-                r_data    = {
-                    shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
-                    shift_next[4:1]
-                };
-                r_channel = 3'd3;
-                r_valid   = 1'b1;
-            } else if bit_counter <: 8'd155 && next_count >: 8'd154 {
-                r_data    = {
-                    shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
-                    shift_next[4:1]
-                };
-                r_channel = 3'd4;
-                r_valid   = 1'b1;
-            } else if bit_counter <: 8'd185 && next_count >: 8'd184 {
-                r_data    = {
-                    shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
-                    shift_next[4:1]
-                };
-                r_channel = 3'd5;
-                r_valid   = 1'b1;
-            } else if bit_counter <: 8'd215 && next_count >: 8'd214 {
-                r_data    = {
-                    shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
-                    shift_next[4:1]
-                };
-                r_channel = 3'd6;
-                r_valid   = 1'b1;
-            } else if bit_counter <: 8'd245 && next_count >: 8'd244 {
-                r_data    = {
-                    shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
-                    shift_next[4:1]
-                };
-                r_channel = 3'd7;
-                r_valid   = 1'b1;
             } else {
-                r_valid = 1'b0;
+                // 30bit -> 24bit: 各5bitのnibbleから上位4bitを抽出する。
+                // LSBは同期用セパレーターのため破棄する。
+                let pcm_data: logic<24> = {
+                    shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
+                    shift_next[4:1]
+                };
+                r_valid  = 1'b0;
+                for i in 0..8 {
+                    let range_end: logic<8> = 8'd35 + ((i as 8) * 8'd30);
+                    if bit_counter <: range_end && next_count >: (range_end - 8'd1) {
+                        r_data    = pcm_data;
+                        r_channel = i as 3;
+                        r_valid   = 1'b1;
+                    }
+                }
             }
         } else {
             r_valid = 1'b0;

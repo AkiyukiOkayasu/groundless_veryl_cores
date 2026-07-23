@@ -177,7 +177,7 @@ pub module SineWaveLerpCore (
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineOscillator (
     clk       : input  clock            , /// クロック
-    phase_rst : input  logic            , /// 位相ゼロリセット (同期)
+    phase_rst : input  bbool            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
     audio     : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {
@@ -200,7 +200,7 @@ pub module SineOscillator (
 /// レイテンシー: 1クロック (BRAM読み出し分)
 pub module SineOscillatorLerp (
     clk       : input  clock            , /// クロック
-    phase_rst : input  logic            , /// 位相ゼロリセット (同期)
+    phase_rst : input  bbool            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
     audio     : output FixedPoint::q8_24, /// 出力波形 (Q8.24形式)
 ) {

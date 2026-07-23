@@ -37,11 +37,12 @@ pub package Iec60958 {
 
     /// 規格共通のサブフレーム表現。
     struct Subframe {
-        preamble_kind : PreambleKind,
-        audio         : AudioSample ,
-        invalid       : logic       ,
-        user          : logic       ,
-        channel_status: logic       ,
+        preamble_kind: PreambleKind,
+        audio        : AudioSample ,
+        // payload由来のbitは4-stateデータと同じlogic型で保持する。
+        invalid       : logic,
+        user          : logic,
+        channel_status: logic,
     }
 
     /// 高位TX/RXで扱うstereo audio frame。
@@ -60,8 +61,8 @@ pub package Iec60958 {
         invalid       : input logic      ,
         user          : input logic      ,
         channel_status: input logic      ,
-    ) -> logic {
-        return ^{audio, invalid, user, channel_status};
+    ) -> bbool {
+        return if ^{audio, invalid, user, channel_status} ? 1'b1 : 1'b0;
     }
 
     /// 規格共通preambleを規格ごとの8cellラインコードへ変換する。
@@ -119,11 +120,11 @@ pub package Iec60958 {
     function preamble_is_valid (
         link    : input LinkType,
         preamble: input Preamble,
-    ) -> logic {
+    ) -> bbool {
         if link == LinkType::Aes3 {
-            return (preamble == 4'b1110) || (preamble == 4'b0001) || (preamble == 4'b1101);
+            return if (preamble == 4'b1110) || (preamble == 4'b0001) || (preamble == 4'b1101) ? 1'b1 : 1'b0;
         } else {
-            return (preamble == 4'b1000) || (preamble == 4'b0100) || (preamble == 4'b0010);
+            return if (preamble == 4'b1000) || (preamble == 4'b0100) || (preamble == 4'b0010) ? 1'b1 : 1'b0;
         }
     }
 

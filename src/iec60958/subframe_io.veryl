@@ -15,7 +15,7 @@ pub module Iec60958SubframeTx #(
     subframe_ready: output logic       ,
     preamble_kind : input  PreambleKind,
     audio         : input  AudioSample ,
-    invalid       : input  logic       ,
+    invalid       : input  bbool       ,
     user          : input  logic       ,
     channel_status: input  logic       ,
     line_bit      : output logic       ,
@@ -59,27 +59,27 @@ pub module Iec60958SubframeRx (
     subframe_ready: input  logic       ,
     preamble_kind : output PreambleKind,
     audio         : output AudioSample ,
-    invalid       : output logic       ,
+    invalid       : output bbool       ,
     user          : output logic       ,
     channel_status: output logic       ,
-    parity_error  : output logic       ,
-    preamble_error: output logic       ,
-    bmc_error     : output logic       ,
+    parity_error  : output bbool       ,
+    preamble_error: output bbool       ,
+    bmc_error     : output bbool       ,
 ) {
     var bmc_preamble      : PreambleLineCode;
     var bmc_preamble_valid: logic           ;
     var bmc_payload       : Payload         ;
     var bmc_payload_valid : logic           ;
-    var bmc_locked        : logic           ;
-    var bmc_preamble_error: logic           ;
-    var bmc_line_error    : logic           ;
+    var bmc_locked        : bbool           ;
+    var bmc_preamble_error: bbool           ;
+    var bmc_line_error    : bbool           ;
     var preamble_seen     : logic           ;
     var preamble_kind_reg : PreambleKind    ;
     var unpacked_audio    : AudioSample     ;
-    var unpacked_invalid  : logic           ;
+    var unpacked_invalid  : bbool           ;
     var unpacked_user     : logic           ;
     var unpacked_status   : logic           ;
-    var unpacked_parity   : logic           ;
+    var unpacked_parity   : bbool           ;
 
     inst bmc: Iec60958BmcDeserializer (
         clk           : clk               ,
@@ -171,7 +171,7 @@ module test_iec60958_subframe_io_loopback {
     var subframe_ready: logic                 ;
     var preamble_kind : Iec60958::PreambleKind;
     var audio_in      : Iec60958::AudioSample ;
-    var invalid_in    : logic                 ;
+    var invalid_in    : bbool                 ;
     var user_in       : logic                 ;
     var status_in     : logic                 ;
     var line_bit      : logic                 ;
@@ -179,13 +179,13 @@ module test_iec60958_subframe_io_loopback {
     var busy          : logic                 ;
     var valid_out     : logic                 ;
     var audio_out     : Iec60958::AudioSample ;
-    var invalid_out   : logic                 ;
+    var invalid_out   : bbool                 ;
     var user_out      : logic                 ;
     var status_out    : logic                 ;
     var preamble_out  : Iec60958::PreambleKind;
-    var parity_error  : logic                 ;
-    var preamble_error: logic                 ;
-    var bmc_error     : logic                 ;
+    var parity_error  : bbool                 ;
+    var preamble_error: bbool                 ;
+    var bmc_error     : bbool                 ;
     var seen          : logic                 ;
 
     inst tx: Iec60958SubframeTx (

@@ -3,7 +3,7 @@ import Iec60958::AudioSample;
 
 pub module Iec60958SubframePacker (
     audio         : input  AudioSample    ,
-    invalid       : input  logic          ,
+    invalid       : input  bbool          ,
     user          : input  logic          ,
     channel_status: input  logic          ,
     payload       : output logic      <28>,
@@ -19,17 +19,17 @@ pub module Iec60958SubframePacker (
 pub module Iec60958SubframeUnpacker (
     payload       : input  logic      <28>,
     audio         : output AudioSample    ,
-    invalid       : output logic          ,
+    invalid       : output bbool          ,
     user          : output logic          ,
     channel_status: output logic          ,
-    parity_error  : output logic          ,
+    parity_error  : output bbool          ,
 ) {
     always_comb {
         audio          = payload[27:4];
-        invalid        = payload[3];
+        invalid        = if payload[3] ? 1'b1 : 1'b0;
         user           = payload[2];
         channel_status = payload[1];
-        parity_error   = ^payload;
+        parity_error   = if ^payload ? 1'b1 : 1'b0;
     }
 }
 
@@ -39,17 +39,17 @@ module test_iec60958_subframe_codec {
     inst clk: $tb::clock_gen;
 
     var audio                  : Iec60958::AudioSample    ;
-    var invalid                : logic                    ;
+    var invalid                : bbool                    ;
     var user                   : logic                    ;
     var channel_status         : logic                    ;
     var payload                : logic                <28>;
     var payload_for_unpacker   : logic                <28>;
     var corrupt                : logic                    ;
     var unpacked_audio         : Iec60958::AudioSample    ;
-    var unpacked_invalid       : logic                    ;
+    var unpacked_invalid       : bbool                    ;
     var unpacked_user          : logic                    ;
     var unpacked_channel_status: logic                    ;
-    var parity_error           : logic                    ;
+    var parity_error           : bbool                    ;
 
     inst packer: Iec60958SubframePacker (
         audio         : audio         ,

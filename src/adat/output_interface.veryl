@@ -32,7 +32,7 @@ module OutputInterface (
     /// ユーザービット入力
     user_bits: input logic<4>,
     /// 検出されたS/MUX有効状態 (1: enabled, 0: disabled)
-    smux_active: output logic,
+    smux_active: output bbool,
     /// ADATフレーム周期のクロック出力（サンプルクロックではない）
     frame_clk: output logic,
     /// 8チャンネルPCMデータ出力
@@ -40,7 +40,7 @@ module OutputInterface (
     /// 全チャンネルデータ有効
     valid: output logic,
     /// 同期ロック状態
-    locked: output logic,
+    locked: output bbool,
 ) {
     // ワードクロックカウンタ
     var word_clk_cnt: logic<12>;
@@ -51,17 +51,17 @@ module OutputInterface (
     // 出力有効
     var valid_out: logic;
     // ロック状態
-    var locked_reg: logic;
+    var locked_reg: bbool;
     // フレームカウンタ（ロック検出用）
     var frame_cnt: logic<4>;
     // complete-frame未観測カウンタ（ロック解除用）
     var no_frame_cnt: logic<16>;
     // UserBit由来のS/MUX有効フラグ
-    var smux_active_reg: logic;
+    var smux_active_reg: bbool;
 
     // S/MUX有効判定 (ADAT User Bit 2 → user_bits[1])
     // Note: ここからS/MUX2とS/MUX4の区別はできない
-    assign smux_active_reg = user_bits[1];
+    assign smux_active_reg = if user_bits[1] ? 1'b1 : 1'b0;
     assign smux_active     = smux_active_reg;
 
     assign frame_clk = word_clk;

@@ -42,6 +42,10 @@
 - Veryl Native testを現行APIに更新し、`rst.assert()`とenum member importを採用
 - フィルタテストの収束条件を`$assert`で検証し、矩形波・三角波・ノコギリ波コアのNative testを追加
 - CIに生成チェックとNative backend間の整合性検証を追加
+- `enable`など真偽属性として自然な1bit信号に`bbool`を限定し、ADATの`FrameParser`と`TxFrameBuilder`の重複ロジックを生成ループへ整理
+- IEC60958のパリティ・preamble判定とinvalid/lock/error状態を明示的な真偽型へ整理
+- NCOの`configured`状態を2値保証された`bbool`へ整理
+- ADATのFrameParser/TxFrameBuilder Native testを8チャンネル対象へ拡張し、公開モジュール構成と型方針をREADMEに追記
 
 ## [0.5.1] - 2026-05-20
 

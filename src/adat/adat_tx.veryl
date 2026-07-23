@@ -40,7 +40,7 @@ pub module AdatTx #(
     /// 8ch 24bit PCM入力
     channels: input logic<24> [8],
     /// S/MUX有効フラグ入力
-    smux_active: input logic,
+    smux_active: input bbool,
     /// ADAT NRZI出力
     adat: output logic,
     /// 256bitフレーム送信完了パルス

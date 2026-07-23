@@ -132,9 +132,9 @@ pub module Iec60958BmcDeserializer (
     preamble_valid: output logic           ,
     payload       : output Payload         ,
     payload_valid : output logic           ,
-    bmc_locked    : output logic           ,
-    preamble_error: output logic           ,
-    bmc_error     : output logic           ,
+    bmc_locked    : output bbool           ,
+    preamble_error: output bbool           ,
+    bmc_error     : output bbool           ,
 ) {
     var preamble_shift    : logic<8> ;
     var hunt_count        : logic<3> ;
@@ -252,9 +252,9 @@ module test_iec60958_bmc_codec {
     var preamble_seen    : logic                        ;
     var payload_out      : Iec60958::Payload            ;
     var payload_seen     : logic                        ;
-    var bmc_locked       : logic                        ;
-    var preamble_error   : logic                        ;
-    var bmc_error        : logic                        ;
+    var bmc_locked       : bbool                        ;
+    var preamble_error   : bbool                        ;
+    var bmc_error        : bbool                        ;
     var cell_count       : logic                     <7>;
     var preamble_detected: logic                        ;
     var payload_detected : logic                        ;

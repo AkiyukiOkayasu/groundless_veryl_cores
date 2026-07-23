@@ -947,7 +947,7 @@
 <tr>
     <th class="table_list_item">smux_active</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> UserBit2に基づいて検出されたS/MUX有効状態 (1: enabled, 0: disabled)
  warning: S/MUX2とS/MUX4の判別は原理的に不可能なので、あくまでS/MUXが有効or無効のみを示す
 </td>
@@ -973,7 +973,7 @@
 <tr>
     <th class="table_list_item">locked</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> 同期ロック状態
 </td>
 </tr>
@@ -1078,7 +1078,7 @@
 <tr>
     <th class="table_list_item">smux_active</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> S/MUX有効フラグ入力
 </td>
 </tr>
@@ -1280,6 +1280,7 @@
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="aes3receiver"><a class="header" href="#aes3receiver">Aes3Receiver</a></h1>
 <p>AES3 professional receiver。</p>
+<p>共通stereo receiverをAES3向けの公開APIとして提供する薄いラッパー。</p>
 <h3 id="ports-5"><a class="header" href="#ports-5">Ports</a></h3>
 <hr>
 <table class="table_list">
@@ -1350,14 +1351,14 @@
 <tr>
     <th class="table_list_item">left_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">right_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -1399,7 +1400,7 @@
 <tr>
     <th class="table_list_item">error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -1467,14 +1468,14 @@
 <tr>
     <th class="table_list_item">left_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">right_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -1568,7 +1569,7 @@
 <tr>
     <th class="table_list_item">enable</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -1582,7 +1583,7 @@
 <tr>
     <th class="table_list_item">configured</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -1989,8 +1990,8 @@ fc ≈ fs / (2π * 2^SHIFT)</p>
 <tr>
     <th class="table_list_item">enable</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
-    <td class="table_list_item"> イネーブル信号 (highでフィルタ更新)
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
+    <td class="table_list_item"> イネーブル信号 (trueでフィルタ更新)
 </td>
 </tr>
 
@@ -2347,21 +2348,21 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">bmc_locked</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">preamble_error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">bmc_error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -2522,14 +2523,14 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">left_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">right_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -2571,7 +2572,7 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -2651,14 +2652,14 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">left_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">right_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -2752,7 +2753,7 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -2854,7 +2855,7 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -2875,21 +2876,21 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">parity_error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">preamble_error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">bmc_error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -2969,7 +2970,7 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -3036,7 +3037,7 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -3057,7 +3058,7 @@ y[n] = x[n] - lpf[n]
 <tr>
     <th class="table_list_item">parity_error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -3375,8 +3376,8 @@ SHIFTはDATA_WIDTHより大きくても問題ない。</p>
 <tr>
     <th class="table_list_item">enable</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
-    <td class="table_list_item"> イネーブル信号 (highでフィルタ更新)
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
+    <td class="table_list_item"> イネーブル信号 (trueでフィルタ更新)
 </td>
 </tr>
 
@@ -3720,7 +3721,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 <tr>
     <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
@@ -3801,7 +3802,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 <tr>
     <th class="table_list_item">enable</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -3841,14 +3842,14 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 <tr>
     <th class="table_list_item">configured</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">config_error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -3878,7 +3879,7 @@ Sineは線形補間付きLUT、他は組み合わせ回路
 <tr>
     <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
@@ -3982,7 +3983,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
@@ -4034,7 +4035,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
@@ -4109,7 +4110,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
@@ -4154,7 +4155,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>
@@ -4531,14 +4532,14 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">copy_permitted</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">non_audio</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -4566,7 +4567,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">original</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -4584,6 +4585,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="spdifreceiver"><a class="header" href="#spdifreceiver">SpdifReceiver</a></h1>
 <p>S/PDIF consumer receiver。</p>
+<p>共通stereo receiverをS/PDIF向けの公開APIとして提供する薄いラッパー。</p>
 <h3 id="ports-49"><a class="header" href="#ports-49">Ports</a></h3>
 <hr>
 <table class="table_list">
@@ -4654,14 +4656,14 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">left_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">right_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -4703,7 +4705,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">error</th>
     <td class="table_list_item"><span class="hljs-keyword">output</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -4769,14 +4771,14 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">left_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">right_invalid</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -4839,14 +4841,14 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">copy_permitted</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
 <tr>
     <th class="table_list_item">non_audio</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -4874,7 +4876,7 @@ RMS ≈ √(24/3)/8 ≈ 0.35 (WhiteNoise比 -4.2dB)</p>
 <tr>
     <th class="table_list_item">original</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"></td>
 </tr>
 
@@ -5094,7 +5096,7 @@ Mode 0 (CPOL=0, CPHA=0) 固定</p>
 <tr>
     <th class="table_list_item">phase_rst</th>
     <td class="table_list_item"><span class="hljs-keyword">input</span></td>
-    <td class="table_list_item"><span class="hljs-type">logic</span></td>
+    <td class="table_list_item"><span class="hljs-type">bbool</span></td>
     <td class="table_list_item"> 位相ゼロリセット (同期)
 </td>
 </tr>

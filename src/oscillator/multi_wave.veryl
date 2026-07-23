@@ -92,7 +92,7 @@ pub module MultiWaveCore (
 /// レイテンシー: 1クロック
 pub module MultiWaveOscillator (
     clk       : input  clock            , /// クロック
-    phase_rst : input  logic            , /// 位相ゼロリセット (同期)
+    phase_rst : input  bbool            , /// 位相ゼロリセット (同期)
     phase_step: input  Phase::step_t    , /// 1クロックあたりの位相ステップ量
     wave_type : input  WaveType         , /// 波形タイプ選択
     duty_cycle: input  Phase::phase_t   , /// PWMデューティ比 (Pwm以外では無視)
