@@ -1,0 +1,357 @@
+/// IEC60958のstereo sampleをA/B subframeへ分解する共通TX。
+import Iec60958::AudioSample;
+import Iec60958::LinkType;
+import Iec60958::PreambleKind;
+
+pub module Iec60958StereoTx #(
+    param LINK_TYPE: LinkType = LinkType::Spdif,
+) (
+    clk              : input  clock         ,
+    rst              : input  reset         ,
+    cell_tick        : input  logic         ,
+    sample_valid     : input  logic         ,
+    sample_ready     : output logic         ,
+    left_audio       : input  AudioSample   ,
+    right_audio      : input  AudioSample   ,
+    left_invalid     : input  logic         ,
+    right_invalid    : input  logic         ,
+    left_user        : input  logic         ,
+    right_user       : input  logic         ,
+    left_status      : input  logic         ,
+    right_status     : input  logic         ,
+    line_bit         : output logic         ,
+    line_valid       : output logic         ,
+    busy             : output logic         ,
+    frame_index      : output logic      <8>,
+    channel_b        : output logic         ,
+    subframe_accepted: output logic         ,
+) {
+    var sample_active        : logic          ;
+    var left_audio_reg       : AudioSample    ;
+    var right_audio_reg      : AudioSample    ;
+    var left_invalid_reg     : logic          ;
+    var right_invalid_reg    : logic          ;
+    var left_user_reg        : logic          ;
+    var right_user_reg       : logic          ;
+    var left_status_reg      : logic          ;
+    var right_status_reg     : logic          ;
+    var scheduler_frame_index: logic       <8>;
+    var scheduler_channel_b  : logic          ;
+    var block_start          : logic          ;
+    var preamble_kind        : PreambleKind   ;
+    var scheduler_advance    : logic          ;
+    var subframe_valid       : logic          ;
+    var subframe_ready       : logic          ;
+    var subframe_audio       : AudioSample    ;
+    var subframe_invalid     : logic          ;
+    var subframe_user        : logic          ;
+    var subframe_status      : logic          ;
+    var tx_busy              : logic          ;
+
+    assign sample_ready      = !sample_active;
+    assign subframe_valid    = sample_active;
+    assign scheduler_advance = subframe_valid && subframe_ready;
+    assign busy              = sample_active || tx_busy;
+    assign frame_index       = scheduler_frame_index;
+    assign channel_b         = scheduler_channel_b;
+    assign subframe_accepted = scheduler_advance;
+
+    always_comb {
+        if scheduler_channel_b {
+            subframe_audio   = right_audio_reg;
+            subframe_invalid = right_invalid_reg;
+            subframe_user    = right_user_reg;
+            subframe_status  = right_status_reg;
+        } else {
+            subframe_audio   = left_audio_reg;
+            subframe_invalid = left_invalid_reg;
+            subframe_user    = left_user_reg;
+            subframe_status  = left_status_reg;
+        }
+    }
+
+    inst scheduler: Iec60958BlockScheduler (
+        clk          : clk                  ,
+        rst          : rst                  ,
+        advance      : scheduler_advance    ,
+        frame_index  : scheduler_frame_index,
+        channel_b    : scheduler_channel_b  ,
+        block_start  : block_start          ,
+        preamble_kind: preamble_kind        ,
+    );
+    inst tx: Iec60958SubframeTx #(
+        LINK_TYPE: LINK_TYPE,
+    ) (
+        clk           : clk             ,
+        rst           : rst             ,
+        cell_tick     : cell_tick       ,
+        subframe_valid: subframe_valid  ,
+        subframe_ready: subframe_ready  ,
+        preamble_kind : preamble_kind   ,
+        audio         : subframe_audio  ,
+        invalid       : subframe_invalid,
+        user          : subframe_user   ,
+        channel_status: subframe_status ,
+        line_bit      : line_bit        ,
+        line_valid    : line_valid      ,
+        busy          : tx_busy         ,
+    );
+
+    always_ff {
+        if_reset {
+            sample_active     = 0;
+            left_audio_reg    = 0;
+            right_audio_reg   = 0;
+            left_invalid_reg  = 0;
+            right_invalid_reg = 0;
+            left_user_reg     = 0;
+            right_user_reg    = 0;
+            left_status_reg   = 0;
+            right_status_reg  = 0;
+        } else {
+            if !sample_active && sample_valid {
+                sample_active     = 1;
+                left_audio_reg    = left_audio;
+                right_audio_reg   = right_audio;
+                left_invalid_reg  = left_invalid;
+                right_invalid_reg = right_invalid;
+                left_user_reg     = left_user;
+                right_user_reg    = right_user;
+                left_status_reg   = left_status;
+                right_status_reg  = right_status;
+            } else if sample_active && subframe_ready && scheduler_channel_b {
+                sample_active = 0;
+            }
+        }
+    }
+}
+
+/// IEC60958のA/B subframeをstereo sampleへ組み立てる共通RX。
+pub module Iec60958StereoRx (
+    clk          : input  clock      ,
+    rst          : input  reset      ,
+    cell_tick    : input  logic      ,
+    line_bit     : input  logic      ,
+    line_valid   : input  logic      ,
+    sample_valid : output logic      ,
+    sample_ready : input  logic      ,
+    left_audio   : output AudioSample,
+    right_audio  : output AudioSample,
+    left_invalid : output logic      ,
+    right_invalid: output logic      ,
+    left_user    : output logic      ,
+    right_user   : output logic      ,
+    left_status  : output logic      ,
+    right_status : output logic      ,
+    error        : output logic      ,
+) {
+    var subframe_valid  : logic                 ;
+    var subframe_ready  : logic                 ;
+    var preamble_kind   : Iec60958::PreambleKind;
+    var audio           : AudioSample           ;
+    var invalid         : logic                 ;
+    var user            : logic                 ;
+    var status          : logic                 ;
+    var parity_error    : logic                 ;
+    var preamble_error  : logic                 ;
+    var bmc_error       : logic                 ;
+    var left_pending    : logic                 ;
+    var left_audio_reg  : AudioSample           ;
+    var left_invalid_reg: logic                 ;
+    var left_user_reg   : logic                 ;
+    var left_status_reg : logic                 ;
+
+    assign subframe_ready = !sample_valid || sample_ready;
+
+    inst rx: Iec60958SubframeRx (
+        clk           : clk           ,
+        rst           : rst           ,
+        cell_tick     : cell_tick     ,
+        line_bit      : line_bit      ,
+        line_valid    : line_valid    ,
+        subframe_valid: subframe_valid,
+        subframe_ready: subframe_ready,
+        preamble_kind : preamble_kind ,
+        audio         : audio         ,
+        invalid       : invalid       ,
+        user          : user          ,
+        channel_status: status        ,
+        parity_error  : parity_error  ,
+        preamble_error: preamble_error,
+        bmc_error     : bmc_error     ,
+    );
+
+    always_ff {
+        if_reset {
+            sample_valid     = 0;
+            left_audio       = 0;
+            right_audio      = 0;
+            left_invalid     = 0;
+            right_invalid    = 0;
+            left_user        = 0;
+            right_user       = 0;
+            left_status      = 0;
+            right_status     = 0;
+            error            = 0;
+            left_pending     = 0;
+            left_audio_reg   = 0;
+            left_invalid_reg = 0;
+            left_user_reg    = 0;
+            left_status_reg  = 0;
+        } else {
+            error = 0;
+            if sample_valid && sample_ready {
+                sample_valid = 0;
+            }
+
+            if parity_error || preamble_error || bmc_error {
+                error = 1;
+            }
+
+            if subframe_valid && subframe_ready {
+                if preamble_kind == Iec60958::PreambleKind::ChannelB {
+                    if left_pending {
+                        left_audio    = left_audio_reg;
+                        right_audio   = audio;
+                        left_invalid  = left_invalid_reg;
+                        right_invalid = invalid;
+                        left_user     = left_user_reg;
+                        right_user    = user;
+                        left_status   = left_status_reg;
+                        right_status  = status;
+                        sample_valid  = 1;
+                        left_pending  = 0;
+                    } else {
+                        error = 1;
+                    }
+                } else {
+                    if left_pending {
+                        error = 1;
+                    }
+                    left_audio_reg   = audio;
+                    left_invalid_reg = invalid;
+                    left_user_reg    = user;
+                    left_status_reg  = status;
+                    left_pending     = 1;
+                }
+            }
+        }
+    }
+}
+
+/// 1 stereo sampleをA/B subframeへ送り、同じstreamから復元する。
+#[test(test_iec60958_stereo_io_loopback)]
+module test_iec60958_stereo_io_loopback {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var cell_tick        : logic                   ;
+    var sample_valid     : logic                   ;
+    var sample_ready     : logic                   ;
+    var left_audio_in    : Iec60958::AudioSample   ;
+    var right_audio_in   : Iec60958::AudioSample   ;
+    var left_invalid_in  : logic                   ;
+    var right_invalid_in : logic                   ;
+    var left_user_in     : logic                   ;
+    var right_user_in    : logic                   ;
+    var left_status_in   : logic                   ;
+    var right_status_in  : logic                   ;
+    var line_bit         : logic                   ;
+    var line_valid       : logic                   ;
+    var busy             : logic                   ;
+    var frame_index      : logic                <8>;
+    var channel_b        : logic                   ;
+    var subframe_accepted: logic                   ;
+    var sample_valid_out : logic                   ;
+    var sample_ready_out : logic                   ;
+    var left_audio_out   : Iec60958::AudioSample   ;
+    var right_audio_out  : Iec60958::AudioSample   ;
+    var left_invalid_out : logic                   ;
+    var right_invalid_out: logic                   ;
+    var left_user_out    : logic                   ;
+    var right_user_out   : logic                   ;
+    var left_status_out  : logic                   ;
+    var right_status_out : logic                   ;
+    var error            : logic                   ;
+    var seen             : logic                   ;
+
+    inst tx: Iec60958StereoTx (
+        clk              : clk              ,
+        rst              : rst              ,
+        cell_tick        : cell_tick        ,
+        sample_valid     : sample_valid     ,
+        sample_ready     : sample_ready     ,
+        left_audio       : left_audio_in    ,
+        right_audio      : right_audio_in   ,
+        left_invalid     : left_invalid_in  ,
+        right_invalid    : right_invalid_in ,
+        left_user        : left_user_in     ,
+        right_user       : right_user_in    ,
+        left_status      : left_status_in   ,
+        right_status     : right_status_in  ,
+        line_bit         : line_bit         ,
+        line_valid       : line_valid       ,
+        busy             : busy             ,
+        frame_index      : frame_index      ,
+        channel_b        : channel_b        ,
+        subframe_accepted: subframe_accepted,
+    );
+    inst rx: Iec60958StereoRx (
+        clk          : clk              ,
+        rst          : rst              ,
+        cell_tick    : cell_tick        ,
+        line_bit     : line_bit         ,
+        line_valid   : line_valid       ,
+        sample_valid : sample_valid_out ,
+        sample_ready : sample_ready_out ,
+        left_audio   : left_audio_out   ,
+        right_audio  : right_audio_out  ,
+        left_invalid : left_invalid_out ,
+        right_invalid: right_invalid_out,
+        left_user    : left_user_out    ,
+        right_user   : right_user_out   ,
+        left_status  : left_status_out  ,
+        right_status : right_status_out ,
+        error        : error            ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            seen = 0;
+        } else if sample_valid_out {
+            seen = 1;
+        }
+    }
+
+    initial {
+        cell_tick        = 1;
+        sample_valid     = 0;
+        sample_ready_out = 1;
+        left_audio_in    = 24'sh123456;
+        right_audio_in   = -24'sh234567;
+        left_invalid_in  = 0;
+        right_invalid_in = 1;
+        left_user_in     = 1;
+        right_user_in    = 0;
+        left_status_in   = 1;
+        right_status_in  = 0;
+        rst.assert();
+
+        sample_valid = 1;
+        clk.next(1);
+        sample_valid = 0;
+        clk.next(132);
+
+        $assert(seen, "stereo IO loopback did not complete");
+        $assert(left_audio_out == left_audio_in, "stereo left audio mismatch");
+        $assert(right_audio_out == right_audio_in, "stereo right audio mismatch");
+        $assert(
+            left_invalid_out == left_invalid_in && right_invalid_out == right_invalid_in,
+            "stereo invalid mismatch",
+        );
+        $assert(left_user_out == left_user_in && right_user_out == right_user_in, "stereo user mismatch");
+        $assert(left_status_out == left_status_in && right_status_out == right_status_in, "stereo status mismatch");
+        $assert(!error, "stereo IO loopback reported an error");
+        $finish();
+    }
+}

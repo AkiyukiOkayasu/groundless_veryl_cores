@@ -1,0 +1,101 @@
+/// AES3 channel statusをsubframe schedulerへ同期する。
+///
+/// 0..183ではstatus mapperのbitを出しながらCRCを更新し、184..191では
+/// 完了したCRCをLSB firstで出力する。channel A/Bのstatusが同一の構成を
+/// 前提に、CRC更新は各frameのB subframe受理時に一度だけ行う。
+import Iec60958::SampleRate;
+import Aes3::ChannelMode;
+
+pub module Aes3ChannelStatusStream (
+    clk         : input  clock         ,
+    rst         : input  reset         ,
+    advance     : input  logic         ,
+    frame_index : input  logic      <8>,
+    channel_b   : input  logic         ,
+    sample_rate : input  SampleRate    ,
+    channel_mode: input  ChannelMode   ,
+    status_bit  : output logic         ,
+    crc         : output logic      <8>,
+) {
+    var crc_reg: logic<8>;
+
+    assign crc = crc_reg;
+
+    always_comb {
+        if frame_index <: 8'd184 {
+            status_bit = Aes3::channel_status_bit(frame_index, sample_rate, channel_mode);
+        } else if frame_index <: 8'd192 {
+            status_bit = crc_reg[frame_index - 8'd184];
+        } else {
+            status_bit = 0;
+        }
+    }
+
+    always_ff {
+        if_reset {
+            crc_reg = 8'hFF;
+        } else if advance && channel_b {
+            if frame_index <: 8'd184 {
+                let status  : logic = Aes3::channel_status_bit(frame_index, sample_rate, channel_mode);
+                let feedback: logic = crc_reg[0] ^ status;
+                if feedback {
+                    crc_reg = (crc_reg >> 1) ^ 8'hB8;
+                } else {
+                    crc_reg = crc_reg >> 1;
+                }
+            } else if frame_index == 8'd191 {
+                crc_reg = 8'hFF;
+            }
+        }
+    }
+}
+
+/// AES3 status streamのCRC更新タイミングを確認する。
+#[test(test_aes3_channel_status_stream)]
+module test_aes3_channel_status_stream {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var advance    : logic   ;
+    var frame_index: logic<8>;
+    var channel_b  : logic   ;
+    var status_bit : logic   ;
+    var crc        : logic<8>;
+
+    inst dut: Aes3ChannelStatusStream (
+        clk         : clk                          ,
+        rst         : rst                          ,
+        advance     : advance                      ,
+        frame_index : frame_index                  ,
+        channel_b   : channel_b                    ,
+        sample_rate : Iec60958::SampleRate::Fs48000,
+        channel_mode: Aes3::ChannelMode::TwoChannel,
+        status_bit  : status_bit                   ,
+        crc         : crc                          ,
+    );
+
+    initial {
+        advance     = 0;
+        frame_index = 0;
+        channel_b   = 0;
+        rst.assert();
+        $assert(status_bit, "AES3 status bit zero must be professional flag");
+
+        frame_index = 8'd0;
+        channel_b   = 1;
+        advance     = 1;
+        clk.next(1);
+        advance     = 0;
+        frame_index = 8'd184;
+        channel_b   = 0;
+        $assert(status_bit == crc[0], "AES3 CRC stream must expose CRC LSB first");
+
+        frame_index = 8'd191;
+        channel_b   = 1;
+        advance     = 1;
+        clk.next(1);
+        advance = 0;
+        $assert(crc == 8'hFF, "AES3 CRC stream must restart at block boundary");
+        $finish();
+    }
+}
