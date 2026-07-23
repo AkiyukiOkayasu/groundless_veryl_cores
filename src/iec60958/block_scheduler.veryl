@@ -4,7 +4,7 @@
 /// 出力は常に次に送出すべきsubframeを指し、reset直後はblock先頭のAとなる。
 import Iec60958::PreambleKind;
 
-pub module Iec60958BlockScheduler #(
+module Iec60958BlockScheduler #(
     param FRAME_COUNT: u32 = 192,
 ) (
     clk          : input  clock          ,

@@ -1,7 +1,8 @@
-/// S/PDIF固有の型とchannel statusコード。
 import Iec60958::Preamble;
 import Iec60958::SampleRate;
 
+/// S/PDIF固有の型とchannel statusコード。
+/// TODO: S/PDIF固有の公開APIとchannel status対応範囲を必要な仕様に合わせて拡張する。
 pub package Spdif {
     enum SpdifPreamble: Preamble {
         B = 4'b1000,

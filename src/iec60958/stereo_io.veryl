@@ -3,7 +3,7 @@ import Iec60958::AudioSample;
 import Iec60958::LinkType;
 import Iec60958::PreambleKind;
 
-pub module Iec60958StereoTx #(
+module Iec60958StereoTx #(
     param LINK_TYPE: LinkType = LinkType::Spdif,
 ) (
     clk              : input  clock         ,
@@ -127,7 +127,7 @@ pub module Iec60958StereoTx #(
 }
 
 /// IEC60958のA/B subframeをstereo sampleへ組み立てる共通RX。
-pub module Iec60958StereoRx (
+module Iec60958StereoRx (
     clk          : input  clock      ,
     rst          : input  reset      ,
     cell_tick    : input  logic      ,

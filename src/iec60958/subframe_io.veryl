@@ -5,7 +5,7 @@ import Iec60958::PreambleKind;
 import Iec60958::PreambleLineCode;
 import Iec60958::Payload;
 
-pub module Iec60958SubframeTx #(
+module Iec60958SubframeTx #(
     param LINK_TYPE: LinkType = LinkType::Spdif,
 ) (
     clk           : input  clock       ,
@@ -49,7 +49,7 @@ pub module Iec60958SubframeTx #(
 }
 
 /// IEC60958 BMC codecをsubframe fieldへ戻す受信器。
-pub module Iec60958SubframeRx (
+module Iec60958SubframeRx (
     clk           : input  clock       ,
     rst           : input  reset       ,
     cell_tick     : input  logic       ,

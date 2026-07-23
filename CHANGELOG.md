@@ -38,6 +38,9 @@
 
 ### Changed
 
+- 公開APIをS/PDIF/AES3のtransceiverと周辺コアに整理し、Sine ROMとIEC60958共通実装moduleをprivate化
+- S/PDIFの未実装領域をTODOとして明示し、公開packageとして維持
+- 公開moduleとpackageのdocumentation commentを`veryl doc`に関連付け、UART/MIDIレシーバの説明を追加
 - 初期のIEC60958 BMC/subframe/S/PDIF/AES3実装を、共通codecとstereo transceiverへ整理
 - Veryl Native testを現行APIに更新し、`rst.assert()`とenum member importを採用
 - フィルタテストの収束条件を`$assert`で検証し、矩形波・三角波・ノコギリ波コアのNative testを追加

@@ -6,7 +6,7 @@
 import Iec60958::SampleRate;
 import Aes3::ChannelMode;
 
-pub module Aes3ChannelStatusStream (
+module Aes3ChannelStatusStream (
     clk         : input  clock         ,
     rst         : input  reset         ,
     advance     : input  logic         ,

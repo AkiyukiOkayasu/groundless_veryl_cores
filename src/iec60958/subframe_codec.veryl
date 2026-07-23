@@ -1,7 +1,7 @@
 /// IEC60958のpreableを除いた28bit payloadを生成する。
 import Iec60958::AudioSample;
 
-pub module Iec60958SubframePacker (
+module Iec60958SubframePacker (
     audio         : input  AudioSample    ,
     invalid       : input  bbool          ,
     user          : input  logic          ,
@@ -16,7 +16,7 @@ pub module Iec60958SubframePacker (
 }
 
 /// IEC60958の28bit payloadをaudioとV/U/C/Pへ分解する。
-pub module Iec60958SubframeUnpacker (
+module Iec60958SubframeUnpacker (
     payload       : input  logic      <28>,
     audio         : output AudioSample    ,
     invalid       : output bbool          ,

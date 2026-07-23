@@ -6,7 +6,7 @@
 import Iec60958::PreambleLineCode;
 import Iec60958::Payload;
 
-pub module Iec60958BmcSerializer (
+module Iec60958BmcSerializer (
     clk           : input  clock           ,
     rst           : input  reset           ,
     cell_tick     : input  logic           ,
@@ -122,7 +122,7 @@ pub module Iec60958BmcSerializer (
 ///
 /// cell_tickでline_bitをサンプルし、8cell sliding windowでpreambleを
 /// 探索する。通常payloadの先頭cellに必要な遷移も検証する。
-pub module Iec60958BmcDeserializer (
+module Iec60958BmcDeserializer (
     clk           : input  clock           ,
     rst           : input  reset           ,
     cell_tick     : input  logic           ,

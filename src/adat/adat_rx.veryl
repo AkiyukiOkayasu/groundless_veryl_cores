@@ -1,3 +1,5 @@
+import Adat::AdatFamily;
+
 /// ADATレシーバ トップモジュール
 ///
 /// ADAT光入力から8チャンネル24ビットPCMをデコードする。
@@ -189,8 +191,6 @@
 /// # タイミング
 /// - 推奨クロック: 50MHz
 /// - ADAT入力: TOSLINK光→電気変換済み信号
-import Adat::AdatFamily;
-
 pub module AdatRx (
     /// システムクロック (50MHz推奨)
     clk: input clock,

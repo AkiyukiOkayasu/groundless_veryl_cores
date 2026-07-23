@@ -6,7 +6,7 @@ import Iec60958::SampleRate;
 import Spdif::SampleRateCode;
 import Aes3::ChannelMode;
 
-pub module SpdifChannelStatusBit (
+module SpdifChannelStatusBit (
     bit_index           : input  logic     <8>,
     sample_rate         : input  SampleRate   ,
     original_sample_rate: input  SampleRate   ,
@@ -52,7 +52,7 @@ pub module SpdifChannelStatusBit (
 ///
 /// CRC byte（bit 184..191）は`Aes3ChannelStatusCrc`で別途生成する。
 
-pub module Aes3ChannelStatusBit (
+module Aes3ChannelStatusBit (
     bit_index   : input  logic               <8>,
     sample_rate : input  Iec60958::SampleRate   ,
     channel_mode: input  ChannelMode            ,

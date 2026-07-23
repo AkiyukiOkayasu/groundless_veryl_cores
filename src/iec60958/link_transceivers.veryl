@@ -1,11 +1,11 @@
+import Iec60958::AudioSample;
+import Iec60958::SampleRate;
+
 /// S/PDIF consumer transmitter。
 ///
 /// PCM stereo sampleを受け取り、channel statusを自動生成してBMC lineへ出す。
 /// channel statusの詳細設定を明示的に受け取るため、用途に応じて固定値を
 /// 上位で管理できる。
-import Iec60958::AudioSample;
-import Iec60958::SampleRate;
-
 pub module SpdifTransmitter (
     clk                 : input  clock         ,
     rst                 : input  reset         ,

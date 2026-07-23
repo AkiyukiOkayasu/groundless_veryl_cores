@@ -1,3 +1,8 @@
+/// 非同期シリアル入力を受信するUARTレシーバ。
+///
+/// `CLK_FREQ`と`BAUD_RATE`から1ビットのクロック数を計算し、スタートビット、
+/// `DATA_WIDTH`ビットのデータ、ストップビットを順にサンプリングする。
+/// 1バイトの受信完了時に`valid`を1クロックだけアサートする。
 pub module UartRx #(
     param CLK_FREQ  : u32 = 50_000_000,
     param BAUD_RATE : u32 = 31250     ,

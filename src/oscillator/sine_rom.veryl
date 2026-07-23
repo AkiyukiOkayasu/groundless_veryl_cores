@@ -1,5 +1,5 @@
 // 0度〜90度分のサイン波データ (絶対値)
-pub module SineRomQuarter (
+module SineRomQuarter (
     clk : input  clock    , /// クロック
     addr: input  logic<10>, /// 10bitアドレス入力
     data: output logic<31>, /// 符号なし31bit出力 (0 ~ 2^31-1)
@@ -144,7 +144,7 @@ pub module SineRomQuarter (
 // 0度〜90度分のサイン波データ (絶対値)をDual Port BRAMで読み出す版
 // サイズ: 1024ワード (addr: 10bit)
 // 0~2^31-1の範囲
-pub module SineRomQuarterDual (
+module SineRomQuarterDual (
     clk   : input  clock    , /// クロック
     addr_a: input  logic<10>, /// ポートAのアドレス入力
     addr_b: input  logic<10>, /// ポートBのアドレス入力

@@ -1,7 +1,7 @@
-/// AES3固有のpreambleとchannel status生成。
 import Iec60958::Preamble;
 import Iec60958::SampleRate;
 
+/// AES3固有のpreambleとchannel status生成。
 pub package Aes3 {
     enum Aes3Preamble: Preamble {
         Z = 4'b1110,
