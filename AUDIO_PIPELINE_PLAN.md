@@ -110,7 +110,7 @@ PDMの50MHzはPCMのサンプルレートではない。50MHzの各出力周期�
 | --- | --- | --- |
 | ADAT | `AdatRx` | 50MHz受信、8物理スロット、`valid`/`locked`出力 |
 | 固定小数点 | `FixedPoint` | Q1.31演算・丸め・飽和 |
-| 補間 | `ZeroOrderHold`, `LinearInterpolator`, `FarrowInterpolator` | 単体Native test済み。ステップ／ランプ／インパルス比較CSVベンチマークを追加 |
+| 補間 | `ZeroOrderHold`, `LinearInterpolator`, `FarrowInterpolator` | 単体Native test済み。3方式のステップ／ランプ／正弦波／インパルス比較CSVベンチマークを追加 |
 | ASRC | `LinearAsrc`, `FarrowAsrc`, `SampleRateTracker` | 汎用stream型。PDM連続出力用には未分離。Trackerは周期測定・平滑化まで |
 | CIC | `CicDecimator`, `CicInterpolator` | 乗算器なしの間引き・補間。ゲイン補正は後段で行う |
 | PDM | `DeltaSigma1st`, `DeltaSigma2nd` | 密度Native test済み。音質評価は未実施 |
@@ -161,7 +161,7 @@ RTLを大きく変更する前に、固定入力に対するPDMの品質を測�
 
 `veryl test`は機能回帰に使用する。FFT、SNR、THD+Nなどの音質指標は、固定PDM列を外部の数値解析モデルへ渡して評価する。Veryl Native testだけで音質を判定しない。
 
-補間器単体の比較では、入力サンプル列と位相列を固定し、`ZeroOrderHold`と`LinearInterpolator`へ同じ値を与える。ADATの`valid`間隔、FIFO、ΔΣ変調器はこの測定へ混ぜない。`interpolator_benchmark`は`$tb::file`で`target/interpolator_benchmark.csv`を書き出す。
+補間器単体の比較では、入力サンプル列と位相列を固定し、`ZeroOrderHold`、`LinearInterpolator`、4点窓の`FarrowInterpolator`へ同じ値を与える。ADATの`valid`間隔、FIFO、ΔΣ変調器はこの測定へ混ぜない。`interpolator_benchmark`は`$tb::file`で`target/interpolator_benchmark.csv`を書き出す。
 
 ```text
 veryl test --ignored -t interpolator_benchmark
@@ -171,7 +171,7 @@ CSVは2の補数の固定小数点値を出力する。`case=0..3`はステッ�
 
 このベンチマークにはADATの`valid`間隔、FIFO、ΔΣ変調器を接続しない。したがって、ここで測るのは補間カーネルそのものの差であり、クロックジッターやレート追従の影響は含まれない。
 
-解析は依存パッケージなしの[`tools/analyze_interpolator_benchmark.py`](tools/analyze_interpolator_benchmark.py)で行う。CSVの列、2の補数、`difference_bits = linear - zero_order_hold`、phase列の連続性を検証したうえで、最大差・平均差・RMS差、正弦波の理想連続正弦波に対する誤差、インパルス応答のDCゲイン、指定周波数の相対dBを出力する。
+解析は依存パッケージなしの[`tools/analyze_interpolator_benchmark.py`](tools/analyze_interpolator_benchmark.py)で行う。CSVの列、2の補数、3方式間の差、phase列の連続性を検証したうえで、最大差・平均差・RMS差、正弦波の理想連続正弦波に対する誤差、インパルス応答のDCゲイン、指定周波数の相対dBを出力する。
 
 ```text
 python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.csv
@@ -254,7 +254,7 @@ phase_increment = Fs_input / 50_000_000 × 2^PHASE_WIDTH
 2. 4点Farrow補間
 3. 必要なら8〜32タップpolyphase FIR
 
-Farrowでは以下を追加する。
+Farrowについては、4点窓の補間器とASRC、既知値Native test、正弦波・インパルス応答の比較ベンチマークまで実装済みである。今後は以下を追加する。
 
 - 係数量子化後の丸め
 - 出力飽和
