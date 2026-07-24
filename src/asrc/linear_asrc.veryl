@@ -564,7 +564,7 @@ module test_farrow_asrc {
     }
 }
 
-/// 0次ホールドと線形補間の出力列を書き出すベンチマーク。
+/// 0次ホールド、線形補間、Farrow補間の出力列を書き出すベンチマーク。
 ///
 /// 出力CSVは固定小数点の2の補数ビット列を16進数で保持する。外部の数値解析で、
 /// ステップ応答、ランプ応答、正弦波、インパルス応答、誤差、周波数応答を比較する。
@@ -579,16 +579,21 @@ module interpolator_benchmark {
 
     inst clk: $tb::clock_gen;
 
-    var sample0      : signed logic<SAMPLE_WIDTH>    ;
-    var sample1      : signed logic<SAMPLE_WIDTH>    ;
-    var phase        : logic       <PHASE_WIDTH>     ;
-    var hold_sample  : signed logic<SAMPLE_WIDTH>    ;
-    var linear_sample: signed logic<SAMPLE_WIDTH>    ;
-    var difference   : signed logic<SAMPLE_WIDTH + 1>;
-    var sine_phase   : logic       <32>              ;
-    var sine_audio   : signed logic<32>              ;
-    var sine_sample  : signed logic<32>              ;
-    var file         : $tb::file                     ;
+    var sample0                 : signed logic<SAMPLE_WIDTH>    ;
+    var sample1                 : signed logic<SAMPLE_WIDTH>    ;
+    var sample_m1               : signed logic<SAMPLE_WIDTH>    ;
+    var sample2                 : signed logic<SAMPLE_WIDTH>    ;
+    var phase                   : logic       <PHASE_WIDTH>     ;
+    var hold_sample             : signed logic<SAMPLE_WIDTH>    ;
+    var linear_sample           : signed logic<SAMPLE_WIDTH>    ;
+    var farrow_sample           : signed logic<SAMPLE_WIDTH>    ;
+    var linear_difference       : signed logic<SAMPLE_WIDTH + 1>;
+    var farrow_difference       : signed logic<SAMPLE_WIDTH + 1>;
+    var farrow_linear_difference: signed logic<SAMPLE_WIDTH + 1>;
+    var sine_phase              : logic       <32>              ;
+    var sine_audio              : signed logic<32>              ;
+    var sine_sample             : signed logic<32>              ;
+    var file                    : $tb::file                     ;
 
     inst hold: ZeroOrderHold #(
         SAMPLE_WIDTH: SAMPLE_WIDTH,
@@ -610,9 +615,26 @@ module interpolator_benchmark {
         sample : linear_sample,
     );
 
+    inst farrow: FarrowInterpolator #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+    ) (
+        sample_m1               ,
+        sample0                 ,
+        sample1                 ,
+        sample2                 ,
+        phase                   ,
+        sample   : farrow_sample,
+    );
+
     always_comb {
-        difference  = $signed({linear_sample[msb], linear_sample}) - $signed({hold_sample[msb], hold_sample});
-        sine_sample = sine_audio <<< 7;
+        linear_difference        = $signed({linear_sample[msb], linear_sample})
+            - $signed({hold_sample[msb], hold_sample});
+        farrow_difference        = $signed({farrow_sample[msb], farrow_sample})
+            - $signed({hold_sample[msb], hold_sample});
+        farrow_linear_difference = $signed({farrow_sample[msb], farrow_sample})
+            - $signed({linear_sample[msb], linear_sample});
+        sine_sample              = sine_audio <<< 7;
     }
 
     inst sine: SineWaveCore (
@@ -622,17 +644,21 @@ module interpolator_benchmark {
     );
 
     function write_case (
-        case_id   : input logic       <8>           ,
-        start     : input signed logic<SAMPLE_WIDTH>,
-        end_sample: input signed logic<SAMPLE_WIDTH>,
+        case_id    : input logic       <8>           ,
+        previous   : input signed logic<SAMPLE_WIDTH>,
+        start      : input signed logic<SAMPLE_WIDTH>,
+        end_sample : input signed logic<SAMPLE_WIDTH>,
+        next_sample: input signed logic<SAMPLE_WIDTH>,
     ) {
-        sample0 = start;
-        sample1 = end_sample;
+        sample_m1 = previous;
+        sample0   = start;
+        sample1   = end_sample;
+        sample2   = next_sample;
         for p in 0..256 {
             phase = p as PHASE_WIDTH;
             clk.next(1);
             file.write(
-                "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h\n",
+                "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h,%h,%h,%h\n",
                 case_id,
                 0,
                 0,
@@ -642,7 +668,10 @@ module interpolator_benchmark {
                 sample1,
                 hold_sample,
                 linear_sample,
-                difference,
+                farrow_sample,
+                linear_difference,
+                farrow_difference,
+                farrow_linear_difference,
             );
         }
     }
@@ -652,17 +681,27 @@ module interpolator_benchmark {
     function write_impulse () {
         for sample_index in 0..IMPULSE_LENGTH {
             if sample_index == 0 {
-                sample0 = 32'sd1_000_000_000;
+                sample_m1 = 0;
+                sample0   = 32'sd1_000_000_000;
+                sample1   = 0;
+                sample2   = 0;
+            } else if sample_index == 1 {
+                sample_m1 = 32'sd1_000_000_000;
+                sample0   = 0;
+                sample1   = 0;
+                sample2   = 0;
             } else {
-                sample0 = 0;
+                sample_m1 = 0;
+                sample0   = 0;
+                sample1   = 0;
+                sample2   = 0;
             }
-            sample1 = 0;
 
             for p in 0..256 {
                 phase = p as PHASE_WIDTH;
                 clk.next(1);
                 file.write(
-                    "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h\n",
+                    "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h,%h,%h,%h\n",
                     8'd4,
                     1,
                     0,
@@ -672,7 +711,10 @@ module interpolator_benchmark {
                     sample1,
                     hold_sample,
                     linear_sample,
-                    difference,
+                    farrow_sample,
+                    linear_difference,
+                    farrow_difference,
+                    farrow_linear_difference,
                 );
             }
         }
@@ -690,21 +732,32 @@ module interpolator_benchmark {
         sine_phase = 0;
 
         for sample_index in 0..SINE_SAMPLE_COUNT {
+            let previous_phase: logic<32> = phase_acc - phase_step;
+            let next_phase    : logic<32> = phase_acc + phase_step;
+            let next2_phase   : logic<32> = next_phase + phase_step;
+
+            sine_phase = previous_phase;
+            clk.next(1);
+            sample_m1 = sine_sample;
+
             sine_phase = phase_acc;
             clk.next(1);
             sample0 = sine_sample;
 
-            let next_phase: logic<32> = phase_acc + phase_step;
             sine_phase = next_phase;
             clk.next(1);
-            sample1   = sine_sample;
+            sample1 = sine_sample;
+
+            sine_phase = next2_phase;
+            clk.next(1);
+            sample2   = sine_sample;
             phase_acc = next_phase;
 
             for p in 0..256 {
                 phase = p as PHASE_WIDTH;
                 clk.next(1);
                 file.write(
-                    "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h\n",
+                    "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h,%h,%h,%h\n",
                     case_id,
                     2,
                     frequency_milli_fs,
@@ -714,7 +767,10 @@ module interpolator_benchmark {
                     sample1,
                     hold_sample,
                     linear_sample,
-                    difference,
+                    farrow_sample,
+                    linear_difference,
+                    farrow_difference,
+                    farrow_linear_difference,
                 );
             }
         }
@@ -723,14 +779,14 @@ module interpolator_benchmark {
     initial {
         file.open("target/interpolator_benchmark.csv");
         file.write(
-            "case,signal_kind,frequency_milli_fs,sample_index,phase,sample0_bits,sample1_bits,zero_order_hold_bits,linear_bits,difference_bits\n",
+            "case,signal_kind,frequency_milli_fs,sample_index,phase,sample0_bits,sample1_bits,zero_order_hold_bits,linear_bits,farrow_bits,linear_minus_hold_bits,farrow_minus_hold_bits,farrow_minus_linear_bits\n",
         );
 
         // ステップ、上りランプ、下りランプ、振幅反転を比較する。
-        write_case(8'd0, 32'sd0, 32'sd1_000_000_000);
-        write_case(8'd1, -32'sd1_000_000_000, 32'sd1_000_000_000);
-        write_case(8'd2, 32'sd1_000_000_000, -32'sd1_000_000_000);
-        write_case(8'd3, 32'sd1_500_000_000, -32'sd1_500_000_000);
+        write_case(8'd0, 32'sd0, 32'sd0, 32'sd1_000_000_000, 32'sd1_000_000_000);
+        write_case(8'd1, -32'sd2_000_000_000, -32'sd1_000_000_000, 32'sd1_000_000_000, 32'sd2_000_000_000);
+        write_case(8'd2, 32'sd2_000_000_000, 32'sd1_000_000_000, -32'sd1_000_000_000, -32'sd2_000_000_000);
+        write_case(8'd3, -32'sd1_500_000_000, 32'sd1_500_000_000, -32'sd1_500_000_000, 32'sd1_500_000_000);
         write_impulse();
 
         // 0.05 / 0.15 / 0.25 / 0.40 Fs。入力列は64サンプル分生成する。

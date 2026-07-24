@@ -29,7 +29,10 @@ REQUIRED_COLUMNS = {
     "sample1_bits",
     "zero_order_hold_bits",
     "linear_bits",
-    "difference_bits",
+    "farrow_bits",
+    "linear_minus_hold_bits",
+    "farrow_minus_hold_bits",
+    "farrow_minus_linear_bits",
 }
 
 
@@ -69,12 +72,23 @@ def read_rows(path: Path) -> list[dict[str, int]]:
                         row["zero_order_hold_bits"], SAMPLE_WIDTH
                     ),
                     "linear": decode_twos_complement(row["linear_bits"], SAMPLE_WIDTH),
-                    "difference": decode_twos_complement(
-                        row["difference_bits"], DIFFERENCE_WIDTH
+                    "farrow": decode_twos_complement(row["farrow_bits"], SAMPLE_WIDTH),
+                    "linear_difference": decode_twos_complement(
+                        row["linear_minus_hold_bits"], DIFFERENCE_WIDTH
+                    ),
+                    "farrow_difference": decode_twos_complement(
+                        row["farrow_minus_hold_bits"], DIFFERENCE_WIDTH
+                    ),
+                    "farrow_linear_difference": decode_twos_complement(
+                        row["farrow_minus_linear_bits"], DIFFERENCE_WIDTH
                     ),
                 }
-                if parsed["difference"] != parsed["linear"] - parsed["hold"]:
-                    raise ValueError("difference_bitsがlinear_bits - zero_order_hold_bitsと不一致")
+                if parsed["linear_difference"] != parsed["linear"] - parsed["hold"]:
+                    raise ValueError("linear_minus_hold_bitsがlinear_bits - zero_order_hold_bitsと不一致")
+                if parsed["farrow_difference"] != parsed["farrow"] - parsed["hold"]:
+                    raise ValueError("farrow_minus_hold_bitsがfarrow_bits - zero_order_hold_bitsと不一致")
+                if parsed["farrow_linear_difference"] != parsed["farrow"] - parsed["linear"]:
+                    raise ValueError("farrow_minus_linear_bitsがfarrow_bits - linear_bitsと不一致")
                 rows.append(parsed)
             except (KeyError, TypeError, ValueError) as error:
                 raise ValueError(f"CSV {line_number}行目を解釈できない: {error}") from error
@@ -120,21 +134,23 @@ def rms(values: list[int]) -> float:
 
 
 def difference_summary(case: int, rows: list[dict[str, int]]) -> dict[str, int | float]:
-    """0次ホールドとの差をLSBとQ1.31の両方で集計する。"""
-    differences = [row["difference"] for row in rows]
-    absolute = [abs(value) for value in differences]
+    """補間方式間の差をLSBとQ1.31の両方で集計する。"""
     scale = 1 << SAMPLE_FRACTION_BITS
-    return {
+    result: dict[str, int | float] = {
         "case": case,
         "signal_kind": rows[0]["signal_kind"],
         "frequency_milli_fs": rows[0]["frequency_milli_fs"],
         "rows": len(rows),
-        "max_abs_difference_lsb": max(absolute),
-        "mean_abs_difference_lsb": sum(absolute) / len(absolute),
-        "rms_difference_lsb": rms(differences),
-        "max_abs_difference_q1_31": max(absolute) / scale,
-        "rms_difference_q1_31": rms(differences) / scale,
     }
+    for name in ("linear_difference", "farrow_difference", "farrow_linear_difference"):
+        differences = [row[name] for row in rows]
+        absolute = [abs(value) for value in differences]
+        result[f"{name}_max_abs_lsb"] = max(absolute)
+        result[f"{name}_mean_abs_lsb"] = sum(absolute) / len(absolute)
+        result[f"{name}_rms_lsb"] = rms(differences)
+        result[f"{name}_max_abs_q1_31"] = max(absolute) / scale
+        result[f"{name}_rms_q1_31"] = rms(differences) / scale
+    return result
 
 
 def sine_projection(
@@ -164,7 +180,7 @@ def sine_summary(case: int, rows: list[dict[str, int]], phase_steps: int) -> dic
         "rows": len(rows),
     }
 
-    for name in ("hold", "linear"):
+    for name in ("hold", "linear", "farrow"):
         values = [row[name] for row in rows]
         expected = [
             int(
@@ -226,7 +242,7 @@ def impulse_summary(
     implementations: dict[str, object] = {}
     responses: dict[str, dict[str, float | None]] = {}
 
-    for name in ("hold", "linear"):
+    for name in ("hold", "linear", "farrow"):
         values = [row[name] for row in rows]
         dc_magnitude = dft_magnitude(values, 0.0, phase_steps)
         implementations[name] = {
@@ -285,18 +301,27 @@ def analyze(
 def print_text(result: dict[str, object]) -> None:
     print(f"CSV: {result['csv']}")
     print(f"phase steps: {result['phase_steps']}")
-    print("\nDifference from zero-order hold:")
-    print("case kind freq_milli_fs rows max_abs_lsb mean_abs_lsb rms_lsb max_abs_q1.31 rms_q1.31")
+    print("\nDifference between interpolation methods:")
+    print(
+        "case kind freq_milli_fs rows comparison max_abs_lsb mean_abs_lsb "
+        "rms_lsb max_abs_q1.31 rms_q1.31"
+    )
+    comparison_names = {
+        "linear_difference": "linear-hold",
+        "farrow_difference": "farrow-hold",
+        "farrow_linear_difference": "farrow-linear",
+    }
     for summary in result["difference_summary"]:  # type: ignore[union-attr]
-        print(
-            f"{summary['case']} {summary['signal_kind']} {summary['frequency_milli_fs']} "
-            f"{summary['rows']} "
-            f"{summary['max_abs_difference_lsb']} "
-            f"{summary['mean_abs_difference_lsb']:.3f} "
-            f"{summary['rms_difference_lsb']:.3f} "
-            f"{summary['max_abs_difference_q1_31']:.9f} "
-            f"{summary['rms_difference_q1_31']:.9f}"
-        )
+        for name, label in comparison_names.items():
+            print(
+                f"{summary['case']} {summary['signal_kind']} {summary['frequency_milli_fs']} "
+                f"{summary['rows']} {label} "
+                f"{summary[f'{name}_max_abs_lsb']} "
+                f"{summary[f'{name}_mean_abs_lsb']:.3f} "
+                f"{summary[f'{name}_rms_lsb']:.3f} "
+                f"{summary[f'{name}_max_abs_q1_31']:.9f} "
+                f"{summary[f'{name}_rms_q1_31']:.9f}"
+            )
 
     sine = result.get("sine_summary")
     if sine is not None:
@@ -306,7 +331,7 @@ def print_text(result: dict[str, object]) -> None:
             "mean_abs_error_lsb rms_error_lsb projected_gain projected_phase_deg"
         )
         for summary in sine:  # type: ignore[union-attr]
-            for name in ("hold", "linear"):
+            for name in ("hold", "linear", "farrow"):
                 implementation = summary[name]
                 print(
                     f"{summary['case']} {summary['frequency_fs']:.3f} {summary['rows']} "
@@ -331,18 +356,30 @@ def print_text(result: dict[str, object]) -> None:
         )
 
     print("\nImpulse frequency response, dB relative to each implementation's DC:")
-    print("frequency_input_fs hold_db linear_db linear_minus_hold_db")
+    print(
+        "frequency_input_fs hold_db linear_db farrow_db "
+        "linear_minus_hold_db farrow_minus_hold_db farrow_minus_linear_db"
+    )
     hold_response = impulse["frequency_response_db_relative_to_dc"]["hold"]  # type: ignore[index]
     linear_response = impulse["frequency_response_db_relative_to_dc"]["linear"]  # type: ignore[index]
+    farrow_response = impulse["frequency_response_db_relative_to_dc"]["farrow"]  # type: ignore[index]
     for frequency in hold_response:
         hold_db = hold_response[frequency]
         linear_db = linear_response[frequency]
-        delta = None if hold_db is None or linear_db is None else linear_db - hold_db
+        farrow_db = farrow_response[frequency]
+        linear_delta = None if hold_db is None or linear_db is None else linear_db - hold_db
+        farrow_delta = None if hold_db is None or farrow_db is None else farrow_db - hold_db
+        farrow_linear_delta = (
+            None if linear_db is None or farrow_db is None else farrow_db - linear_db
+        )
         print(
             f"{frequency} "
             f"{hold_db if hold_db is not None else 'n/a'} "
             f"{linear_db if linear_db is not None else 'n/a'} "
-            f"{delta if delta is not None else 'n/a'}"
+            f"{farrow_db if farrow_db is not None else 'n/a'} "
+            f"{linear_delta if linear_delta is not None else 'n/a'} "
+            f"{farrow_delta if farrow_delta is not None else 'n/a'} "
+            f"{farrow_linear_delta if farrow_linear_delta is not None else 'n/a'}"
         )
 
 
