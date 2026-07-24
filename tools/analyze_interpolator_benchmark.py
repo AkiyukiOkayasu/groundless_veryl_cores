@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""補間器ベンチマークCSVの統計量とインパルス周波数応答を計算する。"""
+"""補間器ベンチマークCSVの統計量、正弦波誤差、周波数応答を計算する。"""
 
 from __future__ import annotations
 
@@ -16,9 +16,13 @@ SAMPLE_WIDTH = 32
 SAMPLE_FRACTION_BITS = 31
 DIFFERENCE_WIDTH = SAMPLE_WIDTH + 1
 DEFAULT_IMPULSE_CASE = 4
+SINE_SIGNAL_KIND = 2
+REFERENCE_AMPLITUDE = (1 << SAMPLE_FRACTION_BITS) - 1
 DEFAULT_FREQUENCIES = (0.0, 0.1, 0.2, 0.3, 0.4, 0.45, 0.49)
 REQUIRED_COLUMNS = {
     "case",
+    "signal_kind",
+    "frequency_milli_fs",
     "sample_index",
     "phase",
     "sample0_bits",
@@ -55,6 +59,8 @@ def read_rows(path: Path) -> list[dict[str, int]]:
             try:
                 parsed = {
                     "case": int(row["case"]),
+                    "signal_kind": int(row["signal_kind"]),
+                    "frequency_milli_fs": int(row["frequency_milli_fs"]),
                     "sample_index": int(row["sample_index"]),
                     "phase": int(row["phase"]),
                     "sample0": decode_twos_complement(row["sample0_bits"], SAMPLE_WIDTH),
@@ -97,6 +103,12 @@ def group_rows(rows: list[dict[str, int]]) -> tuple[dict[int, list[dict[str, int
         seen = {(row["sample_index"], row["phase"]) for row in case_rows}
         if len(seen) != len(case_rows):
             raise ValueError(f"case {case} に重複したsample_index/phaseがある")
+        kinds = {row["signal_kind"] for row in case_rows}
+        frequencies = {row["frequency_milli_fs"] for row in case_rows}
+        if len(kinds) != 1 or len(frequencies) != 1:
+            raise ValueError(f"case {case} の信号種別または周波数が途中で変化している")
+        if next(iter(kinds)) == SINE_SIGNAL_KIND and next(iter(frequencies)) <= 0:
+            raise ValueError(f"case {case} の正弦波周波数が0以下")
         case_rows.sort(key=lambda row: (row["sample_index"], row["phase"]))
 
     assert phase_steps is not None
@@ -114,6 +126,8 @@ def difference_summary(case: int, rows: list[dict[str, int]]) -> dict[str, int |
     scale = 1 << SAMPLE_FRACTION_BITS
     return {
         "case": case,
+        "signal_kind": rows[0]["signal_kind"],
+        "frequency_milli_fs": rows[0]["frequency_milli_fs"],
         "rows": len(rows),
         "max_abs_difference_lsb": max(absolute),
         "mean_abs_difference_lsb": sum(absolute) / len(absolute),
@@ -121,6 +135,61 @@ def difference_summary(case: int, rows: list[dict[str, int]]) -> dict[str, int |
         "max_abs_difference_q1_31": max(absolute) / scale,
         "rms_difference_q1_31": rms(differences) / scale,
     }
+
+
+def sine_projection(
+    values: list[int], rows: list[dict[str, int]], frequency: float, phase_steps: int
+) -> tuple[float, float, float]:
+    """正弦波への射影から振幅、ゲイン、位相を求める。"""
+    cosine_projection = 0.0
+    sine_projection_value = 0.0
+    for value, row in zip(values, rows):
+        time = row["sample_index"] + row["phase"] / phase_steps
+        angle = 2.0 * math.pi * frequency * time
+        cosine_projection += value * math.cos(angle)
+        sine_projection_value += value * math.sin(angle)
+
+    amplitude = 2.0 / len(values) * math.hypot(cosine_projection, sine_projection_value)
+    gain = amplitude / REFERENCE_AMPLITUDE
+    phase = math.degrees(math.atan2(cosine_projection, sine_projection_value))
+    return amplitude, gain, phase
+
+
+def sine_summary(case: int, rows: list[dict[str, int]], phase_steps: int) -> dict[str, object]:
+    """正弦波を理想的な連続正弦波と比較する。"""
+    frequency = rows[0]["frequency_milli_fs"] / 1000.0
+    result: dict[str, object] = {
+        "case": case,
+        "frequency_fs": frequency,
+        "rows": len(rows),
+    }
+
+    for name in ("hold", "linear"):
+        values = [row[name] for row in rows]
+        expected = [
+            int(
+                REFERENCE_AMPLITUDE
+                * math.sin(
+                    2.0
+                    * math.pi
+                    * frequency
+                    * (row["sample_index"] + row["phase"] / phase_steps)
+                )
+            )
+            for row in rows
+        ]
+        errors = [value - reference for value, reference in zip(values, expected)]
+        amplitude, gain, phase = sine_projection(values, rows, frequency, phase_steps)
+        result[name] = {
+            "max_abs_error_lsb": max(abs(error) for error in errors),
+            "mean_abs_error_lsb": sum(abs(error) for error in errors) / len(errors),
+            "rms_error_lsb": rms(errors),
+            "rms_error_q1_31": rms(errors) / (1 << SAMPLE_FRACTION_BITS),
+            "projected_amplitude_lsb": amplitude,
+            "projected_gain": gain,
+            "projected_phase_deg": phase,
+        }
+    return result
 
 
 def dft_magnitude(values: list[int], frequency: float, phase_steps: int) -> float:
@@ -194,6 +263,17 @@ def analyze(
         "difference_summary": summaries,
     }
 
+    sine_cases = {
+        case: case_rows
+        for case, case_rows in grouped.items()
+        if case_rows[0]["signal_kind"] == SINE_SIGNAL_KIND
+    }
+    if sine_cases:
+        result["sine_summary"] = [
+            sine_summary(case, case_rows, phase_steps)
+            for case, case_rows in sine_cases.items()
+        ]
+
     impulse_rows = grouped.get(impulse_case)
     if impulse_rows is not None:
         result["impulse_summary"] = impulse_summary(
@@ -206,16 +286,36 @@ def print_text(result: dict[str, object]) -> None:
     print(f"CSV: {result['csv']}")
     print(f"phase steps: {result['phase_steps']}")
     print("\nDifference from zero-order hold:")
-    print("case rows max_abs_lsb mean_abs_lsb rms_lsb max_abs_q1.31 rms_q1.31")
+    print("case kind freq_milli_fs rows max_abs_lsb mean_abs_lsb rms_lsb max_abs_q1.31 rms_q1.31")
     for summary in result["difference_summary"]:  # type: ignore[union-attr]
         print(
-            f"{summary['case']} {summary['rows']} "
+            f"{summary['case']} {summary['signal_kind']} {summary['frequency_milli_fs']} "
+            f"{summary['rows']} "
             f"{summary['max_abs_difference_lsb']} "
             f"{summary['mean_abs_difference_lsb']:.3f} "
             f"{summary['rms_difference_lsb']:.3f} "
             f"{summary['max_abs_difference_q1_31']:.9f} "
             f"{summary['rms_difference_q1_31']:.9f}"
         )
+
+    sine = result.get("sine_summary")
+    if sine is not None:
+        print("\nSine wave error against an ideal continuous sine:")
+        print(
+            "case frequency_fs rows implementation max_abs_error_lsb "
+            "mean_abs_error_lsb rms_error_lsb projected_gain projected_phase_deg"
+        )
+        for summary in sine:  # type: ignore[union-attr]
+            for name in ("hold", "linear"):
+                implementation = summary[name]
+                print(
+                    f"{summary['case']} {summary['frequency_fs']:.3f} {summary['rows']} "
+                    f"{name} {implementation['max_abs_error_lsb']} "
+                    f"{implementation['mean_abs_error_lsb']:.3f} "
+                    f"{implementation['rms_error_lsb']:.3f} "
+                    f"{implementation['projected_gain']:.9f} "
+                    f"{implementation['projected_phase_deg']:.6f}"
+                )
 
     impulse = result.get("impulse_summary")
     if impulse is None:

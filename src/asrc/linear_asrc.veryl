@@ -567,14 +567,15 @@ module test_farrow_asrc {
 /// 0次ホールドと線形補間の出力列を書き出すベンチマーク。
 ///
 /// 出力CSVは固定小数点の2の補数ビット列を16進数で保持する。外部の数値解析で、
-/// ステップ応答、ランプ応答、インパルス応答、誤差、周波数応答を比較する。
+/// ステップ応答、ランプ応答、正弦波、インパルス応答、誤差、周波数応答を比較する。
 /// 通常の回帰テストでは実行せず、`veryl test --ignored`で実行する。
 #[test(interpolator_benchmark)]
 #[ignore]
 module interpolator_benchmark {
-    const SAMPLE_WIDTH  : u32 = 32;
-    const PHASE_WIDTH   : u32 = 8;
-    const IMPULSE_LENGTH: u32 = 64;
+    const SAMPLE_WIDTH     : u32 = 32;
+    const PHASE_WIDTH      : u32 = 8;
+    const IMPULSE_LENGTH   : u32 = 64;
+    const SINE_SAMPLE_COUNT: u32 = 64;
 
     inst clk: $tb::clock_gen;
 
@@ -584,6 +585,9 @@ module interpolator_benchmark {
     var hold_sample  : signed logic<SAMPLE_WIDTH>    ;
     var linear_sample: signed logic<SAMPLE_WIDTH>    ;
     var difference   : signed logic<SAMPLE_WIDTH + 1>;
+    var sine_phase   : logic       <32>              ;
+    var sine_audio   : signed logic<32>              ;
+    var sine_sample  : signed logic<32>              ;
     var file         : $tb::file                     ;
 
     inst hold: ZeroOrderHold #(
@@ -607,8 +611,15 @@ module interpolator_benchmark {
     );
 
     always_comb {
-        difference = $signed({linear_sample[msb], linear_sample}) - $signed({hold_sample[msb], hold_sample});
+        difference  = $signed({linear_sample[msb], linear_sample}) - $signed({hold_sample[msb], hold_sample});
+        sine_sample = sine_audio <<< 7;
     }
+
+    inst sine: SineWaveCore (
+        clk  : clk       ,
+        phase: sine_phase,
+        audio: sine_audio,
+    );
 
     function write_case (
         case_id   : input logic       <8>           ,
@@ -621,8 +632,10 @@ module interpolator_benchmark {
             phase = p as PHASE_WIDTH;
             clk.next(1);
             file.write(
-                "%d,%d,%d,%h,%h,%h,%h,%h\n",
+                "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h\n",
                 case_id,
+                0,
+                0,
                 0,
                 phase,
                 sample0,
@@ -649,8 +662,52 @@ module interpolator_benchmark {
                 phase = p as PHASE_WIDTH;
                 clk.next(1);
                 file.write(
-                    "%d,%d,%d,%h,%h,%h,%h,%h\n",
+                    "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h\n",
                     8'd4,
+                    1,
+                    0,
+                    sample_index,
+                    phase,
+                    sample0,
+                    sample1,
+                    hold_sample,
+                    linear_sample,
+                    difference,
+                );
+            }
+        }
+    }
+
+    // SineWaveCoreで入力サンプル列を生成し、各区間を256位相へ展開する。
+    // 周波数は入力サンプルレートに対する千分率でCSVへ記録する。
+    function write_sine (
+        case_id           : input logic<8> ,
+        frequency_milli_fs: input logic<16>,
+        phase_step        : input logic<32>,
+    ) {
+        var phase_acc : logic<32>;
+        phase_acc  = 0;
+        sine_phase = 0;
+
+        for sample_index in 0..SINE_SAMPLE_COUNT {
+            sine_phase = phase_acc;
+            clk.next(1);
+            sample0 = sine_sample;
+
+            let next_phase: logic<32> = phase_acc + phase_step;
+            sine_phase = next_phase;
+            clk.next(1);
+            sample1   = sine_sample;
+            phase_acc = next_phase;
+
+            for p in 0..256 {
+                phase = p as PHASE_WIDTH;
+                clk.next(1);
+                file.write(
+                    "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h\n",
+                    case_id,
+                    2,
+                    frequency_milli_fs,
                     sample_index,
                     phase,
                     sample0,
@@ -666,7 +723,7 @@ module interpolator_benchmark {
     initial {
         file.open("target/interpolator_benchmark.csv");
         file.write(
-            "case,sample_index,phase,sample0_bits,sample1_bits,zero_order_hold_bits,linear_bits,difference_bits\n",
+            "case,signal_kind,frequency_milli_fs,sample_index,phase,sample0_bits,sample1_bits,zero_order_hold_bits,linear_bits,difference_bits\n",
         );
 
         // ステップ、上りランプ、下りランプ、振幅反転を比較する。
@@ -675,6 +732,12 @@ module interpolator_benchmark {
         write_case(8'd2, 32'sd1_000_000_000, -32'sd1_000_000_000);
         write_case(8'd3, 32'sd1_500_000_000, -32'sd1_500_000_000);
         write_impulse();
+
+        // 0.05 / 0.15 / 0.25 / 0.40 Fs。入力列は64サンプル分生成する。
+        write_sine(8'd5, 16'd50, 32'h0CCC_CCCD);
+        write_sine(8'd6, 16'd150, 32'h2666_6666);
+        write_sine(8'd7, 16'd250, 32'h4000_0000);
+        write_sine(8'd8, 16'd400, 32'h6666_6666);
 
         file.flush();
         file.close();
