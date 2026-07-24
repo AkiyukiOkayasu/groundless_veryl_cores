@@ -1,6 +1,6 @@
 # Groundless Electronics Veryl RTL core
 
-[![Documentation](https://github.com/AkiyukiOkayasu/groundless_veryl_cores/actions/workflows/pages.yml/badge.svg)](https://github.com/AkiyukiOkayasu/groundless_veryl_cores/actions/workflows/pages.yml)
+[![Documentation](https://github.com/AkiyukiOkayasu/groundless_veryl_cores/actions/workflows/pages.yml/badge.svg)](https://akiyukiokayasu.github.io/groundless_veryl_cores/)
 
 Verylで記述した、オーディオ信号処理・デジタルオーディオ伝送向けのRTLコア集です。
 各コアは単体で利用できる公開モジュールと、Veryl Native testによる回帰テストを持ちます。
