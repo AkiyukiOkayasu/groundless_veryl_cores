@@ -110,8 +110,9 @@ PDMの50MHzはPCMのサンプルレートではない。50MHzの各出力周期�
 | --- | --- | --- |
 | ADAT | `AdatRx` | 50MHz受信、8物理スロット、`valid`/`locked`出力 |
 | 固定小数点 | `FixedPoint` | Q1.31演算・丸め・飽和 |
-| 補間 | `LinearInterpolator`, `FarrowInterpolator` | 単体Native test済み |
-| ASRC | `LinearAsrc`, `FarrowAsrc` | 汎用stream型。PDM連続出力用には未分離 |
+| 補間 | `ZeroOrderHold`, `LinearInterpolator`, `FarrowInterpolator` | 単体Native test済み。ステップ／ランプ／インパルス比較CSVベンチマークを追加 |
+| ASRC | `LinearAsrc`, `FarrowAsrc`, `SampleRateTracker` | 汎用stream型。PDM連続出力用には未分離。Trackerは周期測定・平滑化まで |
+| CIC | `CicDecimator`, `CicInterpolator` | 乗算器なしの間引き・補間。ゲイン補正は後段で行う |
 | PDM | `DeltaSigma1st`, `DeltaSigma2nd` | 密度Native test済み。音質評価は未実施 |
 | NCO | `NcoTick`, `ClockEnableNco` | 分数比tick生成 |
 | FIFO | Veryl STDを直接利用 | 独自FIFOラッパーは削除済み |
@@ -160,6 +161,16 @@ RTLを大きく変更する前に、固定入力に対するPDMの品質を測�
 
 `veryl test`は機能回帰に使用する。FFT、SNR、THD+Nなどの音質指標は、固定PDM列を外部の数値解析モデルへ渡して評価する。Veryl Native testだけで音質を判定しない。
 
+補間器単体の比較では、入力サンプル列と位相列を固定し、`ZeroOrderHold`と`LinearInterpolator`へ同じ値を与える。ADATの`valid`間隔、FIFO、ΔΣ変調器はこの測定へ混ぜない。`interpolator_benchmark`は`$tb::file`で`target/interpolator_benchmark.csv`を書き出す。
+
+```text
+veryl test --ignored -t interpolator_benchmark
+```
+
+CSVは2の補数の固定小数点値を出力する。`case=0..3`はステップ・ランプ・振幅反転、`case=4`は64サンプル長のインパルス列である。`sample_index`と`phase`を使って入力サンプルレートと出力点を復元し、外部数値解析で最大誤差・平均誤差・インパルス応答・周波数応答を求める。
+
+このベンチマークにはADATの`valid`間隔、FIFO、ΔΣ変調器を接続しない。したがって、ここで測るのは補間カーネルそのものの差であり、クロックジッターやレート追従の影響は含まれない。
+
 ### Phase 2: PCM入力インターフェースの整理
 
 `AdatRx`の出力を、後段が扱いやすいフレームストリームへ整理する。
@@ -192,6 +203,17 @@ ADATの`frame_time`は現在`TimingTracker`内部にある。まず実測周期�
 pdm_p = pdm
 pdm_n = ~pdm
 ```
+
+### Phase 3.5: CICレート変換の基礎コア
+
+`CicDecimator`と`CicInterpolator`は、乗算器を使わずに粗いレート変換を行う部品として維持する。現在は次の仕様に限定している。
+
+- 間引き側は入力`valid`を`DECIMATION`個受けるごとに1出力を生成する
+- 補間側は入力を櫛形フィルタへ通し、ゼロ挿入後に`INTERPOLATION`倍の出力を連続生成する
+- `ACCUMULATOR_WIDTH`内でのラップアラウンドを許容するため、十分なガードビットを利用者が確保する
+- 通過帯域droop、遅延、定常ゲインの補正はこのコアの責務にせず、後段の固定小数点スケーラ／FIRで補正する
+
+CICは音声帯域の最終フィルタにはせず、まずNative testでDCゲイン、インパルス応答、オーバーフロー余裕を確認する。必要なら後段FIRを追加する。
 
 ### Phase 4: 50MHz PDM専用ASRC
 
@@ -239,13 +261,19 @@ Farrowでは以下を追加する。
 
 次のデジタル追従を追加する。
 
-- `frame_time`から初期phase incrementを設定
+- `valid`間隔を測定し、整数ではなく固定小数点の周期推定値を作る
+- 推定周期のLPFだけでなく、外れ値検出、ロック成立、valid欠落時のホールドオーバーを設ける
+- 推定周期からphase incrementまたは周波数偏差を算出する
 - FIFOレベルを目標値へ戻す低帯域補正
 - phase incrementを急変させない
 - 音声帯域へレート補正ノイズを入れない
 - 入力レート変化時もアンダーフローしない
 
-ここではPLLを使わず、NCO／phase accumulatorとFIFOレベル制御を使う。PDMの出力クロック自体は既存の50MHzを維持する。
+`SampleRateTracker`は周期測定と平滑化だけを担当し、phase accumulatorやFIFO制御はASRC側へ分離する。48kHz入力では50MHzクロック上の1041/1042周期列が正常な量子化結果なので、単純な整数LPFの出力をそのまま使わない。ここではPLLを使わず、NCO／phase accumulatorとFIFOレベル制御を使う。PDMの出力クロック自体は既存の50MHzを維持する。
+
+初期版の`SampleRateTracker`は「`sample_valid`の立ち上がり相当の到着時刻を数える → 2回目以降に生周期を出す → 固定小数点の一次IIRで平滑化する → 指定回数の測定後に`locked`を立てる」という責務だけを持つ。したがって、質問の「valid間隔を測ってローパスをかけるだけか」に対しては、初期版についてはほぼその通りだが、製品用のレート追従としては不十分である。
+
+次の版で、外れ値除外、valid欠落のタイムアウト／ホールドオーバー、許容範囲外レートの拒否、レート変化時の再ロックを追加する。平滑化周期をそのまま出力tickへ変換せず、`phase_increment`の基準値とFIFOレベル補正を別のサーボとして持たせる。
 
 ### Phase 7: S/MUX対応
 

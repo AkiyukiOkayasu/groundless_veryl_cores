@@ -11,9 +11,9 @@ Verylで記述した、オーディオ信号処理・デジタルオーディオ
 | --- | --- | --- |
 | ADAT | `AdatRx`, `AdatTx` | 8ch ADAT受信・送信、S/MUX2パッキング |
 | IEC60958 | `SpdifTransmitter`/`SpdifReceiver`, `Aes3Transmitter`/`Aes3Receiver` | S/PDIF・AES3のstereo transceiver |
-| ASRC | `LinearAsrc`, `FarrowAsrc` | 分数比サンプルレート変換 |
+| ASRC | `LinearAsrc`, `FarrowAsrc`, `SampleRateTracker` | 分数比サンプルレート変換と入力レート推定 |
 | 固定小数点・変調 | `FixedPoint`, `DeltaSigma1st`, `DeltaSigma2nd` | PCM演算とPDM生成 |
-| フィルタ・発振器 | `LpfShift*`, `HpfShift*`, 各wave core | オーディオ信号処理 |
+| フィルタ・発振器 | `CicDecimator`, `CicInterpolator`, `LpfShift*`, `HpfShift*`, 各wave core | レート変換とオーディオ信号処理 |
 | 周辺I/O | `SpiMaster`, `UartRx`, `MidiRx` | シリアルインターフェース |
 
 当面のADAT→50MHz差動PDMと将来のI2S出力の実装計画は、[AUDIO_PIPELINE_PLAN.md](AUDIO_PIPELINE_PLAN.md)にまとめています。

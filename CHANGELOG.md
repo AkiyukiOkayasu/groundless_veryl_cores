@@ -35,6 +35,9 @@
 - S/PDIF用`SpdifTx`/`SpdifRx`ラッパーとNativeループバックテストを追加
 - AES3用`Aes3Tx`/`Aes3Rx`ラッパー、channel status CRC、Nativeループバックテストを追加
 - 固定小数点とADATのNative単体テストを各実装ファイルへ統合
+- `ZeroOrderHold`を追加し、Linearとのステップ・ランプ・インパルス比較を行うNativeベンチマークを追加
+- `CicDecimator`/`CicInterpolator`と基本動作のNative testを追加
+- `SampleRateTracker`を追加し、サンプル到着周期の固定小数点平滑化とロック状態を提供
 
 ### Changed
 
