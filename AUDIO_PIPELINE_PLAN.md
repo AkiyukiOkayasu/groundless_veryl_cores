@@ -11,6 +11,62 @@
 - S/MUXを含むチャンネル間のサンプルずれ
 - 将来のI2S出力との共通化
 
+## 既存プロジェクトから確認できたこと
+
+### 現在のPoCはADAT受信不良と音質問題を分けて調べる必要がある
+
+`FPGA_ADAT`には、次の実機向け経路がすでにある。
+
+```text
+ADAT光入力
+  → AdatRx
+  → 8ch 24bit PCM
+  → {pcm, 8'b0} によるQ1.31変換
+  → LinearInterpolator × 8
+  → DeltaSigma2nd × 8
+  → PDM_P / PDM_N
+```
+
+このプロジェクトで記録されている切り分け結果は、実装順を決めるうえで重要である。
+
+- RMEを音源にした48kHz、200Hz正弦波で確認している。
+- あるバージョンでは`dbg_locked`が約84µs周期でLowになり、フレーム欠落が発生していた。
+- そのバージョンではチャンネルごとにノイズ量が異なり、2chの悪化が特に大きかった。
+- `LinearInterpolator`をバイパスしてもノイズは変化しなかった。
+- 旧バージョンではロックが安定し、全チャンネルに同程度の小さなステップ状ノイズが残った。
+
+したがって、線形補間やFarrow補間を先に高度化しても、受信ロックのリグレッションが残っている間は評価結果を誤る。最初に`locked`、`valid`、フレーム境界、ビット判定、タイミング追従を分離して検証する。
+
+### 2次デルタシグマには既存の基準実装がある
+
+`FPGA_Oscillator`の2次デルタシグマは、40bit積分器、入力の`>>> 2`、帰還値`+2^30-1/-2^30`という構成で、50MHz差動PDM出力に使用されている。groundlessの`DeltaSigma2nd`もこの系統を基準にしている。
+
+当面は変調器の式を先に作り変えず、次を基準値として測定する。
+
+- 入力スケーリングとフルスケール余裕
+- 0入力のアイドルパターン
+- DC密度、正弦波の帯域内ノイズ、THD+N
+- 積分器の最大値と長時間安定性
+
+この測定で問題が確認できた場合に限り、帰還係数、入力ゲイン、積分器幅、量子化器を個別に変更する。
+
+### 50MHz差動PDMの実装上の基準
+
+`FPGA_ADAT`と`FPGA_Oscillator`のどちらも、差動出力は同じ1bit値の相補信号として扱う。
+
+```text
+pdm_p = pdm
+pdm_n = ~pdm
+```
+
+`FPGA_Oscillator`では外部ピン直前に出力レジスタを置いている。groundlessではまず組み合わせの相補出力を標準とし、対象FPGAの出力タイミングやピン実装で必要になった場合だけ出力レジスタをラッパー側へ追加する。
+
+### Gowin 50MHz制約
+
+対象の`FPGA_ADAT`はTang Primer 25K（GW5A-25A）で、プロジェクトの要求Fmaxは50.1MHz以上である。別プロジェクトのタイミング資料では、50MHz制約に対してFPGA種類により実測Fmaxが50.141〜51.663MHzの範囲にある。
+
+8chを50MHzで並列に処理するFarrowやpolyphase FIRは、音質だけでなくFmax、LUT、DSP、配線負荷で判断する。各段階で合成可能性を確認し、外部プロジェクトのCPU由来のタイミング結果を音声コア単体の保証値とは解釈しない。
+
 ## 前提
 
 - ADAT受信ロジックとPDM変調器は同じ50MHzクロックで動作する。
@@ -63,7 +119,27 @@ PDMの50MHzはPCMのサンプルレートではない。50MHzの各出力周期�
 
 ## 実装フェーズ
 
-### Phase 0: 音質評価基盤
+### Phase 0: ADAT受信の完全性とノイズ原因の分離
+
+ASRCを実装する前に、ADAT受信単体でフレームが欠落・破損していないことを確認する。
+
+- `locked`が連続して維持されること
+- `valid`が期待サンプルレートで1回だけ発生すること
+- `frame_clk`とチャンネル完了位置が一致すること
+- `locked`解除時に後段へ古いPCMを流さないこと
+- `bit_decoder`の判定、`timing_tracker`の周期測定、`frame_parser`の完了条件を別々に観測できること
+- 1/2/3クロック幅のグリッチと、0〜3クロックのエッジジッタに対するロック維持率を測定すること
+
+特に、`i_valid`とフレーム同期条件が同一サイクルで競合する実装は、Ch7完了の欠落を起こし得る。受信ロックが一度でも周期的に落ちる場合は、補間器の変更を音質改善とは判定しない。
+
+テストは`adat_tx → グリッチ／ジッタ注入器 → AdatRx`の構成にし、`locked`、`valid`、フレーム欠落数、再ロック時間を記録する。既存の実機観測用信号を必要最小限のNative test観測信号へ落とし込む。
+
+参照する既存計画:
+
+- `FPGA_ADAT/.opencode/plans/adat_noise_investigation.md`
+- `FPGA_ADAT/tests/glitch_jitter_plan.md`
+
+### Phase 1: 音質評価基盤
 
 RTLを大きく変更する前に、固定入力に対するPDMの品質を測定できるようにする。
 
@@ -86,7 +162,7 @@ RTLを大きく変更する前に、固定入力に対するPDMの品質を測�
 
 `veryl test`は機能回帰に使用する。FFT、SNR、THD+Nなどの音質指標は、固定PDM列を外部の数値解析モデルへ渡して評価する。Veryl Native testだけで音質を判定しない。
 
-### Phase 1: PCM入力インターフェースの整理
+### Phase 2: PCM入力インターフェースの整理
 
 `AdatRx`の出力を、後段が扱いやすいフレームストリームへ整理する。
 
@@ -95,11 +171,11 @@ RTLを大きく変更する前に、固定入力に対するPDMの品質を測�
 - `locked`未成立時はミュートまたは無効化
 - 8chを共通フレームとして扱い、チャンネル間ずれを防止
 - `frame_time`または入力サンプル周期を外部へ公開
-- S/MUX2/4は論理チャンネル再構成を分離モジュールにする
+- S/MUX2/4は論理チャンネル再構成を分離モジュールにする。`FPGA_ADAT`の`AdatFrameBuffer`で行っている「物理ch1-4、ch5-8を時間方向に並べ替える」処理を仕様化し、groundlessの`Smux2Packer`/`Smux2Unpacker`と同じサンプル順に固定する
 
 ADATの`frame_time`は現在`TimingTracker`内部にある。まず実測周期を出力できるようにし、入力レート追従の基礎にする。
 
-### Phase 2: 2次デルタシグマ変調器の検証・修正
+### Phase 3: 2次デルタシグマ変調器の検証・修正
 
 現在の`DeltaSigma2nd`を、1次変調器と比較しながら検証する。
 
@@ -119,7 +195,7 @@ pdm_p = pdm
 pdm_n = ~pdm
 ```
 
-### Phase 3: 50MHz PDM専用ASRC
+### Phase 4: 50MHz PDM専用ASRC
 
 現在の`LinearAsrc`/`FarrowAsrc`は`output_ready`による停止を許容する汎用stream型である。PDMは50MHzごとに連続してbitを出す必要があるため、専用の`PdmAsrc`を作る。
 
@@ -141,7 +217,7 @@ phase_increment = Fs_input / 50_000_000 × 2^PHASE_WIDTH
 
 48kHz入力、Q0.32の場合は約4,123,169となる。PDM経路では通常0〜1未満の入力サンプル進行量になるため、現在の`ratio`という名前より`phase_increment`の方が意味が明確である。
 
-### Phase 4: 補間品質の向上
+### Phase 5: 補間品質の向上
 
 次の順で音質と回路規模を比較する。
 
@@ -159,7 +235,7 @@ Farrowでは以下を追加する。
 
 8chを50MHzで並列処理するため、FarrowやFIRへ進む前にDSP使用量とFmaxを確認する。音質差が小さい場合は線形補間を維持し、回路規模を優先する。
 
-### Phase 5: 入力レート追従
+### Phase 6: 入力レート追従
 
 固定48kHz比だけでは、ADAT側とFPGAの50MHz側の周波数差によりFIFOレベルが長期的に変化する。
 
@@ -173,7 +249,7 @@ Farrowでは以下を追加する。
 
 ここではPLLを使わず、NCO／phase accumulatorとFIFOレベル制御を使う。PDMの出力クロック自体は既存の50MHzを維持する。
 
-### Phase 6: S/MUX対応
+### Phase 7: S/MUX対応
 
 通常ADATの48kHz・8ch経路が安定した後に対応する。
 
@@ -183,7 +259,7 @@ Farrowでは以下を追加する。
 - User bitだけではS/MUX2とS/MUX4を完全には区別できないため、仕様と設定方法を決める
 - 論理チャンネルのサンプル順をNative testで固定する
 
-### Phase 7: I2S出力
+### Phase 8: I2S出力
 
 ASRCをPDM専用にせず、出力tickを差し替えられる共通コアとして利用する。
 
@@ -238,13 +314,29 @@ Native testで確認する項目:
 
 ## 当面の実装順
 
-1. PCM24→Q1.31変換と8chフレーム境界の整理
-2. `DeltaSigma2nd`の長時間・音質評価
-3. 固定48kHz→50MHzの`PdmAsrc`を線形補間で実装
-4. Farrow補間へ切り替えて比較
-5. `frame_time`公開と入力レート追従
-6. S/MUX2/4対応
-7. I2S送信器を同じASRC出力へ接続
+1. ADATの`locked/valid`回帰とグリッチ／ジッタ耐性テスト
+2. PCM24→Q1.31変換と8chフレーム境界の整理
+3. `DeltaSigma2nd`を現行式のまま長時間・音質評価
+4. 固定48kHz→50MHzの`PdmAsrc`を線形補間で実装
+5. Farrow補間へ切り替えて線形補間との差を測定
+6. `frame_time`公開と入力レート追従
+7. S/MUX2/4対応
+8. I2S送信器を同じASRC出力へ接続
+
+## 既存プロジェクトの参照先
+
+実装や判断の根拠として、次のファイルを参照する。
+
+| 参照 | 確認できる内容 |
+| --- | --- |
+| `/Users/akiyuki/Documents/AkiyukiProjects/EurorackProjects/FPGA_ADAT/README.md` | 実機構成、ビルド手順、ADAT→PDMの目的 |
+| `/Users/akiyuki/Documents/AkiyukiProjects/EurorackProjects/FPGA_ADAT/Firmware/Gowin/RTL/Veryl_ADATDecoder/src/top.veryl` | 8chフレームバッファ、Q1.31変換、線形補間、差動PDMの統合例 |
+| `/Users/akiyuki/Documents/AkiyukiProjects/EurorackProjects/FPGA_ADAT/Firmware/Gowin/RTL/Veryl_ADATDecoder/src/linearInterpolator.veryl` | 現在の入力周期測定型線形補間の実装とNative test |
+| `/Users/akiyuki/Documents/AkiyukiProjects/EurorackProjects/FPGA_ADAT/.opencode/plans/adat_noise_investigation.md` | 実機ノイズとロック不安定の切り分け結果 |
+| `/Users/akiyuki/Documents/AkiyukiProjects/EurorackProjects/FPGA_ADAT/tests/glitch_jitter_plan.md` | ADATグリッチ／ジッタ耐性テスト計画 |
+| `/Users/akiyuki/Documents/AkiyukiProjects/EurorackProjects/FPGA_Oscillator/Firmware/Gowin/fpgaOscillator/src/deltaSigma.sv` | 40bit積分器、入力スケーリング、帰還値の基準実装 |
+| `/Users/akiyuki/Documents/AkiyukiProjects/EurorackProjects/FPGA_Oscillator/Firmware/Gowin/fpgaOscillator/src/top.sv` | 4ch差動PDMと出力レジスタの統合例 |
+| `/Users/akiyuki/Documents/AkiyukiProjects/EurorackProjects/FPGA_Oscillator/docs/timing-analysis.md` | 50MHz制約とGowin合成後Fmaxの記録 |
 
 ## 現時点で採用しないもの
 
@@ -252,4 +344,3 @@ Native testで確認する項目:
 - PDM用PLL
 - いきなり大規模polyphase FIRへ置き換えること
 - 音質指標なしで補間器や変調器の次数だけを増やすこと
-
