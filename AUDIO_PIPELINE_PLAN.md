@@ -161,7 +161,7 @@ RTLを大きく変更する前に、固定入力に対するPDMの品質を測�
 
 `veryl test`は機能回帰に使用する。FFT、SNR、THD+Nなどの音質指標は、固定PDM列を外部の数値解析モデルへ渡して評価する。Veryl Native testだけで音質を判定しない。
 
-補間器単体の比較では、入力サンプル列と位相列を固定し、`ZeroOrderHold`、`LinearInterpolator`、4点窓の`FarrowInterpolator`へ同じ値を与える。ADATの`valid`間隔、FIFO、ΔΣ変調器はこの測定へ混ぜない。`interpolator_benchmark`は`$tb::file`で`target/interpolator_benchmark.csv`を書き出す。
+補間器単体の比較では、入力サンプル列と位相列を固定し、`ZeroOrderHold`、`LinearInterpolator`、4点窓の`FarrowInterpolator`へ同じ値を与える。ADATの`valid`間隔、FIFO、ΔΣ変調器はこの測定へ混ぜない。定量評価は実装ファイルから分離した`src/asrc/interpolator_benchmark.veryl`で行い、`$tb::file`で`target/interpolator_benchmark.csv`を書き出す。
 
 ```text
 veryl test --ignored -t interpolator_benchmark
@@ -254,7 +254,7 @@ phase_increment = Fs_input / 50_000_000 × 2^PHASE_WIDTH
 2. 4点Farrow補間
 3. 必要なら8〜32タップpolyphase FIR
 
-Farrowについては、4点窓の補間器とASRC、既知値Native test、正弦波・インパルス応答の比較ベンチマークまで実装済みである。今後は以下を追加する。
+Farrowについては、`src/asrc/farrow_asrc.veryl`に4点窓の補間器とASRC、実装内の既知値Native testをまとめ、正弦波・インパルス応答の比較ベンチマークまで実装済みである。今後は以下を追加する。
 
 - 係数量子化後の丸め
 - 出力飽和

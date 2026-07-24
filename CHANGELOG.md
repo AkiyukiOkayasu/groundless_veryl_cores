@@ -44,6 +44,7 @@
 
 ### Changed
 
+- Farrow実装を`src/asrc/farrow_asrc.veryl`へ、定量ベンチマークを`src/asrc/interpolator_benchmark.veryl`へ分離
 - 公開APIをS/PDIF/AES3のtransceiverと周辺コアに整理し、Sine ROMとIEC60958共通実装moduleをprivate化
 - S/PDIFの未実装領域をTODOとして明示し、公開packageとして維持
 - 公開moduleとpackageのdocumentation commentを`veryl doc`に関連付け、UART/MIDIレシーバの説明を追加
