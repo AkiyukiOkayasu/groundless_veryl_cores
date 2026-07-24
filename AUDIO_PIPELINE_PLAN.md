@@ -171,6 +171,15 @@ CSVは2の補数の固定小数点値を出力する。`case=0..3`はステッ�
 
 このベンチマークにはADATの`valid`間隔、FIFO、ΔΣ変調器を接続しない。したがって、ここで測るのは補間カーネルそのものの差であり、クロックジッターやレート追従の影響は含まれない。
 
+解析は依存パッケージなしの[`tools/analyze_interpolator_benchmark.py`](tools/analyze_interpolator_benchmark.py)で行う。CSVの列、2の補数、`difference_bits = linear - zero_order_hold`、phase列の連続性を検証したうえで、最大差・平均差・RMS差、インパルス応答のDCゲイン、指定周波数の相対dBを出力する。
+
+```text
+python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.csv
+python3 tools/analyze_interpolator_benchmark.py --format json target/interpolator_benchmark.csv
+```
+
+FFTをVeryl Native testへ実装したり、まだ安定していないRust componentへ依存したりせず、RTL出力の生成はVeryl、数値解析は標準Pythonへ分離する。
+
 ### Phase 2: PCM入力インターフェースの整理
 
 `AdatRx`の出力を、後段が扱いやすいフレームストリームへ整理する。

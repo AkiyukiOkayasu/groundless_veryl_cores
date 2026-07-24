@@ -53,3 +53,12 @@ veryl build --check
 veryl test --backend-validate
 veryl doc
 ```
+
+補間方式の定量比較は、まずNative testでCSVを生成し、その後に依存パッケージなしの解析スクリプトを実行します。
+
+```text
+veryl test --ignored -t interpolator_benchmark
+python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.csv
+```
+
+`--format json`を付けると、CIや別の数値解析へ渡しやすいJSONになります。

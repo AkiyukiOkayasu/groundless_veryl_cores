@@ -38,6 +38,7 @@
 - `ZeroOrderHold`を追加し、Linearとのステップ・ランプ・インパルス比較を行うNativeベンチマークを追加
 - `CicDecimator`/`CicInterpolator`と基本動作のNative testを追加
 - `SampleRateTracker`を追加し、サンプル到着周期の固定小数点平滑化とロック状態を提供
+- 補間ベンチマークCSVを検証・集計する依存パッケージなしの解析スクリプトを追加
 
 ### Changed
 
