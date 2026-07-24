@@ -1,0 +1,274 @@
+/// CIC（Cascaded Integrator-Comb）フィルタ群。
+///
+/// CICは係数乗算器を使わず、加算器・減算器・遅延器だけでレート変換を行う。
+/// 音声帯域の最終補間器としては通過帯域 droop が大きいが、
+/// ADAT/I2S周辺の粗いレート変換や後段FIRの前段として有用である。
+
+/// CIC間引きフィルタ。
+///
+/// 入力側でSTAGES段の積分器を毎`input_valid`時に更新し、
+/// DECIMATION個ごとにSTAGES段の櫛形フィルタを通して出力する。
+/// 出力にはCIC固有のゲイン DECIMATION^STAGES が含まれる。
+pub module CicDecimator #(
+    param INPUT_WIDTH      : u32 = 16,
+    param ACCUMULATOR_WIDTH: u32 = 32,
+    param STAGES           : u32 = 3 ,
+    param DECIMATION       : u32 = 2 ,
+) (
+    clk          : input  clock                          ,
+    rst          : input  reset                          ,
+    input_valid  : input  bbool                          ,
+    input_sample : input  signed logic<INPUT_WIDTH>      ,
+    output_valid : output bbool                          ,
+    output_sample: output signed logic<ACCUMULATOR_WIDTH>,
+) {
+    const COUNT_WIDTH: u32 = $clog2(DECIMATION + 1);
+
+    var integrator      : signed logic<ACCUMULATOR_WIDTH> [STAGES];
+    var integrator_next : signed logic<ACCUMULATOR_WIDTH> [STAGES];
+    var comb_delay      : signed logic<ACCUMULATOR_WIDTH> [STAGES];
+    var comb_value      : signed logic<ACCUMULATOR_WIDTH> [STAGES];
+    var input_ext       : signed logic<ACCUMULATOR_WIDTH>         ;
+    var decimation_count: logic       <COUNT_WIDTH>               ;
+
+    always_comb {
+        input_ext = input_sample as ACCUMULATOR_WIDTH;
+
+        for i in 0..STAGES {
+            integrator_next[i] = integrator[i];
+        }
+
+        if input_valid {
+            integrator_next[0] = integrator[0] + input_ext;
+            for i in 1..STAGES {
+                integrator_next[i] = integrator[i] + integrator_next[i - 1];
+            }
+        }
+
+        comb_value[0] = integrator_next[STAGES - 1] - comb_delay[0];
+        for i in 1..STAGES {
+            comb_value[i] = comb_value[i - 1] - comb_delay[i];
+        }
+    }
+
+    always_ff {
+        if_reset {
+            for i in 0..STAGES {
+                integrator[i] = 0;
+                comb_delay[i] = 0;
+            }
+            decimation_count = 0;
+            output_valid     = false;
+            output_sample    = 0;
+        } else {
+            output_valid = false;
+
+            if input_valid {
+                for i in 0..STAGES {
+                    integrator[i] = integrator_next[i];
+                }
+
+                if decimation_count == (DECIMATION - 1) {
+                    decimation_count = 0;
+                    output_valid     = true;
+                    output_sample    = comb_value[STAGES - 1];
+
+                    comb_delay[0] = integrator_next[STAGES - 1];
+                    for i in 1..STAGES {
+                        comb_delay[i] = comb_value[i - 1];
+                    }
+                } else {
+                    decimation_count += 1;
+                }
+            }
+        }
+    }
+}
+
+/// CIC補間フィルタ。
+///
+/// 入力サンプルをSTAGES段の櫛形フィルタへ通し、その結果を
+/// INTERPOLATION倍のゼロ挿入列としてSTAGES段の積分器へ入力する。
+/// `output_valid`は動作中、クロックごとにHighになる。
+/// 定常ゲインの補正は行わないため、倍率と段数に応じたスケーリングは
+/// 利用側で行う。通過帯域のdroop補正もこのモジュールの責務外とする。
+pub module CicInterpolator #(
+    param INPUT_WIDTH      : u32 = 16,
+    param ACCUMULATOR_WIDTH: u32 = 32,
+    param STAGES           : u32 = 3 ,
+    param INTERPOLATION    : u32 = 2 ,
+) (
+    clk          : input  clock                          ,
+    rst          : input  reset                          ,
+    input_valid  : input  bbool                          ,
+    input_ready  : output logic                          ,
+    input_sample : input  signed logic<INPUT_WIDTH>      ,
+    output_valid : output bbool                          ,
+    output_sample: output signed logic<ACCUMULATOR_WIDTH>,
+) {
+    const PHASE_WIDTH: u32 = $clog2(INTERPOLATION + 1);
+
+    var comb_delay       : signed logic<ACCUMULATOR_WIDTH> [STAGES];
+    var comb_value       : signed logic<ACCUMULATOR_WIDTH> [STAGES];
+    var input_ext        : signed logic<ACCUMULATOR_WIDTH>         ;
+    var comb_latched     : signed logic<ACCUMULATOR_WIDTH>         ;
+    var integrator       : signed logic<ACCUMULATOR_WIDTH> [STAGES];
+    var integrator_next  : signed logic<ACCUMULATOR_WIDTH> [STAGES];
+    var integration_input: signed logic<ACCUMULATOR_WIDTH>         ;
+    var phase            : logic       <PHASE_WIDTH>               ;
+    var active           : bbool                                   ;
+
+    always_comb {
+        input_ext = input_sample as ACCUMULATOR_WIDTH;
+
+        comb_value[0] = input_ext - comb_delay[0];
+        for i in 1..STAGES {
+            comb_value[i] = comb_value[i - 1] - comb_delay[i];
+        }
+
+        integration_input = 0;
+        if active && phase == 0 {
+            integration_input = comb_latched;
+        }
+
+        integrator_next[0] = integrator[0] + integration_input;
+        for i in 1..STAGES {
+            integrator_next[i] = integrator[i] + integrator_next[i - 1];
+        }
+    }
+
+    assign input_ready   = !active || phase == (INTERPOLATION - 1);
+    assign output_valid  = active;
+    assign output_sample = integrator_next[STAGES - 1];
+
+    always_ff {
+        if_reset {
+            for i in 0..STAGES {
+                comb_delay[i] = 0;
+                integrator[i] = 0;
+            }
+            comb_latched = 0;
+            phase        = 0;
+            active       = false;
+        } else {
+            if active {
+                for i in 0..STAGES {
+                    integrator[i] = integrator_next[i];
+                }
+
+                if phase == (INTERPOLATION - 1) {
+                    if input_valid && input_ready {
+                        phase  = 0;
+                        active = true;
+                    } else {
+                        phase  = 0;
+                        active = false;
+                    }
+                } else {
+                    phase += 1;
+                }
+            } else if input_valid && input_ready {
+                phase  = 0;
+                active = true;
+            }
+
+            if input_valid && input_ready {
+                comb_latched  = comb_value[STAGES - 1];
+                comb_delay[0] = input_ext;
+                for i in 1..STAGES {
+                    comb_delay[i] = comb_value[i - 1];
+                }
+            }
+        }
+    }
+}
+
+/// CIC間引きの基本動作を検証するNative test。
+#[test(test_cic_decimator)]
+module test_cic_decimator {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var input_valid  : bbool           ;
+    var input_sample : signed logic<16>;
+    var output_valid : bbool           ;
+    var output_sample: signed logic<16>;
+
+    inst dut: CicDecimator #(
+        INPUT_WIDTH      : 16,
+        ACCUMULATOR_WIDTH: 16,
+        STAGES           : 1 ,
+        DECIMATION       : 2 ,
+    ) (
+        clk            ,
+        rst            ,
+        input_valid    ,
+        input_sample   ,
+        output_valid   ,
+        output_sample  ,
+    );
+
+    initial {
+        input_valid  = false;
+        input_sample = 16'sd1;
+        rst.assert();
+        clk.next(1);
+
+        input_valid = true;
+        clk.next(1);
+        $assert(!output_valid, "CIC decimator emitted too early");
+        clk.next(1);
+        $assert(output_valid && output_sample == 16'sd2, "CIC decimator first output mismatch");
+        clk.next(1);
+        $assert(!output_valid, "CIC decimator output valid width mismatch");
+        clk.next(1);
+        $assert(output_valid && output_sample == 16'sd2, "CIC decimator second output mismatch");
+        $finish();
+    }
+}
+
+/// CIC補間の基本動作を検証するNative test。
+#[test(test_cic_interpolator)]
+module test_cic_interpolator {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var input_valid  : bbool           ;
+    var input_ready  : bbool           ;
+    var input_sample : signed logic<16>;
+    var output_valid : bbool           ;
+    var output_sample: signed logic<16>;
+
+    inst dut: CicInterpolator #(
+        INPUT_WIDTH      : 16,
+        ACCUMULATOR_WIDTH: 16,
+        STAGES           : 1 ,
+        INTERPOLATION    : 2 ,
+    ) (
+        clk            ,
+        rst            ,
+        input_valid    ,
+        input_ready    ,
+        input_sample   ,
+        output_valid   ,
+        output_sample  ,
+    );
+
+    initial {
+        input_valid  = false;
+        input_sample = 16'sd1;
+        rst.assert();
+        clk.next(1);
+
+        input_valid = true;
+        $assert(input_ready, "CIC interpolator must accept the first sample");
+        clk.next(1);
+        input_valid = false;
+        $assert(output_valid && output_sample == 16'sd1, "CIC interpolator first output mismatch");
+        clk.next(1);
+        $assert(output_valid && output_sample == 16'sd1, "CIC interpolator zero-stuff output mismatch");
+        clk.next(1);
+        $assert(!output_valid, "CIC interpolator output valid width mismatch");
+        $finish();
+    }
+}
