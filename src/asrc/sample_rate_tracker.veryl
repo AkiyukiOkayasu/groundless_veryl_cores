@@ -1,0 +1,151 @@
+/// 入力サンプルの到着周期を測定し、低域通過した周期推定値を出力する。
+///
+/// このモジュールはASRC全体ではない。`sample_valid`の時刻列から、
+/// 生の周期と平滑化した周期を作るだけに責務を限定する。
+/// 位相累積、補間、FIFOレベル制御は後段のモジュールで行う。
+///
+/// FILTER_SHIFTが大きいほど追従は遅くなるが、valid時刻の量子化や
+/// サンプル間ジッターを位相増分へ伝えにくくなる。
+/// `filtered_period`はPERIOD_WIDTH.FRACTION_WIDTHの固定小数点値である。
+pub module SampleRateTracker #(
+    param PERIOD_WIDTH  : u32 = 16,
+    param FRACTION_WIDTH: u32 = 8 ,
+    param FILTER_SHIFT  : u32 = 4 ,
+    param LOCK_COUNT    : u32 = 4 ,
+) (
+    clk            : input  clock                               ,
+    rst            : input  reset                               ,
+    sample_valid   : input  bbool                               ,
+    measured_period: output logic<PERIOD_WIDTH>                 ,
+    period_valid   : output bbool                               ,
+    filtered_period: output logic<PERIOD_WIDTH + FRACTION_WIDTH>,
+    locked         : output bbool                               ,
+) {
+    const LOCK_WIDTH: u32                 = $clog2(LOCK_COUNT + 1);
+    const PERIOD_MAX: logic<PERIOD_WIDTH> = '1;
+
+    var elapsed_count     : logic<PERIOD_WIDTH>;
+    var sample_seen       : bbool              ;
+    var filter_initialized: bbool              ;
+    var lock_measurements : logic<LOCK_WIDTH>  ;
+
+    always_ff {
+        if_reset {
+            elapsed_count      = 0;
+            sample_seen        = false;
+            filter_initialized = false;
+            lock_measurements  = 0;
+            measured_period    = 0;
+            filtered_period    = 0;
+            period_valid       = false;
+            locked             = false;
+        } else {
+            period_valid = false;
+
+            if sample_valid {
+                if sample_seen {
+                    let current_period : logic<PERIOD_WIDTH> = elapsed_count + 1;
+                    measured_period = current_period;
+                    period_valid    = true;
+                    elapsed_count   = 0;
+
+                    if !filter_initialized {
+                        let initial_period_ext: logic<PERIOD_WIDTH + FRACTION_WIDTH> = current_period;
+                        filtered_period    = initial_period_ext << FRACTION_WIDTH;
+                        filter_initialized = true;
+                    } else {
+                        let current_ext : signed logic<PERIOD_WIDTH + FRACTION_WIDTH + 1> = $signed(
+                                {1'b0, current_period},
+                            ) <<< FRACTION_WIDTH;
+                        let filtered_ext: signed logic<PERIOD_WIDTH + FRACTION_WIDTH + 1> = $signed(
+                            {1'b0, filtered_period},
+                        );
+                        let error       : signed logic<PERIOD_WIDTH + FRACTION_WIDTH + 1> = current_ext - filtered_ext;
+                        var correction  : signed logic<PERIOD_WIDTH + FRACTION_WIDTH + 1>;
+                        if FILTER_SHIFT == 0 {
+                            correction = error;
+                        } else {
+                            correction = error >>> FILTER_SHIFT;
+                        }
+                        let filtered_next  : signed logic<PERIOD_WIDTH + FRACTION_WIDTH + 1> = filtered_ext
+                            + correction;
+                        filtered_period = filtered_next[PERIOD_WIDTH + FRACTION_WIDTH - 1:0];
+                    }
+
+                    if lock_measurements <: LOCK_COUNT - 1 {
+                        lock_measurements += 1;
+                    }
+                    if lock_measurements >= LOCK_COUNT - 1 {
+                        locked = true;
+                    }
+                } else {
+                    sample_seen   = true;
+                    elapsed_count = 0;
+                }
+            } else if sample_seen {
+                if elapsed_count <: PERIOD_MAX {
+                    elapsed_count += 1;
+                }
+            }
+        }
+    }
+}
+
+/// サンプル周期の測定と平滑化を検証するNative test。
+#[test(test_sample_rate_tracker)]
+module test_sample_rate_tracker {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var sample_valid   : bbool   ;
+    var measured_period: logic<4>;
+    var period_valid   : bbool   ;
+    var filtered_period: logic<8>;
+    var locked         : bbool   ;
+
+    inst dut: SampleRateTracker #(
+        PERIOD_WIDTH  : 4,
+        FRACTION_WIDTH: 4,
+        FILTER_SHIFT  : 1,
+        LOCK_COUNT    : 2,
+    ) (
+        clk              ,
+        rst              ,
+        sample_valid     ,
+        measured_period  ,
+        period_valid     ,
+        filtered_period  ,
+        locked           ,
+    );
+
+    initial {
+        sample_valid = false;
+        rst.assert();
+        clk.next(1);
+
+        // 最初のvalidでは基準時刻だけを記録する。
+        sample_valid = true;
+        clk.next(1);
+        sample_valid = false;
+        $assert(!period_valid, "first sample must not produce a period");
+
+        // 5クロック周期を測定する。
+        clk.next(4);
+        sample_valid = true;
+        clk.next(1);
+        sample_valid = false;
+        $assert(period_valid && measured_period == 4'd5, "first measured period mismatch");
+        $assert(filtered_period == 8'd80, "first filtered period mismatch");
+        $assert(!locked, "tracker locked too early");
+
+        // 7クロック周期を測定し、FILTER_SHIFT=1で5から6へ追従する。
+        clk.next(6);
+        sample_valid = true;
+        clk.next(1);
+        sample_valid = false;
+        $assert(period_valid && measured_period == 4'd7, "second measured period mismatch");
+        $assert(filtered_period == 8'd96, "filtered period did not follow the input");
+        $assert(locked, "tracker did not lock after the configured count");
+        $finish();
+    }
+}
