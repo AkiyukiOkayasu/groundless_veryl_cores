@@ -39,6 +39,7 @@
 - `CicDecimator`/`CicInterpolator`と基本動作のNative testを追加
 - `SampleRateTracker`を追加し、サンプル到着周期の固定小数点平滑化とロック状態を提供
 - 補間ベンチマークCSVを検証・集計する依存パッケージなしの解析スクリプトを追加
+- 補間ベンチマークへ0.05／0.15／0.25／0.40 Fsの正弦波ケースを追加
 
 ### Changed
 

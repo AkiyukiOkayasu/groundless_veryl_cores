@@ -167,11 +167,11 @@ RTLを大きく変更する前に、固定入力に対するPDMの品質を測�
 veryl test --ignored -t interpolator_benchmark
 ```
 
-CSVは2の補数の固定小数点値を出力する。`case=0..3`はステップ・ランプ・振幅反転、`case=4`は64サンプル長のインパルス列である。`sample_index`と`phase`を使って入力サンプルレートと出力点を復元し、外部数値解析で最大誤差・平均誤差・インパルス応答・周波数応答を求める。
+CSVは2の補数の固定小数点値を出力する。`case=0..3`はステップ・ランプ・振幅反転、`case=4`は64サンプル長のインパルス列、`case=5..8`は0.05／0.15／0.25／0.40 Fsの正弦波である。正弦波は各64入力サンプル区間を256位相へ展開する。`sample_index`、`phase`、`frequency_milli_fs`を使って入力サンプルレートと出力点を復元し、外部数値解析で最大誤差・平均誤差・インパルス応答・周波数応答を求める。
 
 このベンチマークにはADATの`valid`間隔、FIFO、ΔΣ変調器を接続しない。したがって、ここで測るのは補間カーネルそのものの差であり、クロックジッターやレート追従の影響は含まれない。
 
-解析は依存パッケージなしの[`tools/analyze_interpolator_benchmark.py`](tools/analyze_interpolator_benchmark.py)で行う。CSVの列、2の補数、`difference_bits = linear - zero_order_hold`、phase列の連続性を検証したうえで、最大差・平均差・RMS差、インパルス応答のDCゲイン、指定周波数の相対dBを出力する。
+解析は依存パッケージなしの[`tools/analyze_interpolator_benchmark.py`](tools/analyze_interpolator_benchmark.py)で行う。CSVの列、2の補数、`difference_bits = linear - zero_order_hold`、phase列の連続性を検証したうえで、最大差・平均差・RMS差、正弦波の理想連続正弦波に対する誤差、インパルス応答のDCゲイン、指定周波数の相対dBを出力する。
 
 ```text
 python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.csv
