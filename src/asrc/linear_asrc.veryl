@@ -23,6 +23,23 @@ pub module LinearInterpolator #(
     }
 }
 
+/// 0次ホールド補間器。
+///
+/// `phase`に関係なく、現在のサンプル`sample0`を出力する。
+/// LinearInterpolatorと同じ入力窓を持たせ、補間方式を交換して比較できるようにする。
+pub module ZeroOrderHold #(
+    param SAMPLE_WIDTH: u32 = 32,
+    param PHASE_WIDTH : u32 = 32,
+) (
+    sample0: input  signed logic<SAMPLE_WIDTH>,
+    sample1: input  signed logic<SAMPLE_WIDTH>,
+    phase  : input  logic       <PHASE_WIDTH> ,
+    sample : output signed logic<SAMPLE_WIDTH>,
+) {
+    // 交換可能な補間器として同じポートを持つ。sample1とphaseは意図的に使用しない。
+    assign sample = sample0;
+}
+
 /// 4点Lagrange多項式をFarrow形式で評価する補間器。
 ///
 /// 係数はQ2.16へ量子化している。Farrowの係数生成と評価をこの低レベル
@@ -543,6 +560,124 @@ module test_farrow_asrc {
         clk.next(1);
         output_tick = 0;
         $assert(output_valid && output_sample == 16'sd249, "Farrow ASRC interpolated sample mismatch");
+        $finish();
+    }
+}
+
+/// 0次ホールドと線形補間の出力列を書き出すベンチマーク。
+///
+/// 出力CSVは固定小数点の2の補数ビット列を16進数で保持する。外部の数値解析で、
+/// ステップ応答、ランプ応答、インパルス応答、誤差、周波数応答を比較する。
+/// 通常の回帰テストでは実行せず、`veryl test --ignored`で実行する。
+#[test(interpolator_benchmark)]
+#[ignore]
+module interpolator_benchmark {
+    const SAMPLE_WIDTH  : u32 = 32;
+    const PHASE_WIDTH   : u32 = 8;
+    const IMPULSE_LENGTH: u32 = 64;
+
+    inst clk: $tb::clock_gen;
+
+    var sample0      : signed logic<SAMPLE_WIDTH>    ;
+    var sample1      : signed logic<SAMPLE_WIDTH>    ;
+    var phase        : logic       <PHASE_WIDTH>     ;
+    var hold_sample  : signed logic<SAMPLE_WIDTH>    ;
+    var linear_sample: signed logic<SAMPLE_WIDTH>    ;
+    var difference   : signed logic<SAMPLE_WIDTH + 1>;
+    var file         : $tb::file                     ;
+
+    inst hold: ZeroOrderHold #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+    ) (
+        sample0             ,
+        sample1             ,
+        phase               ,
+        sample : hold_sample,
+    );
+
+    inst linear: LinearInterpolator #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+    ) (
+        sample0               ,
+        sample1               ,
+        phase                 ,
+        sample : linear_sample,
+    );
+
+    always_comb {
+        difference = $signed({linear_sample[msb], linear_sample}) - $signed({hold_sample[msb], hold_sample});
+    }
+
+    function write_case (
+        case_id   : input logic       <8>           ,
+        start     : input signed logic<SAMPLE_WIDTH>,
+        end_sample: input signed logic<SAMPLE_WIDTH>,
+    ) {
+        sample0 = start;
+        sample1 = end_sample;
+        for p in 0..256 {
+            phase = p as PHASE_WIDTH;
+            clk.next(1);
+            file.write(
+                "%d,%d,%d,%h,%h,%h,%h,%h\n",
+                case_id,
+                0,
+                phase,
+                sample0,
+                sample1,
+                hold_sample,
+                linear_sample,
+                difference,
+            );
+        }
+    }
+
+    // 1サンプルだけを非ゼロとした入力列を、256倍の出力点へ展開する。
+    // この列をFFTすれば、補間器単体のイメージング特性を比較できる。
+    function write_impulse () {
+        for sample_index in 0..IMPULSE_LENGTH {
+            if sample_index == 0 {
+                sample0 = 32'sd1_000_000_000;
+            } else {
+                sample0 = 0;
+            }
+            sample1 = 0;
+
+            for p in 0..256 {
+                phase = p as PHASE_WIDTH;
+                clk.next(1);
+                file.write(
+                    "%d,%d,%d,%h,%h,%h,%h,%h\n",
+                    8'd4,
+                    sample_index,
+                    phase,
+                    sample0,
+                    sample1,
+                    hold_sample,
+                    linear_sample,
+                    difference,
+                );
+            }
+        }
+    }
+
+    initial {
+        file.open("target/interpolator_benchmark.csv");
+        file.write(
+            "case,sample_index,phase,sample0_bits,sample1_bits,zero_order_hold_bits,linear_bits,difference_bits\n",
+        );
+
+        // ステップ、上りランプ、下りランプ、振幅反転を比較する。
+        write_case(8'd0, 32'sd0, 32'sd1_000_000_000);
+        write_case(8'd1, -32'sd1_000_000_000, 32'sd1_000_000_000);
+        write_case(8'd2, 32'sd1_000_000_000, -32'sd1_000_000_000);
+        write_case(8'd3, 32'sd1_500_000_000, -32'sd1_500_000_000);
+        write_impulse();
+
+        file.flush();
+        file.close();
         $finish();
     }
 }
