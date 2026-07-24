@@ -44,6 +44,7 @@
 
 ### Changed
 
+- ADAT→50MHz差動PDMの高音質化計画を、帯域制限付き4倍オーバーサンプリング、Farrow分数遅延、レート追従、ΔΣ評価の段階構成へ更新
 - Farrow実装を`src/asrc/farrow_asrc.veryl`へ、定量ベンチマークを`src/asrc/interpolator_benchmark.veryl`へ分離
 - 公開APIをS/PDIF/AES3のtransceiverと周辺コアに整理し、Sine ROMとIEC60958共通実装moduleをprivate化
 - S/PDIFの未実装領域をTODOとして明示し、公開packageとして維持
