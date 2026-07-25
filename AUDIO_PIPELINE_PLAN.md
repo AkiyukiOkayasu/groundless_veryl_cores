@@ -196,8 +196,8 @@ FIFOはCDCや大容量蓄積には使わず、burstを吸収する同一クロ�
 ### 直近に追加するモジュール
 
 `FractionalPhaseAccumulator`、2段用の`HalfbandInterpolator2x`、係数設計スクリプト、
-`ContinuousLinearAsrc`は実装済み。次はこれらを1chの4倍経路へ接続し、STD FIFOの
-burst吸収と固定48kHz／50MHz比での連続出力を検証する。
+`ContinuousLinearAsrc`と`FourXHalfbandAsrc`は実装済み。次は1chの固定48kHz／50MHz比で
+直接線形補間経路と4倍HBF経路を同じ入力に通し、PCM出力の周波数特性を比較する。
 
 #### `FractionalPhaseAccumulator`
 

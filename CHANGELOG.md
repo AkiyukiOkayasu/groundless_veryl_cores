@@ -24,6 +24,7 @@
 - BMC preambleの8cell golden Native testを追加
 - `LinearInterpolator`/`FarrowInterpolator`とFIFO接続型`LinearAsrc`を追加し、Native testを追加
 - `ContinuousLinearAsrc`を追加し、STD FIFO／分数位相アキュムレータとの連続出力Native testを追加
+- `FourXHalfbandAsrc`を追加し、2段HBF burstから50MHz連続出力までのNative testを追加
 - 4サンプル窓の`FarrowAsrc`を追加し、Linear/Farrow ASRCのFIFO補充Native testを追加
 - ADAT RX/TXコアを`src/adat/`へ移行し、groundlessの命名規則に統一
 - ADAT内部テストをVeryl Native testへ移行
