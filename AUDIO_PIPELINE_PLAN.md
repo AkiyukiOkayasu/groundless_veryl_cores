@@ -106,7 +106,8 @@ pdm_n = ~pdm
 ## 前提
 
 - ADAT受信ロジックとPDM変調器は同じ50MHzクロックで動作する。
-- コア間のCDCは不要。Async FIFOも使用しない。
+- コア間のCDCは不要。Async FIFOは使用しない。
+- 4倍オーバーサンプラが短時間に生成する4サンプルと、50MHzで連続動作する補間器の計算タイミングを分離するため、同一クロックのVeryl STD FIFOは使用してよい。独自FIFOは作らない。
 - ただし、光入力のADAT信号は50MHzに同期していないため、入力端の同期化は必要。これは既存の`Synchronizer`で行う。
 - 初期実装は48kHz、8chの通常ADATを対象にする。
 - S/MUX2/4は、通常ADATの音質改善が確認できた後に対応する。
@@ -158,6 +159,114 @@ PDMの50MHzはPCMのサンプルレートではない。50MHzの各出力周期�
 | I2S | 未実装 | 将来の出力先 |
 
 主な実装ファイルは[README.md](README.md)のモジュール一覧を参照する。
+
+## 直近の実装スコープ
+
+直近では、固定48kHz入力に対する「直接線形補間」と「4倍HBF＋線形補間」の差を測るところまでを実装する。ADAT受信の変更、入力ジッター追従、Farrow、I2S、S/MUX、PLLはこの実装単位へ含めない。
+
+最初は1chの数値検証を行い、フィルタと補間器の仕様が確定してから8chへ複製する。入力はADAT相当のQ1.31 PCMと`sample_valid`で与え、PDMへ接続する前の50MHz PCMを主な比較対象にする。
+
+### 固定レート比較の構成
+
+直接線形補間と4倍HBF経路は、最終段の連続線形補間器を共用する。
+
+```text
+直接線形補間:
+
+48kHz Q1.31 stream
+  → Veryl STD FIFO
+  → 連続線形補間
+  → 50MHz PCM
+
+4倍HBF＋線形補間:
+
+48kHz Q1.31 stream
+  → 2倍halfband interpolator
+  → 2倍halfband interpolator
+  → 192kHz相当の4サンプルburst
+  → Veryl STD FIFO
+  → 連続線形補間
+  → 50MHz PCM
+```
+
+HBFの出力`valid`は論理サンプルの順序を表し、物理的に192kHz間隔で発生させる必要はない。各48kHz入力から生成した4サンプルを数クロックのburstとしてFIFOへ格納し、連続線形補間器がNCO位相に従って約260クロックごとに1サンプルずつ消費する。これにより、192kHz用の別tick生成器やHBF内部の実時間スケジューラを作らない。
+
+FIFOはCDCや大容量蓄積には使わず、burstを吸収する同一クロックの小容量バッファに限定する。初期値は深さ8とし、Native testで最大levelとunderflow／overflowを確認する。深さを増やすのは、固定レートtestで不足が確認された場合だけとする。
+
+### 直近に追加するモジュール
+
+#### `FractionalPhaseAccumulator`
+
+50MHzごとに`phase_increment`を加算し、補間用の小数位相と入力サンプルの進行を出力する。既存の`NcoTick`はclock-enable用として維持し、ASRCの位相生成へ流用しない。
+
+- `phase_increment < 1.0`だけを初期仕様とする
+- 1クロックで進む入力サンプル数は0または1
+- 直接線形補間では`48_000 / 50_000_000`
+- 4倍HBF経路では`192_000 / 50_000_000`
+- phase更新、wrap、長時間の平均進行数をNative testで確認する
+
+任意modulus、複数wrap、実クロック出力、PLL相当のループ制御は実装しない。
+
+#### `HalfbandInterpolator2x`
+
+1入力から2個の論理出力サンプルを生成する、固定係数の2倍補間器とする。
+
+- 入出力はQ1.31
+- 係数はsigned 18bitを初期候補とする
+- halfbandのゼロ係数と対称性を利用する
+- 50MHzと48kHzの余裕を利用し、1つの積和器を時分割する
+- `valid`/`ready`で2サンプルのburstを受け渡す
+- 係数の任意runtime変更や汎用FIR化は行わない
+
+2段で同じRTLを使い、係数セットだけを変えられる構成を目標にする。ただし、Verylのparameter配列によって実装が複雑になる場合は、係数ROMを段ごとに分ける。汎用化のために新しい言語機能へ依存しない。
+
+係数はRTL内で試行錯誤せず、外部の設計スクリプトで量子化後の応答を確認してから固定値として追加する。最初の目標値は次とする。
+
+- 2段合成で20Hz〜20kHzの振幅偏差を±0.05dB以内
+- 48kHz入力の最初のイメージ帯域を80dB以上抑圧
+- Q1.31フルスケール近傍で内部accumulatorがoverflowしない
+
+tap数は先に固定せず、上記を満たす最小の奇数tap数を選ぶ。資源削減は、係数応答が確定した後に行う。
+
+#### `ContinuousLinearAsrc`
+
+入力FIFOから3サンプルの窓を先読みし、50MHzの全クロックで線形補間値を出力する。
+
+- 位相は`FractionalPhaseAccumulator`から受け取る
+- 通常動作中は出力を停止しない
+- phase wrap時には先読み済みサンプルへ窓を進める
+- 起動時に必要なサンプルが揃うまでは0を出力する
+- 通常動作中のunderflow／overflowはsticky errorとして検出する
+- `output_valid`による50MHz出力停止は行わない
+
+既存の`LinearAsrc`は汎用stream ASRCとして残す。`ContinuousLinearAsrc`から共通化できる処理が明確になった場合だけ、後から内部部品を抽出する。
+
+### 8ch化の方針
+
+位相アキュムレータは8chで1個を共有する。HBFの履歴、FIFO、線形補間窓、ΔΣ変調器はチャンネルごとに持つ。
+
+最初から8ch統合moduleは作らず、1chの固定小数点結果とFIFO占有量が確定した後に単純複製する。チャンネル間の`valid`と位相が一致することだけを統合testで確認する。
+
+### 直近スコープの完了条件
+
+- 縮小したクロック比を使うNative testで、phase wrap、FIFO補充、連続出力を短時間に検証できる
+- 実際の48kHz／50MHz比を使うignored benchmarkで、起動後に50MHz PCMの欠落がない
+- 深さ8のFIFOで固定レート時にunderflow／overflowが発生しない
+- HBFのインパルス応答が、係数量子化を含む外部固定小数点モデルと一致する
+- 直接線形補間と4倍HBF＋線形補間について、少なくとも1kHz、10kHz、18kHz、20kHzの振幅誤差を同じ解析スクリプトで比較できる
+- PCM比較結果を確認してからだけ、`DeltaSigma2nd`を含むPDM評価へ進む
+
+Native testでは長時間のFFTを行わず、制御と既知値だけを確認する。実クロック比、CSV出力、周波数解析は個別のignored benchmarkへ分離する。
+
+### この段階で作らないもの
+
+- 独自Sync FIFO、Async FIFO
+- FIFO levelを使ったレートサーボ
+- SampleRateTrackerの外れ値除去やホールドオーバー
+- Farrowとの統合
+- PLLまたは実クロック生成
+- 任意レート、任意tap数、runtime係数変更に対応する汎用フィルタ
+- ADATからPDMまでを一度に検証する巨大testbench
 
 ## 実装フェーズ
 
@@ -265,17 +374,18 @@ CICは音声帯域の最終フィルタにはせず、まずNative testでDCゲ�
 
 ### Phase 4: 50MHz PDM専用ASRC
 
-現在の`LinearAsrc`/`FarrowAsrc`は`output_ready`による停止を許容する汎用stream型である。PDMは50MHzごとに連続してbitを出す必要があるため、専用の`PdmAsrc`を作る。
+現在の`LinearAsrc`/`FarrowAsrc`は`output_ready`による停止を許容する汎用stream型である。PDMは50MHzごとに連続してbitを出す必要があるため、まず`FractionalPhaseAccumulator`と`ContinuousLinearAsrc`を作る。PDM向けのwrapperは、これらと`DeltaSigma2nd`を接続するだけにする。
 
 要求仕様:
 
-- `output_tick`は毎50MHzクロックで発生
+- 起動完了後は毎50MHzクロックでPCMを更新
 - 初期サンプル不足時だけミュート
 - 通常動作中は出力を停止しない
-- 4倍オーバーサンプラからの入力窓を保持する。バーストを分離する必要がある場合だけ同一クロックの小容量FIFOを使う
-- FIFOを使う場合もCDC用途には使わず、アンダーフロー／オーバーフローを検出する
+- 4倍オーバーサンプラのburstは同一クロックのVeryl STD FIFOで受ける
+- FIFOは深さ8から開始し、アンダーフロー／オーバーフローを検出する
 - 全チャンネルで共有phaseを使う
-- まず直接線形補間を基準にし、次に4倍オーバーサンプリング＋Farrowへ切り替えて比較する
+- まず直接線形補間を基準にし、次に4倍HBF＋線形補間へ切り替えて比較する
+- Farrowは4倍HBF＋線形補間の測定結果で必要性が確認された場合だけ接続する
 
 位相増分は次式で表す。
 
@@ -283,7 +393,7 @@ CICは音声帯域の最終フィルタにはせず、まずNative testでDCゲ�
 phase_increment = Fs_input / 50_000_000 × 2^PHASE_WIDTH
 ```
 
-192kHz入力、Q0.32の場合は約16,494,512となる。PDM経路では通常0〜1未満の入力サンプル進行量になるため、現在の`ratio`という名前より`phase_increment`の方が意味が明確である。入力ADATのレート変動は、4倍オーバーサンプラの入力レートとこの最終段の位相増分の両方へ一貫して反映する。
+192kHz入力、Q0.32の場合は丸めて16,492,674となる。PDM経路では通常0〜1未満の入力サンプル進行量になるため、現在の`ratio`という名前より`phase_increment`の方が意味が明確である。入力ADATのレート変動は、4倍オーバーサンプラの入力レートとこの最終段の位相増分の両方へ一貫して反映する。
 
 ### Phase 5: 補間品質の向上
 
@@ -391,16 +501,17 @@ Native testで確認する項目:
 
 ## 当面の実装順
 
-1. ADATの現行`locked/valid`を回帰基準として固定
-2. PCM24→Q1.31変換と8chフレーム境界の整理
-3. `DeltaSigma2nd`を現行式のまま長時間・音質評価
-4. 固定48kHz→50MHzの直接線形`PdmAsrc`を基準経路として整理
-5. 48kHz→192kHzの2段2倍halfband/polyphase FIRを実装
-6. 192kHz→50MHzの分数遅延段へFarrowを接続し、直接線形経路と比較
-7. `frame_time`公開、SampleRateTracker、NCOによる入力レート追従を統合
-8. ADAT入力からPDMまでの固定レート・ジッター耐性・音質ベンチマークを完成
-9. S/MUX2/4対応
-10. I2S送信器を同じPCM／ASRC出力へ接続
+1. HBF係数の設計スクリプトと量子化後の周波数応答を作り、2段分の係数とtap数を固定
+2. `FractionalPhaseAccumulator`と同一ファイルのNative testを実装
+3. `HalfbandInterpolator2x`と同一ファイルのインパルス／DC／負値／burst順序testを実装
+4. `HalfbandInterpolator2x`を2段接続し、1入力から4出力になることを検証
+5. `ContinuousLinearAsrc`を深さ8のVeryl STD FIFOと3サンプル窓で実装
+6. 直接線形補間と4倍HBF＋線形補間を同じ50MHz PCMベンチマークで比較
+7. 既存`DeltaSigma2nd`へ両経路を接続し、PDM復元後のSNR、THD+N、帯域内ノイズを比較
+8. ここまでの結果からHBFのtap数とFarrow追加の必要性を判断
+9. 固定レート経路の確定後に、`SampleRateTracker`、phase increment更新、FIFO level servoを追加
+10. 1chで確定した構成を8chへ複製し、ADAT入力へ統合
+11. S/MUX2/4とI2S送信器は通常ADATのPDM経路完成後に実装
 
 ## 既存プロジェクトの参照先
 
