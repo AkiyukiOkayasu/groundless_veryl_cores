@@ -151,7 +151,7 @@ PDMの50MHzはPCMのサンプルレートではない。50MHzの各出力周期�
 | ADAT | `AdatRx` | 50MHz受信、8物理スロット、`valid`/`locked`出力 |
 | 固定小数点 | `FixedPoint` | Q1.31演算・丸め・飽和 |
 | 補間 | `ZeroOrderHold`, `LinearInterpolator`, `FarrowInterpolator` | 単体Native test済み。3方式のステップ／ランプ／正弦波／インパルス比較CSVベンチマークを追加 |
-| ASRC | `LinearAsrc`, `FarrowAsrc`, `SampleRateTracker` | 汎用stream型。PDM連続出力用には未分離。Trackerは周期測定・平滑化まで |
+| ASRC | `LinearAsrc`, `ContinuousLinearAsrc`, `FarrowAsrc`, `SampleRateTracker` | 汎用stream型と50MHz連続出力型を実装済み。Trackerは周期測定・平滑化まで |
 | CIC | `CicDecimator`, `CicInterpolator` | 乗算器なしの間引き・補間。ゲイン補正は後段で行う |
 | PDM | `DeltaSigma1st`, `DeltaSigma2nd` | 密度Native test済み。音質評価は未実施 |
 | NCO | `NcoTick`, `ClockEnableNco` | 分数比tick生成 |
@@ -194,6 +194,10 @@ HBFの出力`valid`は論理サンプルの順序を表し、物理的に192kHz�
 FIFOはCDCや大容量蓄積には使わず、burstを吸収する同一クロックの小容量バッファに限定する。初期値は深さ8とし、Native testで最大levelとunderflow／overflowを確認する。深さを増やすのは、固定レートtestで不足が確認された場合だけとする。
 
 ### 直近に追加するモジュール
+
+`FractionalPhaseAccumulator`、2段用の`HalfbandInterpolator2x`、係数設計スクリプト、
+`ContinuousLinearAsrc`は実装済み。次はこれらを1chの4倍経路へ接続し、STD FIFOの
+burst吸収と固定48kHz／50MHz比での連続出力を検証する。
 
 #### `FractionalPhaseAccumulator`
 

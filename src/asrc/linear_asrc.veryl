@@ -162,6 +162,117 @@ pub module LinearAsrc #(
     }
 }
 
+/// FIFOから入力窓を補充しながら、50MHzの全クロックで線形補間値を出力するASRC。
+///
+/// `phase`と`advance`は`FractionalPhaseAccumulator`から受け取る。
+/// `phase`が現在の入力サンプルから次の入力サンプルへ進む割合を表し、
+/// `advance`が次のクロックで窓を1サンプル進めることを表す。
+/// 起動時に2サンプルが揃うまでは`output_active`をfalseにして0を出力する。
+/// 動作開始後は、入力不足を`underflow`へstickyに記録しながら出力を止めない。
+pub module ContinuousLinearAsrc #(
+    param SAMPLE_WIDTH: u32 = 32,
+    param PHASE_WIDTH : u32 = 32,
+    param INPUT_DEPTH : u32 = 8 ,
+) (
+    clk          : input  clock                                ,
+    rst          : input  reset                                ,
+    input_valid  : input  bbool                                ,
+    input_ready  : output bbool                                ,
+    input_sample : input  signed logic<SAMPLE_WIDTH>           ,
+    input_level  : output logic       <$clog2(INPUT_DEPTH + 1)>,
+    phase        : input  logic       <PHASE_WIDTH>            ,
+    advance      : input  bbool                                ,
+    output_active: output bbool                                ,
+    output_sample: output signed logic<SAMPLE_WIDTH>           ,
+    underflow    : output bbool                                ,
+) {
+    const LEVEL_WIDTH: u32 = $clog2(INPUT_DEPTH + 1);
+
+    var fifo_empty      : logic                     ;
+    var fifo_almost_full: logic                     ;
+    var fifo_full       : logic                     ;
+    var fifo_level      : logic       <LEVEL_WIDTH> ;
+    var fifo_q          : signed logic<SAMPLE_WIDTH>;
+    var fifo_push       : logic                     ;
+    var fifo_pop        : logic                     ;
+    var sample0         : signed logic<SAMPLE_WIDTH>;
+    var sample1         : signed logic<SAMPLE_WIDTH>;
+    var window_count    : logic       <2>           ;
+    var interpolated    : signed logic<SAMPLE_WIDTH>;
+
+    inst input_fifo: $std::fifo #(
+        WIDTH: SAMPLE_WIDTH              ,
+        TYPE : signed logic<SAMPLE_WIDTH>,
+        DEPTH: INPUT_DEPTH               ,
+    ) (
+        i_clk        : clk             ,
+        i_rst        : rst             ,
+        i_clear      : 1'b0            ,
+        i_push       : fifo_push       ,
+        i_data       : input_sample    ,
+        i_pop        : fifo_pop        ,
+        o_empty      : fifo_empty      ,
+        o_almost_full: fifo_almost_full,
+        o_full       : fifo_full       ,
+        o_word_count : fifo_level      ,
+        o_data       : fifo_q          ,
+    );
+
+    inst interpolator: LinearInterpolator #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+    ) (
+        sample0: sample0     ,
+        sample1: sample1     ,
+        phase  : phase       ,
+        sample : interpolated,
+    );
+
+    always_comb {
+        input_ready   = false;
+        output_active = false;
+        output_sample = 0;
+        input_level   = fifo_level;
+
+        if !fifo_full {
+            input_ready = true;
+        }
+        if window_count == 2'd2 {
+            output_active = true;
+            output_sample = interpolated;
+        }
+
+        fifo_push = input_valid && input_ready;
+        fifo_pop  = !fifo_empty && (window_count <: 2'd2 || advance);
+    }
+
+    always_ff {
+        if_reset {
+            sample0      = 0;
+            sample1      = 0;
+            window_count = 0;
+            underflow    = false;
+        } else {
+            if fifo_pop {
+                if window_count == 2'd0 {
+                    sample0      = fifo_q;
+                    window_count = 2'd1;
+                } else if window_count == 2'd1 {
+                    sample1      = fifo_q;
+                    window_count = 2'd2;
+                } else {
+                    sample0 = sample1;
+                    sample1 = fifo_q;
+                }
+            }
+
+            if window_count == 2'd2 && advance && fifo_empty {
+                underflow = true;
+            }
+        }
+    }
+}
+
 /// 線形補間と分数比sample列変換を検証するVeryl Native test。
 #[test(test_linear_asrc)]
 module test_linear_asrc {
@@ -249,6 +360,93 @@ module test_linear_asrc {
         clk.next(1);
         output_tick = 0;
         $assert(output_valid && output_sample == 16'sd250, "ASRC interpolated sample mismatch");
+        $finish();
+    }
+}
+
+/// 連続出力ASRCと分数位相アキュムレータの最小統合を検証する。
+#[test(test_continuous_linear_asrc)]
+module test_continuous_linear_asrc {
+    const SAMPLE_WIDTH: u32 = 16;
+    const PHASE_WIDTH : u32 = 4;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var input_valid  : bbool           ;
+    var input_ready  : bbool           ;
+    var input_sample : signed logic<16>;
+    var input_level  : logic       <4> ;
+    var phase        : logic       <4> ;
+    var advance      : bbool           ;
+    var output_active: bbool           ;
+    var output_sample: signed logic<16>;
+    var underflow    : bbool           ;
+    var phase_enable : bbool           ;
+    var phase_inc    : logic       <4> ;
+
+    inst phase_accumulator: FractionalPhaseAccumulator #(
+        WIDTH: PHASE_WIDTH,
+    ) (
+        clk                          ,
+        rst                          ,
+        enable         : phase_enable,
+        phase_increment: phase_inc   ,
+        phase                        ,
+        advance                      ,
+    );
+
+    inst asrc: ContinuousLinearAsrc #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+        INPUT_DEPTH : 8           ,
+    ) (
+        clk            ,
+        rst            ,
+        input_valid    ,
+        input_ready    ,
+        input_sample   ,
+        input_level    ,
+        phase          ,
+        advance        ,
+        output_active  ,
+        output_sample  ,
+        underflow      ,
+    );
+
+    initial {
+        input_valid  = false;
+        input_sample = 0;
+        phase_enable = true;
+        phase_inc    = 4'd4;
+        rst.assert();
+
+        // 0, 100, 200, 300を連続投入し、窓を初期化する。
+        input_valid  = true;
+        input_sample = 16'sd0;
+        clk.next(1);
+        input_sample = 16'sd100;
+        clk.next(1);
+        input_sample = 16'sd200;
+        clk.next(1);
+        input_sample = 16'sd300;
+        clk.next(1);
+        input_valid = false;
+
+        $assert(output_active, "continuous ASRC must become active after two samples");
+        $assert(output_sample == 16'sd100, "phase wrap must advance to the next window");
+        $assert(!underflow, "continuous ASRC must not underflow with buffered input");
+        $assert(input_level == 4'd1, "unused burst sample must remain in the FIFO");
+
+        clk.next(1);
+        $assert(output_sample == 16'sd125, "continuous ASRC quarter phase mismatch");
+        clk.next(1);
+        $assert(output_sample == 16'sd150, "continuous ASRC midpoint phase mismatch");
+        clk.next(1);
+        $assert(output_sample == 16'sd175, "continuous ASRC three-quarter phase mismatch");
+        clk.next(1);
+        $assert(output_sample == 16'sd200, "continuous ASRC second window mismatch");
+        $assert(!underflow, "continuous ASRC must keep the buffered stream running");
         $finish();
     }
 }
