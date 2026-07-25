@@ -1,0 +1,126 @@
+/// ASRC用の分数位相アキュムレータ。
+///
+/// `phase`はQ0.WIDTHの小数位相を表す。毎クロック`phase_increment`を
+/// 加算し、2^WIDTHを跨ぐときだけ`advance`を1にする。
+/// `advance`は実クロックを生成するためではなく、入力サンプル窓を
+/// 1サンプル進めるための制御信号として使用する。
+///
+/// 初期仕様では`phase_increment`を0以上1未満に限定する。したがって、
+/// 1クロックで発生するwrapは最大1回である。
+pub module FractionalPhaseAccumulator #(
+    param WIDTH: u32 = 32,
+) (
+    clk            : input  clock       ,
+    rst            : input  reset       ,
+    enable         : input  bbool       ,
+    phase_increment: input  logic<WIDTH>,
+    phase          : output logic<WIDTH>,
+    advance        : output bbool       ,
+) {
+    var phase_reg: logic<WIDTH>    ;
+    var phase_sum: logic<WIDTH + 1>;
+
+    always_comb {
+        phase_sum = {1'b0, phase_reg} + {1'b0, phase_increment};
+        phase     = phase_reg;
+
+        if enable && phase_sum[WIDTH] {
+            advance = true;
+        } else {
+            advance = false;
+        }
+    }
+
+    always_ff {
+        if_reset {
+            phase_reg = 0;
+        } else if enable {
+            phase_reg = phase_sum[WIDTH - 1:0];
+        }
+    }
+}
+
+/// 位相の小数部、wrap、enable停止を検証する。
+#[test(test_fractional_phase_accumulator)]
+module test_fractional_phase_accumulator {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    const TEST_WIDTH: u32 = 4;
+
+    var enable         : bbool            ;
+    var phase_increment: logic<TEST_WIDTH>;
+    var phase          : logic<TEST_WIDTH>;
+    var advance        : bbool            ;
+
+    inst dut: FractionalPhaseAccumulator #( WIDTH: TEST_WIDTH ) ( clk, rst, enable, phase_increment, phase, advance );
+
+    initial {
+        enable          = true;
+        phase_increment = 4'd3;
+        rst.assert();
+
+        $assert(phase == 4'd0, "phase must start at zero");
+        $assert(!advance, "phase must not advance before the first wrap");
+
+        clk.next(4);
+        $assert(phase == 4'd12, "phase accumulation mismatch");
+        $assert(!advance, "phase must not wrap at phase twelve");
+
+        clk.next(1);
+        $assert(phase == 4'd15, "phase before wrap mismatch");
+        $assert(advance, "phase must report the next wrap");
+
+        clk.next(1);
+        $assert(phase == 4'd2, "phase wrap remainder mismatch");
+        $assert(!advance, "phase must clear advance after the wrap");
+
+        enable = false;
+        clk.next(3);
+        $assert(phase == 4'd2, "disabled accumulator must hold phase");
+        $assert(!advance, "disabled accumulator must suppress advance");
+
+        enable          = true;
+        phase_increment = 0;
+        clk.next(2);
+        $assert(phase == 4'd2, "zero increment must hold phase");
+        $assert(!advance, "zero increment must suppress advance");
+        $finish();
+    }
+}
+
+/// 小数位相アキュムレータの平均進行数を検証する。
+#[test(test_fractional_phase_accumulator_average)]
+module test_fractional_phase_accumulator_average {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    const TEST_WIDTH: u32 = 3;
+
+    var enable         : bbool            ;
+    var phase_increment: logic<TEST_WIDTH>;
+    var phase          : logic<TEST_WIDTH>;
+    var advance        : bbool            ;
+    var wrap_count     : logic<4>         ;
+
+    inst dut: FractionalPhaseAccumulator #( WIDTH: TEST_WIDTH ) ( clk, rst, enable, phase_increment, phase, advance );
+
+    always_ff (clk, rst) {
+        if_reset {
+            wrap_count = 0;
+        } else if advance {
+            wrap_count += 1;
+        }
+    }
+
+    initial {
+        enable          = true;
+        phase_increment = 3'd3;
+        rst.assert();
+        clk.next(8);
+
+        $assert(wrap_count == 4'd3, "average phase advance mismatch");
+        $assert(phase == 3'd0, "phase must return to zero after a full cycle");
+        $finish();
+    }
+}

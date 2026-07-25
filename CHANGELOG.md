@@ -12,6 +12,7 @@
   - signed multiply helper
 - 固定小数点Native testを追加
 - `NcoTick`/`ClockEnableNco`と分数比clock-enable Native testを追加
+- ASRC用`FractionalPhaseAccumulator`と位相wrap／平均進行Native testを追加
 - IEC60958のpreamble/payload/stereo sample型とsubframe codecを追加
 - IEC60958共通BMC serializer/deserializerとNativeループバックテストを追加
 - IEC60958の192-frame block schedulerとpreamble巡回Native testを追加
