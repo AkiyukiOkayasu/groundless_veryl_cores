@@ -66,6 +66,10 @@
 - ADATのFrameParser/TxFrameBuilder Native testを8チャンネル対象へ拡張し、公開モジュール構成と型方針をREADMEに追記
 - 連続ASRCの起動時FIFO蓄積量を設定可能にし、4倍HBFのburstによる起動直後underflowを防止
 
+### Changed
+
+- ADAT固有のS/MUX2 packer/unpackerを`src/smux/`から`src/adat/`へ移動
+
 ## [0.5.1] - 2026-05-20
 
 ### Added
