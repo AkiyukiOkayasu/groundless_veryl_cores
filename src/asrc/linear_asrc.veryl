@@ -167,12 +167,15 @@ pub module LinearAsrc #(
 /// `phase`と`advance`は`FractionalPhaseAccumulator`から受け取る。
 /// `phase`が現在の入力サンプルから次の入力サンプルへ進む割合を表し、
 /// `advance`が次のクロックで窓を1サンプル進めることを表す。
-/// 起動時に2サンプルが揃うまでは`output_active`をfalseにして0を出力する。
+/// 起動時に2サンプルの補間窓と、`STARTUP_LEVEL`以上の未消費FIFOが揃うまでは
+/// `output_active`をfalseにして0を出力する。burst入力ではこの値を大きくして、
+/// 出力開始前にFIFOへ余裕を持たせる。
 /// 動作開始後は、入力不足を`underflow`へstickyに記録しながら出力を止めない。
 pub module ContinuousLinearAsrc #(
-    param SAMPLE_WIDTH: u32 = 32,
-    param PHASE_WIDTH : u32 = 32,
-    param INPUT_DEPTH : u32 = 8 ,
+    param SAMPLE_WIDTH : u32 = 32,
+    param PHASE_WIDTH  : u32 = 32,
+    param INPUT_DEPTH  : u32 = 8 ,
+    param STARTUP_LEVEL: u32 = 1 ,
 ) (
     clk          : input  clock                                ,
     rst          : input  reset                                ,
@@ -198,6 +201,7 @@ pub module ContinuousLinearAsrc #(
     var sample0         : signed logic<SAMPLE_WIDTH>;
     var sample1         : signed logic<SAMPLE_WIDTH>;
     var window_count    : logic       <2>           ;
+    var primed          : bbool                     ;
     var interpolated    : signed logic<SAMPLE_WIDTH>;
 
     inst input_fifo: $std::fifo #(
@@ -237,13 +241,13 @@ pub module ContinuousLinearAsrc #(
         if !fifo_full {
             input_ready = true;
         }
-        if window_count == 2'd2 {
+        if primed {
             output_active = true;
             output_sample = interpolated;
         }
 
         fifo_push = input_valid && input_ready;
-        fifo_pop  = !fifo_empty && (window_count <: 2'd2 || advance);
+        fifo_pop  = !fifo_empty && (window_count <: 2'd2 || (primed && advance));
     }
 
     always_ff {
@@ -251,6 +255,7 @@ pub module ContinuousLinearAsrc #(
             sample0      = 0;
             sample1      = 0;
             window_count = 0;
+            primed       = false;
             underflow    = false;
         } else {
             if fifo_pop {
@@ -266,7 +271,10 @@ pub module ContinuousLinearAsrc #(
                 }
             }
 
-            if window_count == 2'd2 && advance && fifo_empty {
+            if !primed && window_count == 2'd2 && fifo_level >= STARTUP_LEVEL {
+                primed = true;
+            }
+            if primed && advance && fifo_empty {
                 underflow = true;
             }
         }
@@ -433,19 +441,19 @@ module test_continuous_linear_asrc {
         clk.next(1);
         input_valid = false;
 
-        $assert(output_active, "continuous ASRC must become active after two samples");
-        $assert(output_sample == 16'sd100, "phase wrap must advance to the next window");
+        $assert(output_active, "continuous ASRC must become active after priming");
+        $assert(output_sample == 16'sd0, "continuous ASRC must hold the initial window while priming");
         $assert(!underflow, "continuous ASRC must not underflow with buffered input");
-        $assert(input_level == 4'd1, "unused burst sample must remain in the FIFO");
+        $assert(input_level == 4'd2, "priming sample and unused burst sample must remain in the FIFO");
 
         clk.next(1);
-        $assert(output_sample == 16'sd125, "continuous ASRC quarter phase mismatch");
+        $assert(output_sample == 16'sd25, "continuous ASRC quarter phase mismatch");
         clk.next(1);
-        $assert(output_sample == 16'sd150, "continuous ASRC midpoint phase mismatch");
+        $assert(output_sample == 16'sd50, "continuous ASRC midpoint phase mismatch");
         clk.next(1);
-        $assert(output_sample == 16'sd175, "continuous ASRC three-quarter phase mismatch");
+        $assert(output_sample == 16'sd75, "continuous ASRC three-quarter phase mismatch");
         clk.next(1);
-        $assert(output_sample == 16'sd200, "continuous ASRC second window mismatch");
+        $assert(output_sample == 16'sd100, "continuous ASRC second window mismatch");
         $assert(!underflow, "continuous ASRC must keep the buffered stream running");
         $finish();
     }

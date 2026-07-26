@@ -19,8 +19,9 @@ pub module FourXHalfbandAsrc #(
     input_level    : output logic       <$clog2(INPUT_DEPTH + 1)>,
     underflow      : output bbool                                ,
 ) {
-    var phase  : logic<PHASE_WIDTH>;
-    var advance: bbool             ;
+    var phase       : logic<PHASE_WIDTH>;
+    var advance     : bbool             ;
+    var phase_enable: bbool             ;
 
     var first_input_ready  : bbool                     ;
     var first_output_valid : bbool                     ;
@@ -37,12 +38,12 @@ pub module FourXHalfbandAsrc #(
     inst phase_accumulator: FractionalPhaseAccumulator #(
         WIDTH: PHASE_WIDTH,
     ) (
-        clk                  ,
-        rst                  ,
-        enable         : 1'b1,
-        phase_increment      ,
-        phase                ,
-        advance              ,
+        clk                          ,
+        rst                          ,
+        enable         : phase_enable,
+        phase_increment              ,
+        phase                        ,
+        advance                      ,
     );
 
     inst first_halfband: HalfbandInterpolator2x #(
@@ -74,9 +75,10 @@ pub module FourXHalfbandAsrc #(
     );
 
     inst continuous_asrc: ContinuousLinearAsrc #(
-        SAMPLE_WIDTH: SAMPLE_WIDTH,
-        PHASE_WIDTH : PHASE_WIDTH ,
-        INPUT_DEPTH : INPUT_DEPTH ,
+        SAMPLE_WIDTH : SAMPLE_WIDTH,
+        PHASE_WIDTH  : PHASE_WIDTH ,
+        INPUT_DEPTH  : INPUT_DEPTH ,
+        STARTUP_LEVEL: 6           ,
     ) (
         clk                                ,
         rst                                ,
@@ -94,6 +96,7 @@ pub module FourXHalfbandAsrc #(
     assign input_ready         = first_input_ready;
     assign first_output_ready  = second_input_ready;
     assign second_output_ready = asrc_input_ready;
+    assign phase_enable        = output_active;
 }
 
 /// 2段HBFのburst接続、STD FIFOの蓄積、50MHz連続出力を検証する。
