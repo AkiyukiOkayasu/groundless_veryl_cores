@@ -93,6 +93,47 @@ pub module HalfbandInterpolator2x #(
         }
     }
 
+    /// 累算結果を出力formatへ変換する。
+    /// package関数へmodule parameterを渡せないVerylの制約を避けるため、
+    /// halfband固有のformat変換をmodule内adapterとして定義する。
+    function resize_accumulator (
+        value: input signed logic<ACCUMULATOR_WIDTH>,
+    ) -> signed logic<SAMPLE_WIDTH> {
+        const LEFT_SHIFT : u32 = if INPUT_FRAC >= OUTPUT_FRAC ? 0 : OUTPUT_FRAC - INPUT_FRAC;
+        const RIGHT_SHIFT: u32 = if OUTPUT_FRAC >= INPUT_FRAC ? 0 : INPUT_FRAC - OUTPUT_FRAC;
+        const BASE_WIDTH : u32 = ACCUMULATOR_WIDTH + LEFT_SHIFT + SAMPLE_WIDTH + 2;
+        const WORK_WIDTH : u32 = if BASE_WIDTH >= RIGHT_SHIFT + 2 ? BASE_WIDTH : RIGHT_SHIFT + 2;
+
+        let value_ext : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - ACCUMULATOR_WIDTH, value});
+        let half_value: signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
+            '0
+        :
+            $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (RIGHT_SHIFT - 1))
+        ;
+        var aligned   : signed logic<WORK_WIDTH>;
+
+        if RIGHT_SHIFT == 0 {
+            aligned = value_ext <<< LEFT_SHIFT;
+        } else if value_ext[msb] == 1'b0 {
+            aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
+        } else {
+            aligned = -((-value_ext + half_value) >>> RIGHT_SHIFT);
+        }
+
+        const BODY_WIDTH  : u32                      = SAMPLE_WIDTH - 1;
+        const EXTEND_WIDTH: u32                      = WORK_WIDTH - SAMPLE_WIDTH;
+        let   max_value   : signed logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
+        let   min_value   : signed logic<WORK_WIDTH> = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
+
+        if aligned >: max_value {
+            return $signed(max_value[SAMPLE_WIDTH - 1:0]);
+        } else if aligned <: min_value {
+            return $signed(min_value[SAMPLE_WIDTH - 1:0]);
+        } else {
+            return $signed(aligned[SAMPLE_WIDTH - 1:0]);
+        }
+    }
+
     always_comb {
         input_ready   = false;
         output_valid  = false;
@@ -151,13 +192,7 @@ pub module HalfbandInterpolator2x #(
                 }
             } else if state == STATE_MAC {
                 if pair_index == PAIR_COUNT - 1 {
-                    even_sample = fixed_resize_signed::<
-                        ACCUMULATOR_WIDTH                                          ,
-                        INPUT_FRAC                                                 ,
-                        SAMPLE_WIDTH                                               ,
-                        OUTPUT_FRAC                                                ,
-                        FixedPointRounding::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO,
-                    >(next_accumulator);
+                    even_sample = resize_accumulator(next_accumulator);
                     accumulator = next_accumulator;
                     state       = STATE_OUTPUT_EVEN;
                 } else {

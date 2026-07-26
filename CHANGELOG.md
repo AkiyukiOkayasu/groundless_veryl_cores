@@ -5,16 +5,14 @@
 ### Added
 
 - 固定小数点共通演算を追加
-  - 丸め付き右シフト（truncation / round half up / round half away from zero / round to nearest even）
-  - signed/unsigned saturation
-  - signed/unsigned clamp
-  - signed/unsigned固定小数点resize（小数位置調整 → 丸め → 飽和）
-  - signed/unsigned multiply helperと乗算後resize helper
-- 固定小数点APIを幅・小数ビット数・丸めモードのgeneric parameterで一般化
-- `FixedFormatProto`/`FixedFormat`と`FixedPoint::FixedValue`/`FixedUnsignedValue`を追加し、`FixedPointOps`でformatから幅・小数ビット数を導出するtyped APIを追加
-- Q1.31/Q2.16/Q3.24/Q8.19/Q8.24を`FixedFormatProto`実装の名前付きpresetへ移行し、オシレーターとデルタシグマのportを`FixedValue`へ変更
-- 旧packed Q型aliasとQ形式専用変換関数を削除し、format変換をtyped resizeへ統一
-- 固定小数点Native testを境界値、負値tie、広いシフト量、非対称幅、乗算後resizeまで拡張
+  - `FixedPoint::RoundingMode` enumによる負方向、零方向、正方向、最近傍各種の丸め
+  - `FixedPoint::OverflowMode` enumによるwrap/saturate
+  - signed固定小数点の右シフト、飽和、clamp、resize、multiply helper
+- `SignedFixedPointFormat` protoと`SignedFixedPointFormatOf::<W, F>`によるformat generic APIを追加
+- Q1.31/Q2.16/Q3.24/Q8.19/Q8.24を`SignedFixedPointFormat`実装の名前付きpresetへ移行
+- `SignedFixedPointRaw`と`SignedFixedPoint`を追加し、raw値とformat-aware値の演算を分離
+- 既存モジュールの固定小数点portと演算をsigned format presetへ移行
+- 固定小数点Native testを丸め境界、符号、幅変換、飽和、wrap、format変換、非対称乗算まで拡張
 - `NcoTick`/`ClockEnableNco`と分数比clock-enable Native testを追加
 - ASRC用`FractionalPhaseAccumulator`と位相wrap／平均進行Native testを追加
 - 2倍halfband補間器とQ2.16係数設計スクリプト、burst／ready／DCゲインNative testを追加
@@ -43,6 +41,7 @@
 - S/PDIF用`SpdifTx`/`SpdifRx`ラッパーとNativeループバックテストを追加
 - AES3用`Aes3Tx`/`Aes3Rx`ラッパー、channel status CRC、Nativeループバックテストを追加
 - 固定小数点とADATのNative単体テストを各実装ファイルへ統合
+- 固定小数点formatのraw表現名を`Value`から`Raw`へ変更し、公開APIへ引数・戻り値・使用例のdocumentation commentを追加
 - `ZeroOrderHold`を追加し、Linearとのステップ・ランプ・インパルス比較を行うNativeベンチマークを追加
 - `CicDecimator`/`CicInterpolator`と基本動作のNative testを追加
 - `SampleRateTracker`を追加し、サンプル到着周期の固定小数点平滑化とロック状態を提供
@@ -55,6 +54,8 @@
 ### Changed
 
 - 固定小数点の丸めモード指定を数値定数から `FixedPoint::RoundingMode` enumへ変更
+- 固定小数点formatのassociated typeを`Q1_31::Value`などから`Q1_31::Raw`へ変更
+- 固定小数点formatの`WIDTH`/`FRACTION_BITS`/`Raw`および丸め・overflow policyのdocumentation commentを拡充
 - ADAT→50MHz差動PDMの高音質化計画を、帯域制限付き4倍オーバーサンプリング、Farrow分数遅延、レート追従、ΔΣ評価の段階構成へ更新
 - Farrow実装を`src/asrc/farrow_asrc.veryl`へ、定量ベンチマークを`src/asrc/interpolator_benchmark.veryl`へ分離
 - 公開APIをS/PDIF/AES3のtransceiverと周辺コアに整理し、Sine ROMとIEC60958共通実装moduleをprivate化
