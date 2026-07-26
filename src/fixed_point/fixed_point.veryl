@@ -181,14 +181,22 @@ pub package FixedPoint {
 
 /// signed値を算術右シフトし、指定モードで丸める。
 /// MODEにはFixedPoint::RoundingMode::ROUND_*を指定する。
+/// ROUND_TRUNCATIONは算術右シフト、ROUND_HALF_UPはtieを正方向、
+/// ROUND_HALF_AWAY_FROM_ZEROはtieを絶対値が大きくなる方向へ丸める。
+/// SHIFT == 0では入力をそのまま返す。
 pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::RoundingMode> (
     value: input signed logic<WIDTH>,
 ) -> signed logic<WIDTH> {
-    const HALF: u32 = if SHIFT == 0 ? 0 : 1 << (SHIFT - 1);
+    // SHIFTが入力幅を超えてもhalf値を保持できるよう、作業幅をシフト量からも導出する。
+    const WORK_WIDTH: u32 = if WIDTH + 2 >= SHIFT + 2 ? WIDTH + 2 : SHIFT + 2;
 
-    let value_ext : signed logic<WIDTH + 1> = $signed({value[msb], value});
-    let half_value: signed logic<WIDTH + 1> = HALF;
-    var result    : signed logic<WIDTH + 1>;
+    let value_ext : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - WIDTH, value});
+    let half_value: signed logic<WORK_WIDTH> = if SHIFT == 0 ?
+        '0
+    :
+        $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (SHIFT - 1))
+    ;
+    var result    : signed logic<WORK_WIDTH>;
 
     if SHIFT == 0 {
         result = value_ext;
@@ -206,26 +214,29 @@ pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::Roun
 }
 
 /// unsigned値を右シフトし、指定モードで丸める。
+/// unsignedではROUND_HALF_UPとROUND_HALF_AWAY_FROM_ZEROの結果は同じになる。
 pub function round_shift_unsigned::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::RoundingMode> (
     value: input logic<WIDTH>,
 ) -> logic<WIDTH> {
-    const HALF: u32 = if SHIFT == 0 ? 0 : 1 << (SHIFT - 1);
+    const WORK_WIDTH: u32 = if WIDTH + 1 >= SHIFT + 2 ? WIDTH + 1 : SHIFT + 2;
 
-    let value_ext: logic<WIDTH + 1> = {1'b0, value};
-    var result   : logic<WIDTH + 1>;
+    let value_ext : logic<WORK_WIDTH> = {1'b0 repeat WORK_WIDTH - WIDTH, value};
+    let half_value: logic<WORK_WIDTH> = if SHIFT == 0 ? '0 : {1'b0 repeat WORK_WIDTH - 1, 1'b1} << (SHIFT - 1);
+    var result    : logic<WORK_WIDTH>;
 
     if SHIFT == 0 {
         result = value_ext;
     } else if MODE == FixedPoint::RoundingMode::ROUND_TRUNCATION {
         result = value_ext >> SHIFT;
     } else {
-        result = (value_ext + HALF) >> SHIFT;
+        result = (value_ext + half_value) >> SHIFT;
     }
 
     return result[WIDTH - 1:0];
 }
 
 /// signed値を指定幅へ飽和させる。
+/// 出力範囲は[-2^(OUT_WIDTH-1), 2^(OUT_WIDTH-1)-1]とする。
 pub function saturate_signed::<IN_WIDTH: u32, OUT_WIDTH: u32> (
     value: input signed logic<IN_WIDTH>,
 ) -> signed logic<OUT_WIDTH> {
@@ -247,6 +258,7 @@ pub function saturate_signed::<IN_WIDTH: u32, OUT_WIDTH: u32> (
 }
 
 /// unsigned値を指定幅へ飽和させる。
+/// 出力範囲は[0, 2^OUT_WIDTH-1]とする。
 pub function saturate_unsigned::<IN_WIDTH: u32, OUT_WIDTH: u32> (
     value: input logic<IN_WIDTH>,
 ) -> logic<OUT_WIDTH> {
@@ -264,6 +276,7 @@ pub function saturate_unsigned::<IN_WIDTH: u32, OUT_WIDTH: u32> (
 }
 
 /// signed値を任意の上下限へ制限する。
+/// lower <= upperの範囲で使用する。
 pub function clamp_signed::<WIDTH: u32> (
     value: input signed logic<WIDTH>,
     lower: input signed logic<WIDTH>,
@@ -279,6 +292,7 @@ pub function clamp_signed::<WIDTH: u32> (
 }
 
 /// unsigned値を任意の上下限へ制限する。
+/// lower <= upperの範囲で使用する。
 pub function clamp_unsigned::<WIDTH: u32> (
     value: input logic<WIDTH>,
     lower: input logic<WIDTH>,
@@ -295,6 +309,8 @@ pub function clamp_unsigned::<WIDTH: u32> (
 
 /// signed固定小数点値を小数ビット数と出力幅ごと変換する。
 /// MODEにはFixedPoint::RoundingMode::ROUND_*を指定する。
+/// 処理順は小数位置調整、丸め、飽和とする。
+/// IN_WIDTH/OUT_WIDTHは総ビット幅、IN_FRAC/OUT_FRACは小数ビット数を表す。
 pub function fixed_resize_signed::<
     IN_WIDTH : u32                     ,
     IN_FRAC  : u32                     ,
@@ -304,50 +320,93 @@ pub function fixed_resize_signed::<
 > (
     value: input signed logic<IN_WIDTH>,
 ) -> signed logic<OUT_WIDTH> {
-    const LEFT_SHIFT  : u32 = if IN_FRAC >= OUT_FRAC ? 0 : OUT_FRAC - IN_FRAC;
-    const RIGHT_SHIFT : u32 = if OUT_FRAC >= IN_FRAC ? 0 : IN_FRAC - OUT_FRAC;
-    const WORK_WIDTH  : u32 = if IN_WIDTH + LEFT_SHIFT >= OUT_WIDTH ? IN_WIDTH + LEFT_SHIFT + 2 : OUT_WIDTH + 2;
-    const HALF        : u32 = if RIGHT_SHIFT == 0 ? 0 : 1 << (RIGHT_SHIFT - 1);
-    const BODY_WIDTH  : u32 = OUT_WIDTH - 1;
-    const EXTEND_WIDTH: u32 = WORK_WIDTH - OUT_WIDTH;
+    const LEFT_SHIFT : u32 = if IN_FRAC >= OUT_FRAC ? 0 : OUT_FRAC - IN_FRAC;
+    const RIGHT_SHIFT: u32 = if OUT_FRAC >= IN_FRAC ? 0 : IN_FRAC - OUT_FRAC;
+    const BASE_WIDTH : u32 = if IN_WIDTH + LEFT_SHIFT >= OUT_WIDTH ? IN_WIDTH + LEFT_SHIFT + 2 : OUT_WIDTH + 2;
+    const WORK_WIDTH : u32 = if BASE_WIDTH >= RIGHT_SHIFT + 2 ? BASE_WIDTH : RIGHT_SHIFT + 2;
 
     let value_ext : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - IN_WIDTH, value});
-    let half_value: signed logic<WORK_WIDTH> = HALF;
+    let half_value: signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
+        '0
+    :
+        $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (RIGHT_SHIFT - 1))
+    ;
     var aligned   : signed logic<WORK_WIDTH>;
 
-    if RIGHT_SHIFT != 0 {
-        if MODE == FixedPoint::RoundingMode::ROUND_TRUNCATION {
-            aligned = value_ext >>> RIGHT_SHIFT;
-        } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_UP {
-            aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
-        } else if value_ext[msb] == 1'b0 {
-            aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
-        } else {
-            aligned = -((-value_ext + half_value) >>> RIGHT_SHIFT);
-        }
-    } else {
+    if RIGHT_SHIFT == 0 {
         aligned = value_ext <<< LEFT_SHIFT;
+    } else if MODE == FixedPoint::RoundingMode::ROUND_TRUNCATION {
+        aligned = value_ext >>> RIGHT_SHIFT;
+    } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_UP {
+        aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
+    } else if value_ext[msb] == 1'b0 {
+        aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
+    } else {
+        aligned = -((-value_ext + half_value) >>> RIGHT_SHIFT);
     }
+
+    const BODY_WIDTH  : u32 = OUT_WIDTH - 1;
+    const EXTEND_WIDTH: u32 = WORK_WIDTH - OUT_WIDTH;
 
     let max_value: signed logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
     let min_value: signed logic<WORK_WIDTH> = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
 
-    if aligned[msb] == 1'b1 {
-        if aligned <: min_value {
-            return $signed(min_value[OUT_WIDTH - 1:0]);
-        } else {
-            return $signed(aligned[OUT_WIDTH - 1:0]);
-        }
-    } else if aligned >: max_value {
+    if aligned >: max_value {
         return $signed(max_value[OUT_WIDTH - 1:0]);
+    } else if aligned <: min_value {
+        return $signed(min_value[OUT_WIDTH - 1:0]);
     } else {
         return $signed(aligned[OUT_WIDTH - 1:0]);
+    }
+}
+
+/// unsigned固定小数点値を小数ビット数と出力幅ごと変換する。
+/// 処理順は小数位置調整、丸め、飽和の順とする。
+/// IN_WIDTH/OUT_WIDTHは総ビット幅、IN_FRAC/OUT_FRACは小数ビット数を表す。
+pub function fixed_resize_unsigned::<
+    IN_WIDTH : u32                     ,
+    IN_FRAC  : u32                     ,
+    OUT_WIDTH: u32                     ,
+    OUT_FRAC : u32                     ,
+    MODE     : FixedPoint::RoundingMode,
+> (
+    value: input logic<IN_WIDTH>,
+) -> logic<OUT_WIDTH> {
+    const LEFT_SHIFT : u32 = if IN_FRAC >= OUT_FRAC ? 0 : OUT_FRAC - IN_FRAC;
+    const RIGHT_SHIFT: u32 = if OUT_FRAC >= IN_FRAC ? 0 : IN_FRAC - OUT_FRAC;
+    const BASE_WIDTH : u32 = if IN_WIDTH + LEFT_SHIFT >= OUT_WIDTH ? IN_WIDTH + LEFT_SHIFT + 1 : OUT_WIDTH + 1;
+    const WORK_WIDTH : u32 = if BASE_WIDTH >= RIGHT_SHIFT + 2 ? BASE_WIDTH : RIGHT_SHIFT + 2;
+
+    let value_ext : logic<WORK_WIDTH> = {1'b0 repeat WORK_WIDTH - IN_WIDTH, value};
+    let half_value: logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
+        '0
+    :
+        {1'b0 repeat WORK_WIDTH - 1, 1'b1} << (RIGHT_SHIFT - 1)
+    ;
+    var aligned   : logic<WORK_WIDTH>;
+
+    if RIGHT_SHIFT == 0 {
+        aligned = value_ext << LEFT_SHIFT;
+    } else if MODE == FixedPoint::RoundingMode::ROUND_TRUNCATION {
+        aligned = value_ext >> RIGHT_SHIFT;
+    } else {
+        aligned = (value_ext + half_value) >> RIGHT_SHIFT;
+    }
+
+    const EXTEND_WIDTH: u32               = WORK_WIDTH - OUT_WIDTH;
+    let   max_value   : logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b1 repeat OUT_WIDTH};
+
+    if aligned >: max_value {
+        return max_value[OUT_WIDTH - 1:0];
+    } else {
+        return aligned[OUT_WIDTH - 1:0];
     }
 }
 
 /// signed整数同士を、入力幅の合計幅で乗算する。
 /// 結果の幅はA_WIDTH+B_WIDTH、小数ビット数は入力の小数ビット数の合計とする。
 /// 出力変換時は、この積をfixed_resize_signedへ渡して小数位置を調整する。
+/// 入力幅は1以上、符号付き入力として解釈する。
 pub function fixed_mul::<A_WIDTH: u32, B_WIDTH: u32> (
     a: input signed logic<A_WIDTH>,
     b: input signed logic<B_WIDTH>,
@@ -360,33 +419,107 @@ pub function fixed_mul::<A_WIDTH: u32, B_WIDTH: u32> (
     return a_ext * b_ext;
 }
 
+/// unsigned整数同士を、入力幅の合計幅で乗算する。
+/// 結果の幅はA_WIDTH+B_WIDTH、小数ビット数は入力の小数ビット数の合計とする。
+pub function fixed_mul_unsigned::<A_WIDTH: u32, B_WIDTH: u32> (
+    a: input logic<A_WIDTH>,
+    b: input logic<B_WIDTH>,
+) -> logic<A_WIDTH + B_WIDTH> {
+    const PRODUCT_WIDTH: u32 = A_WIDTH + B_WIDTH;
+
+    let a_ext: logic<PRODUCT_WIDTH> = {1'b0 repeat B_WIDTH, a};
+    let b_ext: logic<PRODUCT_WIDTH> = {1'b0 repeat A_WIDTH, b};
+
+    return a_ext * b_ext;
+}
+
+/// signed乗算結果を指定フォーマットへ変換する。
+/// 積の小数ビット数はA_FRAC+B_FRACとして扱う。
+pub function fixed_mul_resize_signed::<
+    A_WIDTH  : u32                     ,
+    A_FRAC   : u32                     ,
+    B_WIDTH  : u32                     ,
+    B_FRAC   : u32                     ,
+    OUT_WIDTH: u32                     ,
+    OUT_FRAC : u32                     ,
+    MODE     : FixedPoint::RoundingMode,
+> (
+    a: input signed logic<A_WIDTH>,
+    b: input signed logic<B_WIDTH>,
+) -> signed logic<OUT_WIDTH> {
+    const PRODUCT_WIDTH: u32 = A_WIDTH + B_WIDTH;
+    const PRODUCT_FRAC : u32 = A_FRAC + B_FRAC;
+
+    let product: signed logic<PRODUCT_WIDTH> = fixed_mul::<A_WIDTH, B_WIDTH>(a, b);
+
+    return fixed_resize_signed::<PRODUCT_WIDTH, PRODUCT_FRAC, OUT_WIDTH, OUT_FRAC, MODE>(product);
+}
+
+/// unsigned乗算結果を指定フォーマットへ変換する。
+/// 積の小数ビット数はA_FRAC+B_FRACとして扱う。
+pub function fixed_mul_resize_unsigned::<
+    A_WIDTH  : u32                     ,
+    A_FRAC   : u32                     ,
+    B_WIDTH  : u32                     ,
+    B_FRAC   : u32                     ,
+    OUT_WIDTH: u32                     ,
+    OUT_FRAC : u32                     ,
+    MODE     : FixedPoint::RoundingMode,
+> (
+    a: input logic<A_WIDTH>,
+    b: input logic<B_WIDTH>,
+) -> logic<OUT_WIDTH> {
+    const PRODUCT_WIDTH: u32 = A_WIDTH + B_WIDTH;
+    const PRODUCT_FRAC : u32 = A_FRAC + B_FRAC;
+
+    let product: logic<PRODUCT_WIDTH> = fixed_mul_unsigned::<A_WIDTH, B_WIDTH>(a, b);
+
+    return fixed_resize_unsigned::<PRODUCT_WIDTH, PRODUCT_FRAC, OUT_WIDTH, OUT_FRAC, MODE>(product);
+}
+
 /// 丸め付き右シフトの動作を検証する。
 #[test(test_fixed_point_round_shift)]
 module test_fixed_point_round_shift {
     inst clk: $tb::clock_gen;
 
-    var signed_input   : signed logic<8>;
-    var signed_trunc   : signed logic<8>;
-    var signed_halfup  : signed logic<8>;
-    var signed_zero    : signed logic<8>;
-    var signed_away    : signed logic<8>;
-    var unsigned_input : logic       <8>;
-    var unsigned_trunc : logic       <8>;
-    var unsigned_halfup: logic       <8>;
-    var unsigned_away  : logic       <8>;
-    var unsigned_zero  : logic       <8>;
+    var signed_input    : signed logic<8>;
+    var signed_trunc    : signed logic<8>;
+    var signed_halfup   : signed logic<8>;
+    var signed_zero     : signed logic<8>;
+    var signed_away     : signed logic<8>;
+    var signed_trunc2   : signed logic<8>;
+    var signed_halfup2  : signed logic<8>;
+    var signed_away2    : signed logic<8>;
+    var unsigned_input  : logic       <8>;
+    var unsigned_trunc  : logic       <8>;
+    var unsigned_halfup : logic       <8>;
+    var unsigned_away   : logic       <8>;
+    var unsigned_zero   : logic       <8>;
+    var unsigned_trunc2 : logic       <8>;
+    var unsigned_halfup2: logic       <8>;
 
     always_comb {
-        signed_trunc    = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(signed_input);
-        signed_halfup   = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_UP>(signed_input);
-        signed_zero     = round_shift_signed::<8, 0, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(signed_input);
-        signed_away     = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(signed_input);
-        unsigned_trunc  = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(unsigned_input);
-        unsigned_halfup = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
-        unsigned_away   = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+        signed_trunc     = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(signed_input);
+        signed_halfup    = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_UP>(signed_input);
+        signed_zero      = round_shift_signed::<8, 0, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            signed_input,
+        );
+        signed_away      = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            signed_input,
+        );
+        signed_trunc2    = round_shift_signed::<8, 2, FixedPoint::RoundingMode::ROUND_TRUNCATION>(signed_input);
+        signed_halfup2   = round_shift_signed::<8, 2, FixedPoint::RoundingMode::ROUND_HALF_UP>(signed_input);
+        signed_away2     = round_shift_signed::<8, 2, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            signed_input,
+        );
+        unsigned_trunc   = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(unsigned_input);
+        unsigned_halfup  = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
+        unsigned_away    = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
             unsigned_input,
         );
-        unsigned_zero   = round_shift_unsigned::<8, 0, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
+        unsigned_zero    = round_shift_unsigned::<8, 0, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
+        unsigned_trunc2  = round_shift_unsigned::<8, 2, FixedPoint::RoundingMode::ROUND_TRUNCATION>(unsigned_input);
+        unsigned_halfup2 = round_shift_unsigned::<8, 2, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
     }
 
     initial {
@@ -399,6 +532,11 @@ module test_fixed_point_round_shift {
         $assert(unsigned_trunc == 8'd3, "unsigned truncation mismatch");
         $assert(unsigned_halfup == 8'd4, "unsigned half up mismatch");
         $assert(unsigned_away == 8'd4, "unsigned half away mismatch");
+        $assert(signed_trunc2 == 8'sd1, "signed shift-2 truncation mismatch");
+        $assert(signed_halfup2 == 8'sd2, "signed shift-2 half up mismatch");
+        $assert(signed_away2 == 8'sd2, "signed shift-2 half away mismatch");
+        $assert(unsigned_trunc2 == 8'd1, "unsigned shift-2 truncation mismatch");
+        $assert(unsigned_halfup2 == 8'd2, "unsigned shift-2 half up mismatch");
 
         signed_input   = -7;
         unsigned_input = 2;
@@ -406,6 +544,9 @@ module test_fixed_point_round_shift {
         $assert(signed_trunc == -8'sd4, "signed truncation mismatch for negative value");
         $assert(signed_halfup == -8'sd3, "signed half up mismatch for negative value");
         $assert(signed_away == -8'sd4, "signed half away mismatch for negative value");
+        $assert(signed_trunc2 == -8'sd2, "signed negative shift-2 truncation mismatch");
+        $assert(signed_halfup2 == -8'sd2, "signed negative shift-2 half up mismatch");
+        $assert(signed_away2 == -8'sd2, "signed negative shift-2 half away mismatch");
         $assert(unsigned_trunc == 8'd1, "unsigned truncation mismatch for exact value");
         $assert(unsigned_halfup == 8'd1, "unsigned half up mismatch for exact value");
 
@@ -469,6 +610,12 @@ module test_fixed_point_saturation {
         $assert(signed_small == 4'sd7, "signed upper boundary saturation mismatch");
         $assert(unsigned_small == 4'd15, "unsigned upper boundary saturation mismatch");
 
+        signed_input   = 7;
+        unsigned_input = 15;
+        clk.next();
+        $assert(signed_small == 4'sd7, "signed exact maximum saturation mismatch");
+        $assert(unsigned_small == 4'd15, "unsigned exact maximum saturation mismatch");
+
         signed_input   = -9;
         unsigned_input = 14;
         clk.next();
@@ -481,6 +628,12 @@ module test_fixed_point_saturation {
         $assert(signed_small == -4'sd2, "signed negative in-range saturation mismatch");
         $assert(signed_wide == -10'sd2, "signed negative widening mismatch");
         $assert(unsigned_small == 4'd5, "unsigned in-range saturation mismatch");
+
+        signed_input   = -8;
+        unsigned_input = 0;
+        clk.next();
+        $assert(signed_small == -4'sd8, "signed exact minimum saturation mismatch");
+        $assert(unsigned_small == 4'd0, "unsigned exact zero saturation mismatch");
 
         signed_input   = -128;
         unsigned_input = 0;
@@ -525,6 +678,18 @@ module test_fixed_point_clamp {
         clk.next();
         $assert(signed_clamped == 8'sd5, "signed upper clamp mismatch");
         $assert(unsigned_clamped == 8'd10, "unsigned upper clamp mismatch");
+
+        signed_value   = -3;
+        unsigned_value = 3;
+        clk.next();
+        $assert(signed_clamped == -8'sd3, "signed exact lower clamp mismatch");
+        $assert(unsigned_clamped == 8'd3, "unsigned exact lower clamp mismatch");
+
+        signed_value   = 5;
+        unsigned_value = 10;
+        clk.next();
+        $assert(signed_clamped == 8'sd5, "signed exact upper clamp mismatch");
+        $assert(unsigned_clamped == 8'd10, "unsigned exact upper clamp mismatch");
 
         $finish();
     }
@@ -606,6 +771,133 @@ module test_fixed_point_resize_and_mul {
         clk.next();
         $assert(product == 16'sd12, "negative times negative product mismatch");
         $assert(product_resized == 8'sd3, "negative times negative resize mismatch");
+
+        $finish();
+    }
+}
+
+/// 固定小数点APIの幅変換、丸め境界、unsigned、非対称乗算を検証する。
+#[test(test_fixed_point_generic_api)]
+module test_fixed_point_generic_api {
+    inst clk: $tb::clock_gen;
+
+    var signed_input       : signed logic<8> ;
+    var signed_halfup      : signed logic<8> ;
+    var signed_away        : signed logic<8> ;
+    var signed_trunc       : signed logic<8> ;
+    var signed_expanded    : signed logic<12>;
+    var signed_sat_input   : signed logic<12>;
+    var signed_sat_output  : signed logic<6> ;
+    var wide_input         : signed logic<40>;
+    var wide_rounded       : signed logic<40>;
+    var unsigned_input     : logic       <8> ;
+    var unsigned_halfup    : logic       <4> ;
+    var unsigned_away      : logic       <4> ;
+    var unsigned_expanded  : logic       <10>;
+    var unsigned_sat_input : logic       <12>;
+    var unsigned_sat_output: logic       <8> ;
+    var signed_a           : signed logic<4> ;
+    var signed_b           : signed logic<6> ;
+    var signed_product     : signed logic<10>;
+    var signed_resized     : signed logic<8> ;
+    var unsigned_a         : logic       <4> ;
+    var unsigned_b         : logic       <4> ;
+    var unsigned_product   : logic       <8> ;
+    var unsigned_resized   : logic       <4> ;
+
+    always_comb {
+        signed_halfup     = fixed_resize_signed::<8, 3, 8, 1, FixedPoint::RoundingMode::ROUND_HALF_UP>(signed_input);
+        signed_away       = fixed_resize_signed::<8, 3, 8, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            signed_input,
+        );
+        signed_trunc      = fixed_resize_signed::<8, 3, 8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(signed_input);
+        signed_expanded   = fixed_resize_signed::<8, 3, 12, 3, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            signed_input,
+        );
+        signed_sat_output = fixed_resize_signed::<12, 4, 6, 4, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            signed_sat_input,
+        );
+        wide_rounded      = round_shift_signed::<40, 33, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            wide_input,
+        );
+
+        unsigned_halfup     = fixed_resize_unsigned::<8, 3, 4, 1, FixedPoint::RoundingMode::ROUND_HALF_UP>(
+            unsigned_input,
+        );
+        unsigned_away       = fixed_resize_unsigned::<8, 3, 4, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            unsigned_input,
+        );
+        unsigned_expanded   = fixed_resize_unsigned::<8, 2, 10, 4, FixedPoint::RoundingMode::ROUND_HALF_UP>(
+            unsigned_input,
+        );
+        unsigned_sat_output = fixed_resize_unsigned::<12, 4, 8, 2, FixedPoint::RoundingMode::ROUND_HALF_UP>(
+            unsigned_sat_input,
+        );
+
+        signed_product   = fixed_mul::<4, 6>(signed_a, signed_b);
+        signed_resized   = fixed_mul_resize_signed::<
+            4                                                  ,
+            2                                                  ,
+            6                                                  ,
+            3                                                  ,
+            8                                                  ,
+            2                                                  ,
+            FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO,
+        >(signed_a, signed_b);
+        unsigned_product = fixed_mul_unsigned::<4, 4>(unsigned_a, unsigned_b);
+        unsigned_resized = fixed_mul_resize_unsigned::<4, 2, 4, 2, 4, 2, FixedPoint::RoundingMode::ROUND_HALF_UP>(
+            unsigned_a,
+            unsigned_b,
+        );
+    }
+
+    initial {
+        signed_input       = 6;
+        signed_sat_input   = 2047;
+        unsigned_input     = 6;
+        unsigned_sat_input = 4095;
+        signed_a           = -3;
+        signed_b           = 5;
+        unsigned_a         = 15;
+        unsigned_b         = 3;
+        wide_input         = 40'sd1 <<< 32;
+        clk.next();
+        $assert(signed_trunc == 8'sd1, "signed resize truncation mismatch");
+        $assert(signed_halfup == 8'sd2, "signed resize half up tie mismatch");
+        $assert(signed_away == 8'sd2, "signed resize half away tie mismatch");
+        $assert(signed_expanded == 12'sd6, "signed integer expansion mismatch");
+        $assert(signed_sat_output == 6'sd31, "signed resize upper saturation mismatch");
+        $assert(unsigned_halfup == 4'd2, "unsigned resize half up mismatch");
+        $assert(unsigned_away == 4'd2, "unsigned resize half away mismatch");
+        $assert(unsigned_expanded == 10'd24, "unsigned fractional expansion mismatch");
+        $assert(unsigned_sat_output == 8'd255, "unsigned resize saturation mismatch");
+        $assert(signed_product == -10'sd15, "asymmetric signed product mismatch");
+        $assert(signed_resized == -8'sd2, "signed multiply-resize mismatch");
+        $assert(unsigned_product == 8'd45, "unsigned product mismatch");
+        $assert(unsigned_resized == 4'd11, "unsigned multiply-resize mismatch");
+        $assert(wide_rounded == 40'sd1, "wide shift positive tie mismatch");
+
+        signed_input       = -6;
+        signed_sat_input   = -2048;
+        unsigned_input     = 2;
+        unsigned_sat_input = 0;
+        wide_input         = -(40'sd1 <<< 32);
+        clk.next();
+        $assert(signed_trunc == -8'sd2, "signed resize negative truncation mismatch");
+        $assert(signed_halfup == -8'sd1, "signed resize negative half up tie mismatch");
+        $assert(signed_away == -8'sd2, "signed resize negative half away tie mismatch");
+        $assert(signed_expanded == -12'sd6, "signed negative expansion mismatch");
+        $assert(signed_sat_output == -6'sd32, "signed resize lower saturation mismatch");
+        $assert(unsigned_halfup == 4'd1, "unsigned resize exact zero-side mismatch");
+        $assert(unsigned_away == 4'd1, "unsigned resize zero-side mismatch");
+        $assert(unsigned_expanded == 10'd8, "unsigned fractional expansion second case mismatch");
+        $assert(unsigned_sat_output == 8'd0, "unsigned zero resize mismatch");
+        $assert(wide_rounded == -40'sd1, "wide shift negative tie mismatch");
+
+        unsigned_input = 3;
+        clk.next();
+        $assert(unsigned_halfup == 4'd1, "unsigned resize half tie mismatch");
+        $assert(unsigned_away == 4'd1, "unsigned resize half away mismatch");
 
         $finish();
     }

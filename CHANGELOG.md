@@ -8,9 +8,10 @@
   - 丸め付き右シフト（truncation / round half up / round half away from zero）
   - signed/unsigned saturation
   - signed/unsigned clamp
-  - signed固定小数点resize（小数位置調整 → 丸め → 飽和）
-  - signed multiply helper
-- 固定小数点Native testを追加
+  - signed/unsigned固定小数点resize（小数位置調整 → 丸め → 飽和）
+  - signed/unsigned multiply helperと乗算後resize helper
+- 固定小数点APIを幅・小数ビット数・丸めモードのgeneric parameterで一般化
+- 固定小数点Native testを境界値、負値tie、広いシフト量、非対称幅、乗算後resizeまで拡張
 - `NcoTick`/`ClockEnableNco`と分数比clock-enable Native testを追加
 - ASRC用`FractionalPhaseAccumulator`と位相wrap／平均進行Native testを追加
 - 2倍halfband補間器とQ2.16係数設計スクリプト、burst／ready／DCゲインNative testを追加
