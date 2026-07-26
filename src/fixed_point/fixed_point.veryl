@@ -8,6 +8,8 @@ pub package FixedPoint {
         ROUND_HALF_UP,
         /// tieを絶対値が大きくなる方向へ丸める。
         ROUND_HALF_AWAY_FROM_ZERO,
+        /// 最近傍値へ丸め、tieでは結果の最下位ビットを偶数にする。
+        ROUND_TO_NEAREST_EVEN,
     }
 
     //----------------------------------------------------------------
@@ -183,6 +185,7 @@ pub package FixedPoint {
 /// MODEにはFixedPoint::RoundingMode::ROUND_*を指定する。
 /// ROUND_TRUNCATIONは算術右シフト、ROUND_HALF_UPはtieを正方向、
 /// ROUND_HALF_AWAY_FROM_ZEROはtieを絶対値が大きくなる方向へ丸める。
+/// ROUND_TO_NEAREST_EVENは最近傍値へ丸め、tieでは結果を偶数にする。
 /// SHIFT == 0では入力をそのまま返す。
 pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::RoundingMode> (
     value: input signed logic<WIDTH>,
@@ -190,13 +193,23 @@ pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::Roun
     // SHIFTが入力幅を超えてもhalf値を保持できるよう、作業幅をシフト量からも導出する。
     const WORK_WIDTH: u32 = if WIDTH + 2 >= SHIFT + 2 ? WIDTH + 2 : SHIFT + 2;
 
-    let value_ext : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - WIDTH, value});
-    let half_value: signed logic<WORK_WIDTH> = if SHIFT == 0 ?
+    let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - WIDTH, value});
+    let half_value         : signed logic<WORK_WIDTH> = if SHIFT == 0 ?
         '0
     :
         $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (SHIFT - 1))
     ;
-    var result    : signed logic<WORK_WIDTH>;
+    let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
+    let truncated_magnitude: signed logic<WORK_WIDTH> = if SHIFT == 0 ? magnitude : magnitude >>> SHIFT;
+    let remainder          : signed logic<WORK_WIDTH> = if SHIFT == 0 ?
+        '0
+    :
+        magnitude - (truncated_magnitude <<< SHIFT)
+    ;
+    var rounded_magnitude  : signed logic<WORK_WIDTH>;
+    var result             : signed logic<WORK_WIDTH>;
+
+    rounded_magnitude = truncated_magnitude;
 
     if SHIFT == 0 {
         result = value_ext;
@@ -204,10 +217,21 @@ pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::Roun
         result = value_ext >>> SHIFT;
     } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_UP {
         result = (value_ext + half_value) >>> SHIFT;
-    } else if value_ext[msb] == 1'b0 {
+    } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO && value_ext[msb] == 1'b0 {
         result = (value_ext + half_value) >>> SHIFT;
-    } else {
+    } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO {
         result = -((-value_ext + half_value) >>> SHIFT);
+    } else if MODE == FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN {
+        if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
+            rounded_magnitude = truncated_magnitude + 1'b1;
+        }
+        if value_ext[msb] == 1'b0 {
+            result = rounded_magnitude;
+        } else {
+            result = -rounded_magnitude;
+        }
+    } else {
+        result = value_ext >>> SHIFT;
     }
 
     return $signed(result[WIDTH - 1:0]);
@@ -222,12 +246,22 @@ pub function round_shift_unsigned::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::Ro
 
     let value_ext : logic<WORK_WIDTH> = {1'b0 repeat WORK_WIDTH - WIDTH, value};
     let half_value: logic<WORK_WIDTH> = if SHIFT == 0 ? '0 : {1'b0 repeat WORK_WIDTH - 1, 1'b1} << (SHIFT - 1);
+    let truncated : logic<WORK_WIDTH> = if SHIFT == 0 ? value_ext : value_ext >> SHIFT;
+    let remainder : logic<WORK_WIDTH> = if SHIFT == 0 ? '0 : value_ext - (truncated << SHIFT);
+    var rounded   : logic<WORK_WIDTH>;
     var result    : logic<WORK_WIDTH>;
+
+    rounded = truncated;
 
     if SHIFT == 0 {
         result = value_ext;
     } else if MODE == FixedPoint::RoundingMode::ROUND_TRUNCATION {
         result = value_ext >> SHIFT;
+    } else if MODE == FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN {
+        if remainder >: half_value || (remainder == half_value && truncated[0] == 1'b1) {
+            rounded = truncated + 1'b1;
+        }
+        result = rounded;
     } else {
         result = (value_ext + half_value) >> SHIFT;
     }
@@ -325,13 +359,23 @@ pub function fixed_resize_signed::<
     const BASE_WIDTH : u32 = if IN_WIDTH + LEFT_SHIFT >= OUT_WIDTH ? IN_WIDTH + LEFT_SHIFT + 2 : OUT_WIDTH + 2;
     const WORK_WIDTH : u32 = if BASE_WIDTH >= RIGHT_SHIFT + 2 ? BASE_WIDTH : RIGHT_SHIFT + 2;
 
-    let value_ext : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - IN_WIDTH, value});
-    let half_value: signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
+    let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - IN_WIDTH, value});
+    let half_value         : signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
         '0
     :
         $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (RIGHT_SHIFT - 1))
     ;
-    var aligned   : signed logic<WORK_WIDTH>;
+    let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
+    let truncated_magnitude: signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ? magnitude : magnitude >>> RIGHT_SHIFT;
+    let remainder          : signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
+        '0
+    :
+        magnitude - (truncated_magnitude <<< RIGHT_SHIFT)
+    ;
+    var rounded_magnitude  : signed logic<WORK_WIDTH>;
+    var aligned            : signed logic<WORK_WIDTH>;
+
+    rounded_magnitude = truncated_magnitude;
 
     if RIGHT_SHIFT == 0 {
         aligned = value_ext <<< LEFT_SHIFT;
@@ -339,10 +383,21 @@ pub function fixed_resize_signed::<
         aligned = value_ext >>> RIGHT_SHIFT;
     } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_UP {
         aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
-    } else if value_ext[msb] == 1'b0 {
+    } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO && value_ext[msb] == 1'b0 {
         aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
-    } else {
+    } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO {
         aligned = -((-value_ext + half_value) >>> RIGHT_SHIFT);
+    } else if MODE == FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN {
+        if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
+            rounded_magnitude = truncated_magnitude + 1'b1;
+        }
+        if value_ext[msb] == 1'b0 {
+            aligned = rounded_magnitude;
+        } else {
+            aligned = -rounded_magnitude;
+        }
+    } else {
+        aligned = value_ext >>> RIGHT_SHIFT;
     }
 
     const BODY_WIDTH  : u32 = OUT_WIDTH - 1;
@@ -383,12 +438,22 @@ pub function fixed_resize_unsigned::<
     :
         {1'b0 repeat WORK_WIDTH - 1, 1'b1} << (RIGHT_SHIFT - 1)
     ;
+    let truncated : logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ? value_ext : value_ext >> RIGHT_SHIFT;
+    let remainder : logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ? '0 : value_ext - (truncated << RIGHT_SHIFT);
+    var rounded   : logic<WORK_WIDTH>;
     var aligned   : logic<WORK_WIDTH>;
+
+    rounded = truncated;
 
     if RIGHT_SHIFT == 0 {
         aligned = value_ext << LEFT_SHIFT;
     } else if MODE == FixedPoint::RoundingMode::ROUND_TRUNCATION {
         aligned = value_ext >> RIGHT_SHIFT;
+    } else if MODE == FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN {
+        if remainder >: half_value || (remainder == half_value && truncated[0] == 1'b1) {
+            rounded = truncated + 1'b1;
+        }
+        aligned = rounded;
     } else {
         aligned = (value_ext + half_value) >> RIGHT_SHIFT;
     }
@@ -486,17 +551,21 @@ module test_fixed_point_round_shift {
     var signed_trunc    : signed logic<8>;
     var signed_halfup   : signed logic<8>;
     var signed_zero     : signed logic<8>;
+    var signed_even0    : signed logic<8>;
     var signed_away     : signed logic<8>;
     var signed_trunc2   : signed logic<8>;
     var signed_halfup2  : signed logic<8>;
     var signed_away2    : signed logic<8>;
+    var signed_even2    : signed logic<8>;
     var unsigned_input  : logic       <8>;
     var unsigned_trunc  : logic       <8>;
     var unsigned_halfup : logic       <8>;
     var unsigned_away   : logic       <8>;
     var unsigned_zero   : logic       <8>;
+    var unsigned_even0  : logic       <8>;
     var unsigned_trunc2 : logic       <8>;
     var unsigned_halfup2: logic       <8>;
+    var unsigned_even2  : logic       <8>;
 
     always_comb {
         signed_trunc     = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(signed_input);
@@ -504,6 +573,7 @@ module test_fixed_point_round_shift {
         signed_zero      = round_shift_signed::<8, 0, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
             signed_input,
         );
+        signed_even0     = round_shift_signed::<8, 0, FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN>(signed_input);
         signed_away      = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
             signed_input,
         );
@@ -512,14 +582,21 @@ module test_fixed_point_round_shift {
         signed_away2     = round_shift_signed::<8, 2, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
             signed_input,
         );
+        signed_even2     = round_shift_signed::<8, 2, FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN>(signed_input);
         unsigned_trunc   = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(unsigned_input);
         unsigned_halfup  = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
         unsigned_away    = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
             unsigned_input,
         );
         unsigned_zero    = round_shift_unsigned::<8, 0, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
+        unsigned_even0   = round_shift_unsigned::<8, 0, FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN>(
+            unsigned_input,
+        );
         unsigned_trunc2  = round_shift_unsigned::<8, 2, FixedPoint::RoundingMode::ROUND_TRUNCATION>(unsigned_input);
         unsigned_halfup2 = round_shift_unsigned::<8, 2, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
+        unsigned_even2   = round_shift_unsigned::<8, 2, FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN>(
+            unsigned_input,
+        );
     }
 
     initial {
@@ -535,8 +612,10 @@ module test_fixed_point_round_shift {
         $assert(signed_trunc2 == 8'sd1, "signed shift-2 truncation mismatch");
         $assert(signed_halfup2 == 8'sd2, "signed shift-2 half up mismatch");
         $assert(signed_away2 == 8'sd2, "signed shift-2 half away mismatch");
+        $assert(signed_even2 == 8'sd2, "signed shift-2 nearest-even mismatch");
         $assert(unsigned_trunc2 == 8'd1, "unsigned shift-2 truncation mismatch");
         $assert(unsigned_halfup2 == 8'd2, "unsigned shift-2 half up mismatch");
+        $assert(unsigned_even2 == 8'd2, "unsigned shift-2 nearest-even mismatch");
 
         signed_input   = -7;
         unsigned_input = 2;
@@ -547,8 +626,21 @@ module test_fixed_point_round_shift {
         $assert(signed_trunc2 == -8'sd2, "signed negative shift-2 truncation mismatch");
         $assert(signed_halfup2 == -8'sd2, "signed negative shift-2 half up mismatch");
         $assert(signed_away2 == -8'sd2, "signed negative shift-2 half away mismatch");
+        $assert(signed_even2 == -8'sd2, "signed negative shift-2 nearest-even mismatch");
         $assert(unsigned_trunc == 8'd1, "unsigned truncation mismatch for exact value");
         $assert(unsigned_halfup == 8'd1, "unsigned half up mismatch for exact value");
+
+        signed_input   = 2;
+        unsigned_input = 2;
+        clk.next();
+        $assert(signed_even2 == 8'sd0, "signed positive even tie mismatch");
+        $assert(unsigned_even2 == 8'd0, "unsigned even tie mismatch");
+
+        signed_input   = -2;
+        unsigned_input = 6;
+        clk.next();
+        $assert(signed_even2 == -8'sd0, "signed negative even tie mismatch");
+        $assert(unsigned_even2 == 8'd2, "unsigned odd tie mismatch");
 
         signed_input   = -1;
         unsigned_input = 1;
@@ -571,6 +663,8 @@ module test_fixed_point_round_shift {
         $assert(unsigned_input == 8'd7, "shift zero unsigned input setup mismatch");
         $assert(signed_zero == -8'sd7, "signed shift zero mismatch");
         $assert(unsigned_zero == 8'd7, "unsigned shift zero mismatch");
+        $assert(signed_even0 == -8'sd7, "signed nearest-even shift zero mismatch");
+        $assert(unsigned_even0 == 8'd7, "unsigned nearest-even shift zero mismatch");
 
         $finish();
     }
@@ -785,6 +879,7 @@ module test_fixed_point_generic_api {
     var signed_halfup      : signed logic<8> ;
     var signed_away        : signed logic<8> ;
     var signed_trunc       : signed logic<8> ;
+    var signed_even        : signed logic<8> ;
     var signed_expanded    : signed logic<12>;
     var signed_sat_input   : signed logic<12>;
     var signed_sat_output  : signed logic<6> ;
@@ -793,6 +888,7 @@ module test_fixed_point_generic_api {
     var unsigned_input     : logic       <8> ;
     var unsigned_halfup    : logic       <4> ;
     var unsigned_away      : logic       <4> ;
+    var unsigned_even      : logic       <4> ;
     var unsigned_expanded  : logic       <10>;
     var unsigned_sat_input : logic       <12>;
     var unsigned_sat_output: logic       <8> ;
@@ -800,6 +896,7 @@ module test_fixed_point_generic_api {
     var signed_b           : signed logic<6> ;
     var signed_product     : signed logic<10>;
     var signed_resized     : signed logic<8> ;
+    var signed_even_resized: signed logic<8> ;
     var unsigned_a         : logic       <4> ;
     var unsigned_b         : logic       <4> ;
     var unsigned_product   : logic       <8> ;
@@ -811,6 +908,9 @@ module test_fixed_point_generic_api {
             signed_input,
         );
         signed_trunc      = fixed_resize_signed::<8, 3, 8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(signed_input);
+        signed_even       = fixed_resize_signed::<8, 3, 8, 1, FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN>(
+            signed_input,
+        );
         signed_expanded   = fixed_resize_signed::<8, 3, 12, 3, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
             signed_input,
         );
@@ -827,6 +927,9 @@ module test_fixed_point_generic_api {
         unsigned_away       = fixed_resize_unsigned::<8, 3, 4, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
             unsigned_input,
         );
+        unsigned_even       = fixed_resize_unsigned::<8, 3, 4, 1, FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN>(
+            unsigned_input,
+        );
         unsigned_expanded   = fixed_resize_unsigned::<8, 2, 10, 4, FixedPoint::RoundingMode::ROUND_HALF_UP>(
             unsigned_input,
         );
@@ -834,8 +937,8 @@ module test_fixed_point_generic_api {
             unsigned_sat_input,
         );
 
-        signed_product   = fixed_mul::<4, 6>(signed_a, signed_b);
-        signed_resized   = fixed_mul_resize_signed::<
+        signed_product      = fixed_mul::<4, 6>(signed_a, signed_b);
+        signed_resized      = fixed_mul_resize_signed::<
             4                                                  ,
             2                                                  ,
             6                                                  ,
@@ -844,8 +947,17 @@ module test_fixed_point_generic_api {
             2                                                  ,
             FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO,
         >(signed_a, signed_b);
-        unsigned_product = fixed_mul_unsigned::<4, 4>(unsigned_a, unsigned_b);
-        unsigned_resized = fixed_mul_resize_unsigned::<4, 2, 4, 2, 4, 2, FixedPoint::RoundingMode::ROUND_HALF_UP>(
+        signed_even_resized = fixed_mul_resize_signed::<
+            4                                              ,
+            2                                              ,
+            6                                              ,
+            2                                              ,
+            8                                              ,
+            0                                              ,
+            FixedPoint::RoundingMode::ROUND_TO_NEAREST_EVEN,
+        >(signed_a, signed_b);
+        unsigned_product    = fixed_mul_unsigned::<4, 4>(unsigned_a, unsigned_b);
+        unsigned_resized    = fixed_mul_resize_unsigned::<4, 2, 4, 2, 4, 2, FixedPoint::RoundingMode::ROUND_HALF_UP>(
             unsigned_a,
             unsigned_b,
         );
@@ -865,14 +977,17 @@ module test_fixed_point_generic_api {
         $assert(signed_trunc == 8'sd1, "signed resize truncation mismatch");
         $assert(signed_halfup == 8'sd2, "signed resize half up tie mismatch");
         $assert(signed_away == 8'sd2, "signed resize half away tie mismatch");
+        $assert(signed_even == 8'sd2, "signed resize nearest-even tie mismatch");
         $assert(signed_expanded == 12'sd6, "signed integer expansion mismatch");
         $assert(signed_sat_output == 6'sd31, "signed resize upper saturation mismatch");
         $assert(unsigned_halfup == 4'd2, "unsigned resize half up mismatch");
         $assert(unsigned_away == 4'd2, "unsigned resize half away mismatch");
+        $assert(unsigned_even == 4'd2, "unsigned resize nearest-even mismatch");
         $assert(unsigned_expanded == 10'd24, "unsigned fractional expansion mismatch");
         $assert(unsigned_sat_output == 8'd255, "unsigned resize saturation mismatch");
         $assert(signed_product == -10'sd15, "asymmetric signed product mismatch");
         $assert(signed_resized == -8'sd2, "signed multiply-resize mismatch");
+        $assert(signed_even_resized == -8'sd1, "signed nearest-even multiply-resize mismatch");
         $assert(unsigned_product == 8'd45, "unsigned product mismatch");
         $assert(unsigned_resized == 4'd11, "unsigned multiply-resize mismatch");
         $assert(wide_rounded == 40'sd1, "wide shift positive tie mismatch");
@@ -886,10 +1001,12 @@ module test_fixed_point_generic_api {
         $assert(signed_trunc == -8'sd2, "signed resize negative truncation mismatch");
         $assert(signed_halfup == -8'sd1, "signed resize negative half up tie mismatch");
         $assert(signed_away == -8'sd2, "signed resize negative half away tie mismatch");
+        $assert(signed_even == -8'sd2, "signed resize negative nearest-even tie mismatch");
         $assert(signed_expanded == -12'sd6, "signed negative expansion mismatch");
         $assert(signed_sat_output == -6'sd32, "signed resize lower saturation mismatch");
         $assert(unsigned_halfup == 4'd1, "unsigned resize exact zero-side mismatch");
         $assert(unsigned_away == 4'd1, "unsigned resize zero-side mismatch");
+        $assert(unsigned_even == 4'd0, "unsigned resize even tie mismatch");
         $assert(unsigned_expanded == 10'd8, "unsigned fractional expansion second case mismatch");
         $assert(unsigned_sat_output == 8'd0, "unsigned zero resize mismatch");
         $assert(wide_rounded == -40'sd1, "wide shift negative tie mismatch");

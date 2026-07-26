@@ -5,7 +5,7 @@
 ### Added
 
 - 固定小数点共通演算を追加
-  - 丸め付き右シフト（truncation / round half up / round half away from zero）
+  - 丸め付き右シフト（truncation / round half up / round half away from zero / round to nearest even）
   - signed/unsigned saturation
   - signed/unsigned clamp
   - signed/unsigned固定小数点resize（小数位置調整 → 丸め → 飽和）
