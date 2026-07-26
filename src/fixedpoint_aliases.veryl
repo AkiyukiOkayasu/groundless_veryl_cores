@@ -1,0 +1,6 @@
+// gndless_fixedpoint依存を親project内の既存名へ束縛する。
+// aliasはprivateであり、groundless_veryl_coresの公開APIとして再exportしない。
+alias package FixedPoint = fixedpoint::FixedPoint;
+alias package Q1_31 = fixedpoint::Q1_31;
+alias package Q8_24 = fixedpoint::Q8_24;
+alias package SignedFixedPoint = fixedpoint::SignedFixedPoint;

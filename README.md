@@ -12,13 +12,19 @@ Verylで記述した、オーディオ信号処理・デジタルオーディオ
 | ADAT | `AdatRx`, `AdatTx` | 8ch ADAT受信・送信、S/MUX2パッキング |
 | IEC60958 | `SpdifTransmitter`/`SpdifReceiver`, `Aes3Transmitter`/`Aes3Receiver` | S/PDIF・AES3のstereo transceiver |
 | ASRC | `LinearAsrc`, `ContinuousLinearAsrc`, `FourXHalfbandAsrc`, `FractionalPhaseAccumulator`, `FarrowAsrc`, `SampleRateTracker` | 分数比サンプルレート変換、4倍HBF、入力レート推定 |
-| 固定小数点・変調 | `FixedPoint`, `DeltaSigma1st`, `DeltaSigma2nd` | PCM演算とPDM生成 |
+| 固定小数点・変調 | `gndless_fixedpoint`, `DeltaSigma1st`, `DeltaSigma2nd` | 独立inner projectによるPCM演算とPDM生成 |
 | フィルタ・発振器 | `CicDecimator`, `CicInterpolator`, `LpfShift*`, `HpfShift*`, 各wave core | レート変換とオーディオ信号処理 |
 | 周辺I/O | `SpiMaster`, `UartRx`, `MidiRx` | シリアルインターフェース |
 
 当面のADAT→50MHz差動PDMと将来のI2S出力の実装計画は、[AUDIO_PIPELINE_PLAN.md](AUDIO_PIPELINE_PLAN.md)にまとめています。
 
 詳細なポート一覧と型は、[公開ドキュメント](https://akiyukiokayasu.github.io/groundless_veryl_cores/)を参照してください。
+
+固定小数点演算は`packages/fixedpoint/`の独立Veryl project
+`gndless_fixedpoint`として管理しています。現在はローカルoverrideで参照し、
+安定後に
+[`AkiyukiOkayasu/gndless-fixedpoint-veryl`](https://github.com/AkiyukiOkayasu/gndless-fixedpoint-veryl)
+へリポジトリを分離する予定です。利用側の依存namespaceは`fixedpoint`です。
 
 ## インターフェース方針
 

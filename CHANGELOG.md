@@ -53,6 +53,7 @@
 
 ### Changed
 
+- 固定小数点実装を`packages/fixedpoint/`の独立Veryl project `gndless_fixedpoint`へ分離し、親projectからローカルoverride付きGit依存として参照
 - 固定小数点の丸めモード指定を数値定数から `FixedPoint::RoundingMode` enumへ変更
 - 固定小数点formatのassociated typeを`Q1_31::Value`などから`Q1_31::Raw`へ変更
 - 固定小数点formatの`WIDTH`/`FRACTION_BITS`/`Raw`および丸め・overflow policyのdocumentation commentを拡充

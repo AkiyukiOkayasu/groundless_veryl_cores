@@ -11,3 +11,8 @@ sources = ["src"]
 target = { type = "directory", path = "target" }
 
 [test]
+
+[dependencies]
+# `AkiyukiOkayasu/gndless-fixedpoint-veryl`へ分離後は次のGit依存へ置き換える。
+# fixedpoint = { project = "gndless_fixedpoint", github = "AkiyukiOkayasu/gndless-fixedpoint-veryl", version = "0.1.0" }
+fixedpoint = { path = "./packages/fixedpoint" }

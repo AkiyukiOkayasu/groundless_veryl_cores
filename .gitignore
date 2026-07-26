@@ -1,7 +1,10 @@
 .build/
 /target
 /dependencies
+**/target/
+**/dependencies/
 /doc/
+**/doc/
 .sisyphus
 *.fst
 
@@ -38,3 +41,4 @@ Temporary Items
 *.icloud
 .opencode/oh-my-opencode.jsonc
 groundless_veryl_cores.f
+*.f

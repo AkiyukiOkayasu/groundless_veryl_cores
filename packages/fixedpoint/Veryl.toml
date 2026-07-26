@@ -1,0 +1,13 @@
+[project]
+name = "gndless_fixedpoint"
+version = "0.1.0"
+authors = ["Akiyuki Okayasu"]
+description = "Generic signed fixed-point arithmetic utilities for Veryl."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/AkiyukiOkayasu/gndless-fixedpoint-veryl"
+
+[build]
+sources = ["src"]
+target = { type = "directory", path = "target" }
+
+[test]
