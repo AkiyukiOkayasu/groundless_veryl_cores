@@ -1,9 +1,14 @@
 /// 固定小数点型と定数や変換関数
 pub package FixedPoint {
-    /// 丸めモード値。0: truncation、1: round half up、2: round half away from zero。
-    const ROUND_TRUNCATION         : u32 = 0;
-    const ROUND_HALF_UP            : u32 = 1;
-    const ROUND_HALF_AWAY_FROM_ZERO: u32 = 2;
+    /// 固定小数点値を右シフトするときの丸めモード。
+    enum RoundingMode {
+        /// 小数部を破棄する。signedでは負方向への算術右シフトとなる。
+        ROUND_TRUNCATION,
+        /// tieを正方向へ丸める。
+        ROUND_HALF_UP,
+        /// tieを絶対値が大きくなる方向へ丸める。
+        ROUND_HALF_AWAY_FROM_ZERO,
+    }
 
     //----------------------------------------------------------------
     // Q2.16形式 (+/-2.0 表示範囲)
@@ -175,8 +180,8 @@ pub package FixedPoint {
 }
 
 /// signed値を算術右シフトし、指定モードで丸める。
-/// MODEにはFixedPoint::ROUND_*を指定する。
-pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: u32> (
+/// MODEにはFixedPoint::RoundingMode::ROUND_*を指定する。
+pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::RoundingMode> (
     value: input signed logic<WIDTH>,
 ) -> signed logic<WIDTH> {
     const HALF: u32 = if SHIFT == 0 ? 0 : 1 << (SHIFT - 1);
@@ -187,9 +192,9 @@ pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: u32> (
 
     if SHIFT == 0 {
         result = value_ext;
-    } else if MODE == 0 {
+    } else if MODE == FixedPoint::RoundingMode::ROUND_TRUNCATION {
         result = value_ext >>> SHIFT;
-    } else if MODE == 1 {
+    } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_UP {
         result = (value_ext + half_value) >>> SHIFT;
     } else if value_ext[msb] == 1'b0 {
         result = (value_ext + half_value) >>> SHIFT;
@@ -201,7 +206,7 @@ pub function round_shift_signed::<WIDTH: u32, SHIFT: u32, MODE: u32> (
 }
 
 /// unsigned値を右シフトし、指定モードで丸める。
-pub function round_shift_unsigned::<WIDTH: u32, SHIFT: u32, MODE: u32> (
+pub function round_shift_unsigned::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::RoundingMode> (
     value: input logic<WIDTH>,
 ) -> logic<WIDTH> {
     const HALF: u32 = if SHIFT == 0 ? 0 : 1 << (SHIFT - 1);
@@ -211,7 +216,7 @@ pub function round_shift_unsigned::<WIDTH: u32, SHIFT: u32, MODE: u32> (
 
     if SHIFT == 0 {
         result = value_ext;
-    } else if MODE == 0 {
+    } else if MODE == FixedPoint::RoundingMode::ROUND_TRUNCATION {
         result = value_ext >> SHIFT;
     } else {
         result = (value_ext + HALF) >> SHIFT;
@@ -289,8 +294,14 @@ pub function clamp_unsigned::<WIDTH: u32> (
 }
 
 /// signed固定小数点値を小数ビット数と出力幅ごと変換する。
-/// MODEにはFixedPoint::ROUND_*を指定する。
-pub function fixed_resize_signed::<IN_WIDTH: u32, IN_FRAC: u32, OUT_WIDTH: u32, OUT_FRAC: u32, MODE: u32> (
+/// MODEにはFixedPoint::RoundingMode::ROUND_*を指定する。
+pub function fixed_resize_signed::<
+    IN_WIDTH : u32                     ,
+    IN_FRAC  : u32                     ,
+    OUT_WIDTH: u32                     ,
+    OUT_FRAC : u32                     ,
+    MODE     : FixedPoint::RoundingMode,
+> (
     value: input signed logic<IN_WIDTH>,
 ) -> signed logic<OUT_WIDTH> {
     const LEFT_SHIFT  : u32 = if IN_FRAC >= OUT_FRAC ? 0 : OUT_FRAC - IN_FRAC;
@@ -305,9 +316,9 @@ pub function fixed_resize_signed::<IN_WIDTH: u32, IN_FRAC: u32, OUT_WIDTH: u32, 
     var aligned   : signed logic<WORK_WIDTH>;
 
     if RIGHT_SHIFT != 0 {
-        if MODE == 0 {
+        if MODE == FixedPoint::RoundingMode::ROUND_TRUNCATION {
             aligned = value_ext >>> RIGHT_SHIFT;
-        } else if MODE == 1 {
+        } else if MODE == FixedPoint::RoundingMode::ROUND_HALF_UP {
             aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
         } else if value_ext[msb] == 1'b0 {
             aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
@@ -366,14 +377,16 @@ module test_fixed_point_round_shift {
     var unsigned_zero  : logic       <8>;
 
     always_comb {
-        signed_trunc    = round_shift_signed::<8, 1, FixedPoint::ROUND_TRUNCATION>(signed_input);
-        signed_halfup   = round_shift_signed::<8, 1, FixedPoint::ROUND_HALF_UP>(signed_input);
-        signed_zero     = round_shift_signed::<8, 0, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(signed_input);
-        signed_away     = round_shift_signed::<8, 1, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(signed_input);
-        unsigned_trunc  = round_shift_unsigned::<8, 1, FixedPoint::ROUND_TRUNCATION>(unsigned_input);
-        unsigned_halfup = round_shift_unsigned::<8, 1, FixedPoint::ROUND_HALF_UP>(unsigned_input);
-        unsigned_away   = round_shift_unsigned::<8, 1, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(unsigned_input);
-        unsigned_zero   = round_shift_unsigned::<8, 0, FixedPoint::ROUND_HALF_UP>(unsigned_input);
+        signed_trunc    = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(signed_input);
+        signed_halfup   = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_UP>(signed_input);
+        signed_zero     = round_shift_signed::<8, 0, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(signed_input);
+        signed_away     = round_shift_signed::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(signed_input);
+        unsigned_trunc  = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_TRUNCATION>(unsigned_input);
+        unsigned_halfup = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
+        unsigned_away   = round_shift_unsigned::<8, 1, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            unsigned_input,
+        );
+        unsigned_zero   = round_shift_unsigned::<8, 0, FixedPoint::RoundingMode::ROUND_HALF_UP>(unsigned_input);
     }
 
     initial {
@@ -535,13 +548,21 @@ module test_fixed_point_resize_and_mul {
     var product_resized: signed logic<8> ;
 
     always_comb {
-        resize_down     = fixed_resize_signed::<8, 4, 8, 2, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(resize_input);
-        resize_up       = fixed_resize_signed::<8, 2, 10, 4, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(resize_input);
-        resize_sat      = fixed_resize_signed::<12, 4, 8, 2, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(resize_sat_in);
+        resize_down     = fixed_resize_signed::<8, 4, 8, 2, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            resize_input,
+        );
+        resize_up       = fixed_resize_signed::<8, 2, 10, 4, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            resize_input,
+        );
+        resize_sat      = fixed_resize_signed::<12, 4, 8, 2, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            resize_sat_in,
+        );
         resize_ext      = $signed({resize_input[msb] repeat 2, resize_input});
-        resize_direct   = round_shift_signed::<10, 2, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(resize_ext);
+        resize_direct   = round_shift_signed::<10, 2, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(resize_ext);
         product         = fixed_mul::<8, 8>(a, b);
-        product_resized = fixed_resize_signed::<16, 4, 8, 2, FixedPoint::ROUND_HALF_AWAY_FROM_ZERO>(product);
+        product_resized = fixed_resize_signed::<16, 4, 8, 2, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
+            product,
+        );
     }
 
     initial {
