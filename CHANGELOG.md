@@ -12,6 +12,8 @@
   - signed/unsigned multiply helperと乗算後resize helper
 - 固定小数点APIを幅・小数ビット数・丸めモードのgeneric parameterで一般化
 - `FixedFormatProto`/`FixedFormat`と`FixedPoint::FixedValue`/`FixedUnsignedValue`を追加し、`FixedPointOps`でformatから幅・小数ビット数を導出するtyped APIを追加
+- Q1.31/Q2.16/Q3.24/Q8.19/Q8.24を`FixedFormatProto`実装の名前付きpresetへ移行し、オシレーターとデルタシグマのportを`FixedValue`へ変更
+- 旧packed Q型aliasとQ形式専用変換関数を削除し、format変換をtyped resizeへ統一
 - 固定小数点Native testを境界値、負値tie、広いシフト量、非対称幅、乗算後resizeまで拡張
 - `NcoTick`/`ClockEnableNco`と分数比clock-enable Native testを追加
 - ASRC用`FractionalPhaseAccumulator`と位相wrap／平均進行Native testを追加

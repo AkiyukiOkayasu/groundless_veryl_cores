@@ -25,17 +25,72 @@ pub package FixedFormat::<W: u32, F: u32> for FixedFormatProto {
     const FRAC : u32 = F;
 }
 
-/// 固定小数点型と定数や変換関数
-pub package FixedPoint {
-    /// 丸めモードの互換alias。
-    type RoundingMode = FixedPointRounding::RoundingMode;
+/// Q2.16形式 (+/-2.0 表示範囲)。27x18乗算器の係数に使用する。
+pub package Q2_16 for FixedFormatProto {
+    const WIDTH: u32 = 18;
+    const FRAC : u32 = 16;
 
+    const POS_MAX: signed logic<WIDTH> = 18'sb01_11111111_11111111;
+    const NEG_MAX: signed logic<WIDTH> = 18'sb10_00000000_00000000;
+    const POS_ONE: signed logic<WIDTH> = 18'sb01_00000000_00000000;
+    const NEG_ONE: signed logic<WIDTH> = 18'sb11_00000000_00000000;
+    const ZERO   : signed logic<WIDTH> = 18'sd0;
+}
+
+/// Q1.31形式 (-1.0以上、+1.0未満)。デルタシグマ変調器などに使用する。
+pub package Q1_31 for FixedFormatProto {
+    const WIDTH: u32 = 32;
+    const FRAC : u32 = 31;
+
+    const POS_MAX: signed logic<WIDTH> = 32'sh7FFF_FFFF;
+    const NEG_MAX: signed logic<WIDTH> = 32'sh8000_0000;
+    const ZERO   : signed logic<WIDTH> = 32'sd0;
+}
+
+/// Q8.24形式 (+/-128.0 表示範囲)。波形オシレーターの出力などに使用する。
+pub package Q8_24 for FixedFormatProto {
+    const WIDTH: u32 = 32;
+    const FRAC : u32 = 24;
+
+    const POS_MAX: signed logic<WIDTH> = 32'sh7FFF_FFFF;
+    const NEG_MAX: signed logic<WIDTH> = 32'sh8000_0000;
+    const POS_ONE: signed logic<WIDTH> = 32'sh0100_0000;
+    const NEG_ONE: signed logic<WIDTH> = 32'shFF00_0000;
+    const ZERO   : signed logic<WIDTH> = 32'sd0;
+}
+
+/// Q8.19形式 (+/-128.0 表示範囲)。36x27乗算器の係数に使用する。
+pub package Q8_19 for FixedFormatProto {
+    const WIDTH: u32 = 27;
+    const FRAC : u32 = 19;
+
+    const POS_MAX: signed logic<WIDTH> = 27'sb01111111_111_11111111_11111111;
+    const NEG_MAX: signed logic<WIDTH> = 27'sb10000000_000_00000000_00000000;
+    const POS_ONE: signed logic<WIDTH> = 27'sb00000001_000_00000000_00000000;
+    const NEG_ONE: signed logic<WIDTH> = 27'sb11111111_000_00000000_00000000;
+    const ZERO   : signed logic<WIDTH> = 27'sd0;
+}
+
+/// Q3.24形式 (+/-4.0 表示範囲)。36x27乗算器の係数に使用する。
+pub package Q3_24 for FixedFormatProto {
+    const WIDTH: u32 = 27;
+    const FRAC : u32 = 24;
+
+    const POS_MAX: signed logic<WIDTH> = 27'sb011_11111111_11111111_11111111;
+    const NEG_MAX: signed logic<WIDTH> = 27'sb100_00000000_00000000_00000000;
+    const POS_ONE: signed logic<WIDTH> = 27'sb001_00000000_00000000_00000000;
+    const NEG_ONE: signed logic<WIDTH> = 27'sb111_00000000_00000000_00000000;
+    const ZERO   : signed logic<WIDTH> = 27'sd0;
+}
+
+/// 固定小数点型と定数
+pub package FixedPoint {
     //----------------------------------------------------------------
     // Type-level fixed-point value
     //----------------------------------------------------------------
     /// formatを型に結び付けたsigned固定小数点値。
     ///
-    /// `FixedValue::<FixedFormat::<WIDTH, FRAC>>`のように使用する。
+    /// `FixedValue::<FixedFormat::<WIDTH, FRAC>>`または`FixedValue::<Q8_24>`のように使用する。
     /// 値のformat変換は`fixed_value_resize`を使用する。
     struct FixedValue::<FORMAT: FixedFormatProto> {
         value: signed logic<FORMAT::WIDTH>,
@@ -46,173 +101,6 @@ pub package FixedPoint {
         value: logic<FORMAT::WIDTH>,
     }
 
-    //----------------------------------------------------------------
-    // Q2.16形式 (+/-2.0 表示範囲)
-    //----------------------------------------------------------------
-    /// Q2.16形式 (+/-2.0 表示範囲)
-    /// 27X18の乗算器の係数に使用
-    type q2_16 = signed logic<18>; // 2ビット整数部 + 16ビット小数部
-    /// Q2.16形式の正の最大値
-    const Q2_16_POS_MAX: q2_16 = 18'sb01_11111111_11111111;
-    /// Q2.16形式の負の最大値
-    const Q2_16_NEG_MAX: q2_16 = 18'sb10_00000000_00000000;
-    /// Q2.16形式の+1.0の定数
-    const Q2_16_POS_ONE: q2_16 = 18'sb01_00000000_00000000;
-    /// Q2.16形式の-1.0の定数
-    const Q2_16_NEG_ONE: q2_16 = 18'sb11_00000000_00000000;
-    /// Q2.16形式のゼロ
-    const Q2_16_ZERO: q2_16 = 18'sd0;
-
-    //----------------------------------------------------------------
-    // Q1.31形式 (+/-1.0 表示範囲)
-    //----------------------------------------------------------------
-    /// Q1.31形式 (+/-1.0 表示範囲)
-    /// デルタシグマ変調の入力などに使用
-    /// Note: Q1.31形式は1.0は表現できず、最大値は+1.0-1LSBとなることに注意
-    type q1_31 = signed logic<32>; // 1ビット整数部 + 31ビット小数部
-
-    /// Q1.31形式の正の最大値 +1.0-1LSB
-    const Q1_31_POS_MAX: q1_31 = 32'sh7FFF_FFFF;
-    /// Q1.31形式の負の最大値 -1.0
-    const Q1_31_NEG_MAX: q1_31 = 32'sh8000_0000;
-    /// Q1.31形式のゼロ
-    const Q1_31_ZERO: q1_31 = 32'sd0;
-
-    /// f64からQ1.31形式へ変換
-    function to_q1_31 (
-        val: input f64,
-    ) -> q1_31 {
-        // 範囲チェック (-1.0 <= val < 1.0)
-        if val <: -1.0 | val >= 1.0 {
-            $error("to_q1_31: Value out of range. Must be -1.0 <= val < 1.0");
-        }
-        const scale  : f64 = 2147483648.0; // 2^31
-        let   scaled : f64 = val * scale;
-        let   rounded: i32 = scaled as i32;
-        return rounded as q1_31;
-    }
-
-    //----------------------------------------------------------------
-    // Q8.24形式 (+/-128.0 表示範囲)
-    //----------------------------------------------------------------
-    /// Q8.24形式 (+/-128.0 表示範囲)
-    /// 波形オシレーターの出力などに使用
-    type q8_24 = signed logic<32>; // 8ビット整数部 + 24ビット小数部
-
-    /// Q8.24形式の正の最大値 +128.0-1LSB
-    const Q8_24_POS_MAX: q8_24 = 32'sh7FFF_FFFF;
-    /// Q8.24形式の負の最大値 -128.0
-    const Q8_24_NEG_MAX: q8_24 = 32'sh8000_0000;
-    /// Q8.24形式の+1.0の定数
-    const Q8_24_POS_ONE: q8_24 = 32'sh0100_0000;
-    /// Q8.24形式の-1.0の定数
-    const Q8_24_NEG_ONE: q8_24 = 32'shFF00_0000;
-    /// Q8.24形式のゼロ
-    const Q8_24_ZERO: q8_24 = 32'sd0;
-
-    /// f64からQ8.24形式へ変換
-    /// f64の定数をQ8.24形式に変換する際に使用するもの
-    function to_q8_24 (
-        val: input f64,
-    ) -> q8_24 {
-        // 範囲チェック
-        if val <: -128.0 | val >= 128.0 {
-            $error("to_q8_24: Value out of range. Must be -128.0 <= val < 128.0");
-        }
-        const scale  : f64 = 16777216.0; // 2^24
-        let   scaled : f64 = val * scale;
-        let   rounded: i32 = scaled as i32; //四捨五入される
-        return rounded as q8_24;
-    }
-
-
-    //----------------------------------------------------------------
-    // Q8.19形式 (+/-128.0 表示範囲)
-    //----------------------------------------------------------------
-    /// Q8.19形式 (+/-128.0 表示範囲)
-    /// DSPブロックの乗算器が36x27bitなので、係数用に作成した型
-    /// FMインデックス係数などに使用
-    type q8_19 = signed logic<27>; // 8ビット整数部 + 19ビット小数部
-    /// Q8.19形式の正の最大値 +128.0-1LSB
-    const Q8_19_POS_MAX: q8_19 = 27'sb01111111_111_11111111_11111111;
-    /// Q8.19形式の負の最大値 -128.0
-    const Q8_19_NEG_MAX: q8_19 = 27'sb10000000_000_00000000_00000000;
-    /// Q8.19形式の+1.0の定数
-    const Q8_19_POS_ONE: q8_19 = 27'sb00000001_000_00000000_00000000;
-    /// Q8.19形式の-1.0の定数
-    const Q8_19_NEG_ONE: q8_19 = 27'sb11111111_000_00000000_00000000;
-    /// Q8.19形式のゼロ
-    const Q8_19_ZERO: q8_19 = 27'sd0;
-
-    /// f64からQ8.19形式へ変換
-    function to_q8_19 (
-        val: input f64,
-    ) -> q8_19 {
-        // 範囲チェック (-128.0 <= val < 128.0)
-        if val <: -128.0 | val >= 128.0 {
-            $error("to_q8_19: Value out of range. Must be -128.0 <= val < 128.0");
-        }
-        const scale  : f64 = 524288.0; // 2^19
-        let   scaled : f64 = val * scale;
-        let   rounded: i32 = scaled as i32;
-        // 32bitから27bitへのキャスト。範囲チェック済みなので上位ビット切り捨てで問題ない
-        return rounded as q8_19;
-    }
-
-    //----------------------------------------------------------------
-    // Q3.24形式 (+/-4.0 表示範囲)
-    //----------------------------------------------------------------
-    /// Q3.24形式 (+/-4.0 表示範囲)
-    /// DSPブロックの乗算器が36x27bitなので、係数用に作成した型
-    /// ゲイン係数やエンベロープ係数などに使用
-    type q3_24 = signed logic<27>; // 3ビット整数部 + 24ビット小数部
-    /// Q3.24形式の正の最大値 +4.0-1LSB
-    const Q3_24_POS_MAX: q3_24 = 27'sb011_11111111_11111111_11111111;
-    /// Q3.24形式の負の最大値 -4.0
-    const Q3_24_NEG_MAX: q3_24 = 27'sb100_00000000_00000000_00000000;
-    /// Q3.24形式の+1.0の定数
-    const Q3_24_POS_ONE: q3_24 = 27'sb001_00000000_00000000_00000000;
-    /// Q3.24形式の-1.0の定数
-    const Q3_24_NEG_ONE: q3_24 = 27'sb111_00000000_00000000_00000000;
-    /// Q3.24形式のゼロ
-    const Q3_24_ZERO: q3_24 = 27'sd0;
-
-    /// f64からQ3.24形式へ変換
-    function to_q3_24 (
-        val: input f64,
-    ) -> q3_24 {
-        // 範囲チェック (-4.0 <= val < 4.0)
-        if val <: -4.0 | val >= 4.0 {
-            $error("to_q3_24: Value out of range. Must be -4.0 <= val < 4.0");
-        }
-        const scale  : f64 = 16777216.0; // 2^24
-        let   scaled : f64 = val * scale;
-        let   rounded: i32 = scaled as i32;
-        // 32bitから27bitへのキャスト。範囲チェック済みなので上位ビット切り捨てで問題ない
-        return rounded as q3_24;
-    }
-
-    /// Q8.24形式→Q1.31形式へ変換（7bit左シフト+下位7ビットゼロ埋め）
-    /// Q8.24の+/-1.0範囲を超える入力はクリップする
-    /// Note: 下位7ビットが0埋めされているだけなので、本当はサミングなどで+/-128の範囲に増やしてから読み替えだけした方がいい。
-    function to_q1_31_from_q8_24_zero_pad (
-        v: input q8_24,
-    ) -> q1_31 {
-        if v >= Q8_24_POS_ONE {
-            return 32'h7FFF_FFFF;
-        } else if v <= Q8_24_NEG_ONE {
-            return 32'h8000_0000;
-        }
-        return v <<< 7;
-    }
-
-    /// Q1.31形式→Q8.24形式へ変換（7bit右シフト）
-    /// Q1.31の+/-1.0範囲をQ8.24の+/-1.0範囲に変換
-    function to_q8_24_from_q1_31 (
-        v: input q1_31,
-    ) -> q8_24 {
-        return v >>> 7;
-    }
 }
 
 /// formatを型に結び付けた固定小数点値の演算。
@@ -946,9 +834,13 @@ module test_fixed_point_resize_and_mul {
     var product_resized: signed logic<8> ;
 
     always_comb {
-        resize_down     = fixed_resize_signed::<8, 4, 8, 2, FixedPoint::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO>(
-            resize_input,
-        );
+        resize_down     = fixed_resize_signed::<
+            8                                                          ,
+            4                                                          ,
+            8                                                          ,
+            2                                                          ,
+            FixedPointRounding::RoundingMode::ROUND_HALF_AWAY_FROM_ZERO,
+        >(resize_input);
         resize_up       = fixed_resize_signed::<
             8                                                          ,
             2                                                          ,
@@ -1279,6 +1171,37 @@ module test_fixed_point_typed_api {
         $assert(signed_shift.value == -8'sd5, "typed negative nearest-even shift mismatch");
         $assert(signed_clamped.value == -8'sd4, "typed negative clamp mismatch");
         $assert(unsigned_down.value == 4'd0, "typed unsigned nearest-even tie mismatch");
+
+        $finish();
+    }
+}
+
+/// 名前付きQ形式presetがFixedFormatProtoと定数を正しく提供することを検証する。
+#[test(test_fixed_point_presets)]
+module test_fixed_point_presets {
+    var q1_31: FixedPoint::FixedValue::<Q1_31>;
+    var q2_16: FixedPoint::FixedValue::<Q2_16>;
+    var q8_24: FixedPoint::FixedValue::<Q8_24>;
+    var q8_19: FixedPoint::FixedValue::<Q8_19>;
+    var q3_24: FixedPoint::FixedValue::<Q3_24>;
+
+    initial {
+        q1_31.value = Q1_31::NEG_MAX;
+        q2_16.value = Q2_16::POS_ONE;
+        q8_24.value = Q8_24::NEG_ONE;
+        q8_19.value = Q8_19::POS_ONE;
+        q3_24.value = Q3_24::NEG_ONE;
+
+        $assert(Q1_31::WIDTH == 32 && Q1_31::FRAC == 31, "Q1.31 format mismatch");
+        $assert(q1_31.value == 32'sh8000_0000, "Q1.31 preset constant mismatch");
+        $assert(Q2_16::WIDTH == 18 && Q2_16::FRAC == 16, "Q2.16 format mismatch");
+        $assert(q2_16.value == 18'sh0100_00, "Q2.16 preset constant mismatch");
+        $assert(Q8_24::WIDTH == 32 && Q8_24::FRAC == 24, "Q8.24 format mismatch");
+        $assert(q8_24.value == -32'sh0100_0000, "Q8.24 preset constant mismatch");
+        $assert(Q8_19::WIDTH == 27 && Q8_19::FRAC == 19, "Q8.19 format mismatch");
+        $assert(q8_19.value == 27'sh0008_0000, "Q8.19 preset constant mismatch");
+        $assert(Q3_24::WIDTH == 27 && Q3_24::FRAC == 24, "Q3.24 format mismatch");
+        $assert(q3_24.value == -27'sh0100_0000, "Q3.24 preset constant mismatch");
 
         $finish();
     }

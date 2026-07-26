@@ -1,15 +1,15 @@
 /// PCMを1bit PDMへ変換するデルタシグマ変調器。
-/// 入力はFixedPoint::q1_31（-1.0以上、+1.0未満）とする。
+/// 入力はFixedPoint::FixedValue::<Q1_31>（-1.0以上、+1.0未満）とする。
 
 /// 1次デルタシグマ変調器。
 ///
 /// キャリー・アキュムレータ形式で実装し、入力のDC値に比例した
 /// PDM密度を得る。`pdm`は`clk`ごとに1bit更新される。
 pub module DeltaSigma1st (
-    clk  : input  clock            ,
-    rst  : input  reset            ,
-    audio: input  FixedPoint::q1_31,
-    pdm  : output logic            ,
+    clk  : input  clock                          ,
+    rst  : input  reset                          ,
+    audio: input  FixedPoint::FixedValue::<Q1_31>,
+    pdm  : output logic                          ,
 ) {
     var accumulator: logic<33>;
 
@@ -18,7 +18,7 @@ pub module DeltaSigma1st (
             accumulator = 0;
             pdm         = 1'b0;
         } else {
-            let audio_unsigned: logic<32> = {~audio[31], audio[30:0]};
+            let audio_unsigned: logic<32> = {~audio.value[31], audio.value[30:0]};
             accumulator    = (accumulator[31:0] as 33) + (audio_unsigned as 33);
             pdm            = accumulator[32];
         }
@@ -30,10 +30,10 @@ pub module DeltaSigma1st (
 /// 2段の積分器を持つ簡易構成で、1次変調器より高い帯域外ノイズ
 /// シェーピングを得る。内部演算は余裕を持たせた40bit signedとする。
 pub module DeltaSigma2nd (
-    clk  : input  clock            ,
-    rst  : input  reset            ,
-    audio: input  FixedPoint::q1_31,
-    pdm  : output logic            ,
+    clk  : input  clock                          ,
+    rst  : input  reset                          ,
+    audio: input  FixedPoint::FixedValue::<Q1_31>,
+    pdm  : output logic                          ,
 ) {
     var integrator_1: signed logic<40>;
     var integrator_2: signed logic<40>;
@@ -48,11 +48,12 @@ pub module DeltaSigma2nd (
             integrator_2 = 0;
             pdm          = 1'b0;
         } else {
-            let audio_scaled     : FixedPoint::q1_31     = audio >>> 2;
-            let input_ext        : signed logic     <40> = audio_scaled as 40;
-            let feedback         : signed logic     <40> = if pdm ? FEEDBACK_POS : FEEDBACK_NEG;
-            let integrator_1_next: signed logic     <40> = integrator_1 + (input_ext - feedback);
-            let integrator_2_next: signed logic     <40> = integrator_2 + (integrator_1_next - feedback);
+            // 同一format内の内部スケールなので、raw値へ直接算術右シフトする。
+            let audio_scaled     : signed logic<32> = $signed(audio.value) >>> 2;
+            let input_ext        : signed logic<40> = audio_scaled as 40;
+            let feedback         : signed logic<40> = if pdm ? FEEDBACK_POS : FEEDBACK_NEG;
+            let integrator_1_next: signed logic<40> = integrator_1 + (input_ext - feedback);
+            let integrator_2_next: signed logic<40> = integrator_2 + (integrator_1_next - feedback);
 
             integrator_1 = integrator_1_next;
             integrator_2 = integrator_2_next;
@@ -67,15 +68,15 @@ module test_delta_sigma_1st_density {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
 
-    var zero_audio    : FixedPoint::q1_31   ;
-    var positive_audio: FixedPoint::q1_31   ;
-    var negative_audio: FixedPoint::q1_31   ;
-    var zero_pdm      : logic               ;
-    var positive_pdm  : logic               ;
-    var negative_pdm  : logic               ;
-    var zero_ones     : logic            <8>;
-    var positive_ones : logic            <8>;
-    var negative_ones : logic            <8>;
+    var zero_audio    : FixedPoint::FixedValue::<Q1_31>   ;
+    var positive_audio: FixedPoint::FixedValue::<Q1_31>   ;
+    var negative_audio: FixedPoint::FixedValue::<Q1_31>   ;
+    var zero_pdm      : logic                             ;
+    var positive_pdm  : logic                             ;
+    var negative_pdm  : logic                             ;
+    var zero_ones     : logic                          <8>;
+    var positive_ones : logic                          <8>;
+    var negative_ones : logic                          <8>;
 
     inst zero: DeltaSigma1st (
         clk  : clk       ,
@@ -115,9 +116,9 @@ module test_delta_sigma_1st_density {
     }
 
     initial {
-        zero_audio     = 0;
-        positive_audio = FixedPoint::Q1_31_POS_MAX;
-        negative_audio = FixedPoint::Q1_31_NEG_MAX;
+        zero_audio           = 0;
+        positive_audio.value = Q1_31::POS_MAX;
+        negative_audio.value = Q1_31::NEG_MAX;
         rst.assert();
         clk.next(64);
 
@@ -133,15 +134,15 @@ module test_delta_sigma_2nd_density {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
 
-    var zero_audio    : FixedPoint::q1_31   ;
-    var positive_audio: FixedPoint::q1_31   ;
-    var negative_audio: FixedPoint::q1_31   ;
-    var zero_pdm      : logic               ;
-    var positive_pdm  : logic               ;
-    var negative_pdm  : logic               ;
-    var zero_ones     : logic            <8>;
-    var positive_ones : logic            <8>;
-    var negative_ones : logic            <8>;
+    var zero_audio    : FixedPoint::FixedValue::<Q1_31>   ;
+    var positive_audio: FixedPoint::FixedValue::<Q1_31>   ;
+    var negative_audio: FixedPoint::FixedValue::<Q1_31>   ;
+    var zero_pdm      : logic                             ;
+    var positive_pdm  : logic                             ;
+    var negative_pdm  : logic                             ;
+    var zero_ones     : logic                          <8>;
+    var positive_ones : logic                          <8>;
+    var negative_ones : logic                          <8>;
 
     inst zero: DeltaSigma2nd (
         clk  : clk       ,
@@ -181,9 +182,9 @@ module test_delta_sigma_2nd_density {
     }
 
     initial {
-        zero_audio     = 0;
-        positive_audio = FixedPoint::Q1_31_POS_MAX;
-        negative_audio = FixedPoint::Q1_31_NEG_MAX;
+        zero_audio           = 0;
+        positive_audio.value = Q1_31::POS_MAX;
+        negative_audio.value = Q1_31::NEG_MAX;
         rst.assert();
         clk.next(128);
 
