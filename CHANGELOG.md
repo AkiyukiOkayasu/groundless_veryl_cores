@@ -45,6 +45,8 @@
 - 補間ベンチマークCSVを検証・集計する依存パッケージなしの解析スクリプトを追加
 - 補間ベンチマークへ0.05／0.15／0.25／0.40 Fsの正弦波ケースを追加
 - 補間ベンチマークへFarrow補間出力と3方式間の誤差・周波数応答解析を追加
+- 固定48kHz／50MHz比で直接線形補間と4倍HBF経路を比較するignoredベンチマークを追加
+- 固定レートASRCのCSVから正弦波振幅・ゲイン差・残差RMSを求める解析スクリプトを追加
 
 ### Changed
 
@@ -61,6 +63,7 @@
 - IEC60958のパリティ・preamble判定とinvalid/lock/error状態を明示的な真偽型へ整理
 - NCOの`configured`状態を2値保証された`bbool`へ整理
 - ADATのFrameParser/TxFrameBuilder Native testを8チャンネル対象へ拡張し、公開モジュール構成と型方針をREADMEに追記
+- 連続ASRCの起動時FIFO蓄積量を設定可能にし、4倍HBFのburstによる起動直後underflowを防止
 
 ## [0.5.1] - 2026-05-20
 

@@ -11,7 +11,7 @@ Verylで記述した、オーディオ信号処理・デジタルオーディオ
 | --- | --- | --- |
 | ADAT | `AdatRx`, `AdatTx` | 8ch ADAT受信・送信、S/MUX2パッキング |
 | IEC60958 | `SpdifTransmitter`/`SpdifReceiver`, `Aes3Transmitter`/`Aes3Receiver` | S/PDIF・AES3のstereo transceiver |
-| ASRC | `LinearAsrc`, `FarrowAsrc`, `SampleRateTracker` | 分数比サンプルレート変換と入力レート推定 |
+| ASRC | `LinearAsrc`, `ContinuousLinearAsrc`, `FourXHalfbandAsrc`, `FractionalPhaseAccumulator`, `FarrowAsrc`, `SampleRateTracker` | 分数比サンプルレート変換、4倍HBF、入力レート推定 |
 | 固定小数点・変調 | `FixedPoint`, `DeltaSigma1st`, `DeltaSigma2nd` | PCM演算とPDM生成 |
 | フィルタ・発振器 | `CicDecimator`, `CicInterpolator`, `LpfShift*`, `HpfShift*`, 各wave core | レート変換とオーディオ信号処理 |
 | 周辺I/O | `SpiMaster`, `UartRx`, `MidiRx` | シリアルインターフェース |
@@ -59,6 +59,14 @@ veryl doc
 ```text
 veryl test --ignored -t interpolator_benchmark
 python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.csv
+```
+
+実レート比の比較では、ignoredのVeryl Native testで1kHz／10kHz／18kHz／20kHzのCSVを生成し、
+直接線形補間と4倍HBF＋線形補間の振幅を標準Pythonだけで解析します。
+
+```text
+veryl test --ignored -t fixed_rate_asrc_benchmark
+python3 tools/analyze_fixed_rate_asrc.py target/fixed_rate_asrc_benchmark.csv
 ```
 
 `--format json`を付けると、CIや別の数値解析へ渡しやすいJSONになります。

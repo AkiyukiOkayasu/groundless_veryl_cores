@@ -196,8 +196,8 @@ FIFOはCDCや大容量蓄積には使わず、burstを吸収する同一クロ�
 ### 直近に追加するモジュール
 
 `FractionalPhaseAccumulator`、2段用の`HalfbandInterpolator2x`、係数設計スクリプト、
-`ContinuousLinearAsrc`と`FourXHalfbandAsrc`は実装済み。次は1chの固定48kHz／50MHz比で
-直接線形補間経路と4倍HBF経路を同じ入力に通し、PCM出力の周波数特性を比較する。
+`ContinuousLinearAsrc`、`FourXHalfbandAsrc`、固定レート比較ベンチマークは実装済み。
+次はCSV解析結果を基準に、PDM変調器を接続したときの差を分離して測る。
 
 #### `FractionalPhaseAccumulator`
 
@@ -245,6 +245,38 @@ tap数は先に固定せず、上記を満たす最小の奇数tap数を選ぶ�
 
 既存の`LinearAsrc`は汎用stream ASRCとして残す。`ContinuousLinearAsrc`から共通化できる処理が明確になった場合だけ、後から内部部品を抽出する。
 
+`ContinuousLinearAsrc`には起動時の`STARTUP_LEVEL`を設ける。直接入力では小さな値を使い、
+4倍HBFのburst経路では深さ8 FIFOのうち6サンプルを蓄積してから位相を開始する。
+これにより、HBFの初回burstと50MHz出力の消費開始が重なって起動直後にFIFOが空になることを避ける。
+
+#### 固定レート比較ベンチマーク
+
+`src/asrc/fixed_rate_asrc_benchmark.veryl`は、実際の48kHz／50MHz比で同じ正弦波を
+直接線形補間経路と4倍HBF＋線形補間経路へ入力する。1kHz、10kHz、18kHz、20kHzを各200,000
+クロック生成し、50MHz PCMをCSVへ出力する。起動過渡は解析側で除外する。
+
+```text
+veryl test --ignored -t fixed_rate_asrc_benchmark
+python3 tools/analyze_fixed_rate_asrc.py target/fixed_rate_asrc_benchmark.csv
+```
+
+解析スクリプトは外部パッケージを使わず、既知周波数への最小二乗フィットから振幅、dBFS、
+4倍HBFと直接経路のゲイン差、残差RMSを求める。underflowはケース全体でsticky値を検査する。
+これはADATのvalid周期やジッタを含まない、固定レート時のPCM経路比較である。
+
+初回結果（`--discard-cycles 100000`、underflowは全ケース0）は次の通りである。
+
+| tone | direct | 4x HBF | 4x - direct |
+| ---: | ---: | ---: | ---: |
+| 1kHz | −0.017dBFS | −0.005dBFS | +0.012dB |
+| 10kHz | −1.263dBFS | −0.081dBFS | +1.181dB |
+| 18kHz | −4.226dBFS | −0.255dBFS | +3.970dB |
+| 20kHz | −5.284dBFS | −0.315dBFS | +4.969dB |
+
+これは補間前の48kHzサンプルを直接線形補間する場合、20kHz付近で生じるsinc由来の
+振幅低下が支配的になり得ることを示す。4倍HBFの結果は改善しているが、HBFの阻止帯域、
+量子化、PDM変調器を含まないため、最終的な音質差とは解釈しない。
+
 ### 8ch化の方針
 
 位相アキュムレータは8chで1個を共有する。HBFの履歴、FIFO、線形補間窓、ΔΣ変調器はチャンネルごとに持つ。
@@ -254,10 +286,10 @@ tap数は先に固定せず、上記を満たす最小の奇数tap数を選ぶ�
 ### 直近スコープの完了条件
 
 - 縮小したクロック比を使うNative testで、phase wrap、FIFO補充、連続出力を短時間に検証できる
-- 実際の48kHz／50MHz比を使うignored benchmarkで、起動後に50MHz PCMの欠落がない
-- 深さ8のFIFOで固定レート時にunderflow／overflowが発生しない
+- 実際の48kHz／50MHz比を使うignored benchmarkで、起動後に50MHz PCMの欠落がない（達成）
+- 深さ8のFIFOで固定レート時にunderflow／overflowが発生しない（underflow確認済み）
 - HBFのインパルス応答が、係数量子化を含む外部固定小数点モデルと一致する
-- 直接線形補間と4倍HBF＋線形補間について、少なくとも1kHz、10kHz、18kHz、20kHzの振幅誤差を同じ解析スクリプトで比較できる
+- 直接線形補間と4倍HBF＋線形補間について、少なくとも1kHz、10kHz、18kHz、20kHzの振幅誤差を同じ解析スクリプトで比較できる（達成）
 - PCM比較結果を確認してからだけ、`DeltaSigma2nd`を含むPDM評価へ進む
 
 Native testでは長時間のFFTを行わず、制御と既知値だけを確認する。実クロック比、CSV出力、周波数解析は個別のignored benchmarkへ分離する。

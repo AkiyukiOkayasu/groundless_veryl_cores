@@ -1,0 +1,177 @@
+/// 48kHz入力を直接線形補間した経路と、4倍HBF後に線形補間した経路を比較する。
+///
+/// 50MHzクロック上で48kHzの入力validを分数位相アキュムレータから生成し、
+/// 同じ入力正弦波を2経路へ与える。CSV生成は長時間のためignored testとし、
+/// 出力は4クロックに1回だけ記録して外部の標準Python解析へ渡す。
+#[test(fixed_rate_asrc_benchmark)]
+#[ignore]
+module fixed_rate_asrc_benchmark {
+    const SAMPLE_WIDTH: u32 = 32;
+    const PHASE_WIDTH : u32 = 32;
+    const CASE_CYCLES : u32 = 200_000;
+
+    const INPUT_PHASE_INCREMENT : logic<32> = 32'd4_123_169;
+    const DIRECT_PHASE_INCREMENT: logic<32> = 32'd4_123_169;
+    const FOUR_PHASE_INCREMENT  : logic<32> = 32'd16_492_674;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var input_valid : bbool                     ;
+    var input_sample: signed logic<SAMPLE_WIDTH>;
+
+    var source_phase_increment: logic<PHASE_WIDTH>;
+    var source_phase          : logic<PHASE_WIDTH>;
+    var source_advance        : bbool             ;
+    var source_index          : logic<16>         ;
+
+    var direct_input_ready    : bbool                     ;
+    var direct_input_level    : logic       <4>           ;
+    var direct_phase_increment: logic       <PHASE_WIDTH> ;
+    var direct_phase          : logic       <PHASE_WIDTH> ;
+    var direct_advance        : bbool                     ;
+    var direct_output_active  : bbool                     ;
+    var direct_output_sample  : signed logic<SAMPLE_WIDTH>;
+    var direct_underflow      : bbool                     ;
+
+    var four_input_ready    : bbool                     ;
+    var four_phase_increment: logic       <PHASE_WIDTH> ;
+    var four_output_active  : bbool                     ;
+    var four_output_sample  : signed logic<SAMPLE_WIDTH>;
+    var four_input_level    : logic       <4>           ;
+    var four_underflow      : bbool                     ;
+
+    var sine_phase : logic       <32>;
+    var sine_audio : signed logic<32>;
+    var sine_sample: signed logic<32>;
+    var file       : $tb::file       ;
+
+    inst source_phase_accumulator: FractionalPhaseAccumulator #(
+        WIDTH: PHASE_WIDTH,
+    ) (
+        clk                                    ,
+        rst                                    ,
+        enable         : 1'b1                  ,
+        phase_increment: source_phase_increment,
+        phase          : source_phase          ,
+        advance        : source_advance        ,
+    );
+
+    inst sine: SineWaveCore (
+        clk  : clk       ,
+        phase: sine_phase,
+        audio: sine_audio,
+    );
+
+    inst direct_phase_accumulator: FractionalPhaseAccumulator #(
+        WIDTH: PHASE_WIDTH,
+    ) (
+        clk                                    ,
+        rst                                    ,
+        enable         : direct_output_active  ,
+        phase_increment: direct_phase_increment,
+        phase          : direct_phase          ,
+        advance        : direct_advance        ,
+    );
+
+    inst direct_asrc: ContinuousLinearAsrc #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+        INPUT_DEPTH : 8           ,
+    ) (
+        clk                                ,
+        rst                                ,
+        input_valid                        ,
+        input_ready  : direct_input_ready  ,
+        input_sample                       ,
+        input_level  : direct_input_level  ,
+        phase        : direct_phase        ,
+        advance      : direct_advance      ,
+        output_active: direct_output_active,
+        output_sample: direct_output_sample,
+        underflow    : direct_underflow    ,
+    );
+
+    inst four_asrc: FourXHalfbandAsrc #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+        INPUT_DEPTH : 8           ,
+    ) (
+        clk                                  ,
+        rst                                  ,
+        input_valid                          ,
+        input_ready    : four_input_ready    ,
+        input_sample                         ,
+        phase_increment: four_phase_increment,
+        output_active  : four_output_active  ,
+        output_sample  : four_output_sample  ,
+        input_level    : four_input_level    ,
+        underflow      : four_underflow      ,
+    );
+
+    always_comb {
+        sine_sample = sine_audio <<< 7;
+    }
+
+    function write_case (
+        case_id   : input logic<8> ,
+        phase_step: input logic<32>,
+    ) {
+        rst.assert();
+        input_valid            = false;
+        input_sample           = 0;
+        source_phase_increment = INPUT_PHASE_INCREMENT;
+        direct_phase_increment = DIRECT_PHASE_INCREMENT;
+        four_phase_increment   = FOUR_PHASE_INCREMENT;
+        sine_phase             = 0;
+        source_index           = 0;
+        clk.next(4);
+
+        for cycle in 0..CASE_CYCLES {
+            input_valid = false;
+            if source_advance {
+                $assert(direct_input_ready, "direct ASRC input FIFO must keep up with 48kHz");
+                $assert(four_input_ready, "4x HBF path must keep up with 48kHz");
+                input_valid  =  true;
+                input_sample =  sine_sample;
+                source_index += 1;
+                sine_phase   += phase_step;
+            }
+
+            if cycle[1:0] == 2'b00 {
+                file.write(
+                    "%d,%d,%d,%h,%d,%h,%d,%h,%h,%d,%d\n",
+                    case_id,
+                    cycle,
+                    source_index,
+                    input_sample,
+                    direct_output_active,
+                    direct_output_sample,
+                    four_output_active,
+                    four_output_sample,
+                    four_input_level,
+                    direct_underflow,
+                    four_underflow,
+                );
+            }
+            clk.next(1);
+        }
+    }
+
+    initial {
+        file.open("target/fixed_rate_asrc_benchmark.csv");
+        file.write(
+            "case,cycle,source_index,input_sample_bits,direct_active,direct_sample_bits,four_active,four_sample_bits,four_fifo_level,direct_underflow,four_underflow\n",
+        );
+
+        // 1kHz、10kHz、18kHz、20kHzを48kHz入力の正弦波として比較する。
+        write_case(8'd0, 32'd89_478_485);
+        write_case(8'd1, 32'd894_784_853);
+        write_case(8'd2, 32'd1_610_612_736);
+        write_case(8'd3, 32'd1_789_569_707);
+
+        file.flush();
+        file.close();
+        $finish();
+    }
+}
