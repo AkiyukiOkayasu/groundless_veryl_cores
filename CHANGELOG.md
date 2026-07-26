@@ -11,6 +11,7 @@
   - signed/unsigned固定小数点resize（小数位置調整 → 丸め → 飽和）
   - signed/unsigned multiply helperと乗算後resize helper
 - 固定小数点APIを幅・小数ビット数・丸めモードのgeneric parameterで一般化
+- `FixedFormatProto`/`FixedFormat`と`FixedPoint::FixedValue`/`FixedUnsignedValue`を追加し、`FixedPointOps`でformatから幅・小数ビット数を導出するtyped APIを追加
 - 固定小数点Native testを境界値、負値tie、広いシフト量、非対称幅、乗算後resizeまで拡張
 - `NcoTick`/`ClockEnableNco`と分数比clock-enable Native testを追加
 - ASRC用`FractionalPhaseAccumulator`と位相wrap／平均進行Native testを追加
