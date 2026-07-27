@@ -48,9 +48,6 @@ Changing `::<WIDTH>` to `::<8>` passes, and the callee passes when checked by it
 
 The [generics documentation](https://doc.veryl-lang.org/book/05_language_reference/14_generics.html)
 says that local parameters cannot be used as generic arguments in some cases. Is this case
-intentionally unsupported? If so, what is the recommended pattern for a package function whose
-width depends on a caller module parameter?
-
-I found this while `interpolation` was calling `fixedpoint::SignedFixedPointRaw::resize` with
-module-dependent widths. For now, each interpolator has a private helper with the same resize
-logic. I would like to remove those helpers if this use case becomes supported.
+intentionally unsupported? Could this restriction change in a future version? If it is expected to
+remain, what is the recommended pattern for a package function whose width depends on a caller
+module parameter?
