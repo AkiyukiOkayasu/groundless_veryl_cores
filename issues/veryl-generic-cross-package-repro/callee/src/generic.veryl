@@ -1,7 +1,0 @@
-pub package Generic {
-    function identity::<WIDTH: u32> (
-        value: input logic<WIDTH>,
-    ) -> logic<WIDTH> {
-        return value;
-    }
-}
