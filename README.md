@@ -87,5 +87,5 @@ python3 tools/analyze_fixed_rate_asrc.py target/fixed_rate_asrc_benchmark.csv
 
 `--format json`を付けると、CIや別の数値解析へ渡しやすいJSONになります。
 
-Verylのcross-package generic制約と一時adapterの削除条件は、
-[`issues/veryl-generic-cross-package.md`](issues/veryl-generic-cross-package.md)に記録しています。
+Verylのgeneric引数可視性制約と一時adapterの削除条件は、
+[`issues/veryl-generic-argument-visibility.md`](issues/veryl-generic-argument-visibility.md)に記録しています。

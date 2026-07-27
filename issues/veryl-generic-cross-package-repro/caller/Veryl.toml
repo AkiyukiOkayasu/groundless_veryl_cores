@@ -1,5 +1,5 @@
 [project]
-name = "gndless_generic_caller"
+name = "generic_caller"
 version = "0.1.0"
 
 [build]

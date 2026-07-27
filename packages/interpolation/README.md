@@ -6,22 +6,24 @@ sample windowを受け取るcombinational補間kernelです。ASRCのFIFO、phas
 
 linearはphase 0〜最大をsample0からsample1へ線形移動し、default roundingはnearest ties to evenです。cubicは`sample_m1`、`sample0`、`sample1`、`sample2`の4点3次LagrangeをHorner形式で評価し、全幅演算後に一度だけ丸め、default overflowはsaturationです。係数はQ2.16量子化です。
 
-## Veryl generic制約への一時対応
+## Verylのgeneric引数可視性制約
 
 `LinearInterpolator`と`CubicLagrangeInterpolator`には、fixedpoint packageの
 `SignedFixedPointRaw::resize`を直接呼ばず、同じ処理をpackage内で行う
-`resize_interpolation` adapterがあります。これは仕様上の別実装ではなく、Veryl
-0.20.2-nightlyでmodule parameter／constをcross-package generic引数へ渡した際に
-発生する`unresolvable_generic_expression`と`referring_before_definition`を回避する
-ための一時措置です。
+`resize_interpolation`というprivate helperがあります。これは仕様上の別APIではなく、
+Verylのgenerics仕様にある「local parameterをgeneric actual argumentへ使えない場合が
+ある」という制約のため、fixedpoint packageのresize処理を補間module内で適用する
+project-local adapterです。現行toolchainでは、module parameter／constをcross-package
+generic引数へ渡すと`unresolvable_generic_expression`と二次的な
+`referring_before_definition`が発生します。
 
-根本修正が入ったら、ソース中の
-`TODO(veryl-generic-cross-package)`を検索し、adapterを削除して
+この制約が仕様変更または新しい推奨パターンで解消されたら、ソース中の
+`TODO(veryl-generic-argument-visibility)`を検索し、helperを削除して
 `fixedpoint::SignedFixedPointRaw::resize::<...>`へ戻してください。削除前に、
 全rounding mode、cubicのsaturation／wrap、小幅全探索、benchmarkの結果が一致する
 ことを確認し、interpolation packageとroot integrationの`veryl check`／`test`／
 `build`／`doc`を再実行します。再現条件と期待する修正は
-[`issues/veryl-generic-cross-package.md`](../../issues/veryl-generic-cross-package.md)
+[`issues/veryl-generic-argument-visibility.md`](../../issues/veryl-generic-argument-visibility.md)
 にまとめています。
 
 ```veryl

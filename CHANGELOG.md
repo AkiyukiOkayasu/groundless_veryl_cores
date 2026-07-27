@@ -57,7 +57,7 @@
 - 全packageをlocal path dependencyで接続し、package単独のfmt/check/test/build/docとbackend validationをCIへ追加
 - 補間kernelを`gndless_interpolation`へ移動し、`CubicLagrangeInterpolator`の丸め・overflow policyと小幅全探索testを追加
 - `FarrowInterpolator`/`FarrowAsrc`をそれぞれ`CubicLagrangeInterpolator`/`CubicLagrangeAsrc`へ移行し、`spi_pkg`を`Spi`へ改名
-- Verylのcross-package generic制約を回避する補間adapterと、根本修正後の削除手順を文書化
+- Verylのgeneric引数可視性制約に対する補間adapterと、仕様変更後の削除手順を文書化
 - 固定小数点実装を`packages/fixedpoint/`の独立Veryl project `gndless_fixedpoint`へ分離し、親projectからlocal path dependencyとして参照
 - 固定小数点の丸めモード指定を数値定数から `FixedPoint::RoundingMode` enumへ変更
 - 固定小数点formatのassociated typeを`Q1_31::Value`などから`Q1_31::Raw`へ変更

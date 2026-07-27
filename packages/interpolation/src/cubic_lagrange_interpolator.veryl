@@ -26,11 +26,13 @@ pub module CubicLagrangeInterpolator #(
 
     /// 積和結果を出力幅へ丸め、指定されたoverflow policyを適用する。
     ///
-    /// TODO(veryl-generic-cross-package): この関数はVerylのcross-package generic
-    /// 式解決が改善されたら削除し、fixedpoint packageのcanonical APIへ戻す。
-    /// 現在のVeryl 0.20.2-nightlyでは、module parameter／constをgeneric引数に
-    /// 渡す次の呼び出しがpackage境界を越えると`unresolvable_generic_expression`
-    /// になり、呼び出し先のgeneric本体で`referring_before_definition`も発生する。
+    /// TODO(veryl-generic-argument-visibility): このhelperは、module parameterを
+    /// generic functionのactual argumentへ渡せない場合があるというVerylの仕様上の
+    /// 制約を補うproject-local adapterである。仕様変更または推奨パターンの追加後に
+    /// 削除し、fixedpoint packageのcanonical APIへ戻す。
+    /// 現在はmodule parameter／constをgeneric引数へ渡すと
+    /// `unresolvable_generic_expression`になり、callee側で
+    /// `referring_before_definition`も二次的に発生する。
     ///
     /// ```text
     /// fixedpoint::SignedFixedPointRaw::resize::<
@@ -39,7 +41,7 @@ pub module CubicLagrangeInterpolator #(
     /// ```
     ///
     /// そのため、現時点ではfixedpointの`resize`と同じ丸め・overflow意味論を
-    /// package内へ一時的に複製している。削除時はこの関数とこのTODO markerを
+    /// package内へproject-localに複製している。削除時はこの関数とこのTODO markerを
     /// まとめて除去し、`always_comb`の呼び出しを上記APIへ置き換えること。
     /// `ROUNDING_MODE`、`OVERFLOW_MODE`、cubicの定数列・ramp・saturation／wrap
     /// test、およびinterpolation benchmarkの結果を比較してから削除する。
