@@ -43,7 +43,7 @@ pub module WhiteNoise #(
     var audio_q8: fixedpoint::Q8_24::Raw;
     always_comb {
         audio_q1 = $signed(rng_state);
-        audio_q8 = fixedpoint::SignedFixedPoint::convert::<
+        audio_q8 = fixedpoint::convert::<
             fixedpoint::Q1_31                                    ,
             fixedpoint::Q8_24                                    ,
             fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,

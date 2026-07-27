@@ -9,7 +9,7 @@ Verylで記述した、オーディオ信号処理・デジタルオーディオ
 
 | package | 主な公開API | 用途 |
 | --- | --- | --- |
-| `fixedpoint` | project-scope raw演算、`SignedFixedPoint`、Q形式preset | signed固定小数点演算 |
+| `fixedpoint` | project-scope演算、format proto、Q形式preset | signed固定小数点演算 |
 | `interpolation` | `ZeroOrderHold`, `LinearInterpolator`, `CubicLagrangeInterpolator` | 組み合わせ補間kernel |
 | `nco` | `NcoTick`, `FractionalPhaseAccumulator`, `Phase`, `Phasor` | phaseとclock-enable生成 |
 | `filter` | CIC、halfband、LPF/HPF | レート変換とaudio filter |

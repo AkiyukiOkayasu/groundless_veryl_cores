@@ -15,7 +15,7 @@ pub module SawWaveCore (
     var q8_value: fixedpoint::Q8_24::Raw;
     always_comb {
         q1_value = $signed({~phase[msb], phase[msb - 1:0]});
-        q8_value = fixedpoint::SignedFixedPoint::convert::<
+        q8_value = fixedpoint::convert::<
             fixedpoint::Q1_31                                    ,
             fixedpoint::Q8_24                                    ,
             fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,

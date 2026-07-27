@@ -54,7 +54,7 @@ pub module SineWaveCore (
     var audio_q8: fixedpoint::Q8_24::Raw;
     always_comb {
         s        = $signed({1'b0, rom_data}); // Q1.31形式に変換
-        audio_q8 = fixedpoint::SignedFixedPoint::convert::<
+        audio_q8 = fixedpoint::convert::<
             fixedpoint::Q1_31                                    ,
             fixedpoint::Q8_24                                    ,
             fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,
@@ -168,7 +168,7 @@ pub module SineWaveLerpCore (
     var audio_q8: fixedpoint::Q8_24::Raw;
     always_comb {
         s        = $signed({1'b0, interp_res}); // Q1.31形式に変換
-        audio_q8 = fixedpoint::SignedFixedPoint::convert::<
+        audio_q8 = fixedpoint::convert::<
             fixedpoint::Q1_31                                    ,
             fixedpoint::Q8_24                                    ,
             fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,

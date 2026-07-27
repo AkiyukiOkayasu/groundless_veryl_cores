@@ -3,14 +3,14 @@
 Veryl向けのsigned固定小数点演算ライブラリです。
 
 formatを表すproto package、任意format、名前付きQ形式preset、丸め、飽和、
-clamp、resize、乗算を提供します。任意幅を受け取るraw generic演算は
-project-scope functionとして公開します。固定小数点値は合成可能な
+clamp、resize、変換、乗算を提供します。演算はすべてproject-scope functionとして
+公開します。固定小数点値は合成可能な
 `signed logic<WIDTH>`として扱い、format間の変換はformat-aware APIで明示します。
 
-project-scope raw APIは`raw_round_shift`、`raw_saturate`、`raw_clamp`、`resize`、
-`raw_multiply`、`raw_multiply_resize`です。parameterized moduleからは
-`fixedpoint::resize::<...>`のようにmodule parameterを直接渡せます。
-format packageを受け取る型付き演算は`SignedFixedPoint`にまとめています。
+公開APIは`round_shift`、`saturate`、`clamp`、`resize`、`convert`、
+`multiply`、`multiply_resize`です。parameterized moduleからは
+`fixedpoint::resize::<...>`のようにmodule parameterを直接渡せます。format間の変換には
+`fixedpoint::convert::<Q1_31, Q8_24, ...>`のようにformat packageを指定します。
 
 ## 利用例
 
@@ -29,7 +29,7 @@ import fixedpoint::*;
 let input : Q1_31::Raw;
 let output: Q8_24::Raw;
 
-assign output = SignedFixedPoint::convert::<
+assign output = convert::<
     Q1_31,
     Q8_24,
     FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,

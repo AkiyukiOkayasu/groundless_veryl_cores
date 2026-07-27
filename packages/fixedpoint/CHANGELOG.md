@@ -9,6 +9,7 @@
 - monorepo内の`packages/fixedpoint/` inner projectとして他packageから直接参照する構成を確定
 - raw generic演算をproject-scope functionへ統一し、parameterized moduleから直接利用可能に変更
 - `multiply_resize`をproject-scopeの`multiply`と`resize`を組み合わせる実装へ整理
+- `SignedFixedPoint` packageを廃止し、`convert`を含む演算をflatなproject-scope APIへ統一
 
 ## [0.1.0] - 2026-07-26
 
