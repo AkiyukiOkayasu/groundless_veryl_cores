@@ -1,3 +1,101 @@
+/// VerylのSV出力制約に合わせた補間用のproject-scope resize関数。
+///
+/// module parameterをcross-packageのgeneric functionへ渡せないため、
+/// `fixedpoint::SignedFixedPointRaw::resize`と同じ処理をここに一つだけ置く。
+/// Verylがcross-package呼び出しを許すようになったら、この関数と補助constを
+/// 削除し、`fixedpoint::SignedFixedPointRaw::resize`へ戻す。
+pub function resize_interpolation_global::<
+    IN_WIDTH : u32                                 ,
+    IN_FRAC  : u32                                 ,
+    OUT_WIDTH: u32                                 ,
+    OUT_FRAC : u32                                 ,
+    MODE     : fixedpoint::FixedPoint::RoundingMode,
+    OVERFLOW : fixedpoint::FixedPoint::OverflowMode,
+> (
+    value: input signed logic<IN_WIDTH>,
+) -> signed logic<OUT_WIDTH> {
+    // fixedpoint::SignedFixedPointRaw::resizeと同じ丸め・overflow意味論を保つ。
+    const LEFT_SHIFT : u32 = if IN_FRAC >= OUT_FRAC ? 0 : OUT_FRAC - IN_FRAC;
+    const RIGHT_SHIFT: u32 = if OUT_FRAC >= IN_FRAC ? 0 : IN_FRAC - OUT_FRAC;
+    const BASE_WIDTH : u32 = IN_WIDTH + LEFT_SHIFT + OUT_WIDTH + 2;
+    const WORK_WIDTH : u32 = if BASE_WIDTH >= RIGHT_SHIFT + 2 ? BASE_WIDTH : RIGHT_SHIFT + 2;
+
+    let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - IN_WIDTH, value});
+    let half_value         : signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
+        '0
+    :
+        $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (RIGHT_SHIFT - 1))
+    ;
+    let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
+    let truncated_magnitude: signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ? magnitude : magnitude >>> RIGHT_SHIFT;
+    let remainder          : signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
+        '0
+    :
+        magnitude - (truncated_magnitude <<< RIGHT_SHIFT)
+    ;
+    var rounded_magnitude  : signed logic<WORK_WIDTH>;
+    var aligned            : signed logic<WORK_WIDTH>;
+
+    rounded_magnitude = truncated_magnitude;
+
+    if RIGHT_SHIFT == 0 {
+        aligned = value_ext <<< LEFT_SHIFT;
+    } else if MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE {
+        aligned = value_ext >>> RIGHT_SHIFT;
+    } else if MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_ZERO {
+        if value_ext[msb] == 1'b0 {
+            aligned = truncated_magnitude;
+        } else {
+            aligned = -truncated_magnitude;
+        }
+    } else if MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_POSITIVE {
+        if value_ext[msb] == 1'b0 {
+            if remainder != '0 {
+                aligned = truncated_magnitude + 1'b1;
+            } else {
+                aligned = truncated_magnitude;
+            }
+        } else {
+            aligned = -truncated_magnitude;
+        }
+    } else if MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE {
+        aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
+    } else if MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO && value_ext[msb] == 1'b0 {
+        aligned = (value_ext + half_value) >>> RIGHT_SHIFT;
+    } else if MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO {
+        aligned = -((-value_ext + half_value) >>> RIGHT_SHIFT);
+    } else if MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN {
+        if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
+            rounded_magnitude = truncated_magnitude + 1'b1;
+        }
+        if value_ext[msb] == 1'b0 {
+            aligned = rounded_magnitude;
+        } else {
+            aligned = -rounded_magnitude;
+        }
+    } else {
+        aligned = value_ext >>> RIGHT_SHIFT;
+    }
+
+    const BODY_WIDTH  : u32 = OUT_WIDTH - 1;
+    const EXTEND_WIDTH: u32 = WORK_WIDTH - OUT_WIDTH;
+
+    let max_value: signed logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
+    let min_value: signed logic<WORK_WIDTH> = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
+    var result   : signed logic<OUT_WIDTH> ;
+
+    result = $signed(aligned[OUT_WIDTH - 1:0]);
+    if OVERFLOW == fixedpoint::FixedPoint::OverflowMode::SATURATE {
+        if aligned >: max_value {
+            result = $signed(max_value[OUT_WIDTH - 1:0]);
+        } else if aligned <: min_value {
+            result = $signed(min_value[OUT_WIDTH - 1:0]);
+        }
+    }
+
+    return result;
+}
+
 /// 2点間の線形補間器。
 ///
 /// `phase`は0以上1未満のunsigned Q0.`PHASE_WIDTH`値で、sample0から
@@ -7,94 +105,14 @@ pub module LinearInterpolator #(
     param PHASE_WIDTH  : u32                                  = 32                                                        ,
     param ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode = fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
     param OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode = fixedpoint::FixedPoint::OverflowMode::SATURATE            ,
+    const NUM_WIDTH    : u32                                  = SAMPLE_WIDTH + PHASE_WIDTH
+        + 3                            ,
 ) (
     sample0: input  signed logic<SAMPLE_WIDTH>,
     sample1: input  signed logic<SAMPLE_WIDTH>,
     phase  : input  logic       <PHASE_WIDTH> ,
     sample : output signed logic<SAMPLE_WIDTH>,
 ) {
-    const NUM_WIDTH: u32 = SAMPLE_WIDTH + PHASE_WIDTH + 3;
-
-    /// 積和結果を出力幅へ丸め、指定されたoverflow policyを適用する。
-    ///
-    /// TODO(veryl-generic-argument-visibility): このhelperは、module parameterを
-    /// generic functionのactual argumentへ渡せない場合があるというVerylの仕様上の
-    /// 制約を補うproject-local adapterである。仕様変更または推奨パターンの追加後に
-    /// 削除し、fixedpoint packageのcanonical APIへ戻す。
-    /// 現在はmodule parameter／constをgeneric引数へ渡すと
-    /// `unresolvable_generic_expression`になり、callee側で
-    /// `referring_before_definition`も二次的に発生する。
-    ///
-    /// ```text
-    /// fixedpoint::SignedFixedPointRaw::resize::<
-    ///     NUM_WIDTH, PHASE_WIDTH, SAMPLE_WIDTH, 0, ROUNDING_MODE, OVERFLOW_MODE,
-    /// >(value)
-    /// ```
-    ///
-    /// そのため、現時点ではfixedpointの`resize`と同じ丸め・overflow意味論を
-    /// package内へproject-localに複製している。削除時はこの関数とこのTODO markerを
-    /// まとめて除去し、`always_comb`の呼び出しを上記APIへ置き換えること。
-    /// `ROUNDING_MODE`、`OVERFLOW_MODE`、全rounding mode test、cubicのsaturation／
-    /// wrap test、およびinterpolation benchmarkの結果を比較してから削除する。
-    function resize_interpolation (
-        value: input signed logic<NUM_WIDTH>,
-    ) -> signed logic<SAMPLE_WIDTH> {
-        const WORK_WIDTH: u32 = if NUM_WIDTH + 2 >= PHASE_WIDTH + 2 ? NUM_WIDTH + 2 : PHASE_WIDTH + 2;
-
-        let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - NUM_WIDTH, value});
-        let half_value         : signed logic<WORK_WIDTH> = $signed(
-            {1'b0 repeat WORK_WIDTH - 1, 1'b1} << (PHASE_WIDTH - 1),
-        );
-        let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
-        let truncated_magnitude: signed logic<WORK_WIDTH> = magnitude >>> PHASE_WIDTH;
-        let remainder          : signed logic<WORK_WIDTH> = magnitude - (truncated_magnitude <<< PHASE_WIDTH);
-        var rounded_magnitude  : signed logic<WORK_WIDTH>;
-        var aligned            : signed logic<WORK_WIDTH>;
-
-        rounded_magnitude = truncated_magnitude;
-        if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE {
-            aligned = value_ext >>> PHASE_WIDTH;
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_ZERO {
-            aligned = if value_ext[msb] == 1'b0 ? truncated_magnitude : -truncated_magnitude;
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_POSITIVE {
-            if value_ext[msb] == 1'b0 && remainder != '0 {
-                aligned = truncated_magnitude + 1'b1;
-            } else if value_ext[msb] == 1'b0 {
-                aligned = truncated_magnitude;
-            } else {
-                aligned = -truncated_magnitude;
-            }
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE {
-            aligned = (value_ext + half_value) >>> PHASE_WIDTH;
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO && value_ext[msb]
-            == 1'b0 {
-            aligned = (value_ext + half_value) >>> PHASE_WIDTH;
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO {
-            aligned = -((-value_ext + half_value) >>> PHASE_WIDTH);
-        } else {
-            if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
-                rounded_magnitude = truncated_magnitude + 1'b1;
-            }
-            aligned = if value_ext[msb] == 1'b0 ? rounded_magnitude : -rounded_magnitude;
-        }
-
-        const BODY_WIDTH  : u32                        = SAMPLE_WIDTH - 1;
-        const EXTEND_WIDTH: u32                        = WORK_WIDTH - SAMPLE_WIDTH;
-        let   max_value   : signed logic<WORK_WIDTH>   = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
-        let   min_value   : signed logic<WORK_WIDTH>   = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
-        var   result      : signed logic<SAMPLE_WIDTH>;
-
-        result = $signed(aligned[SAMPLE_WIDTH - 1:0]);
-        if OVERFLOW_MODE == fixedpoint::FixedPoint::OverflowMode::SATURATE {
-            if aligned >: max_value {
-                result = $signed(max_value[SAMPLE_WIDTH - 1:0]);
-            } else if aligned <: min_value {
-                result = $signed(min_value[SAMPLE_WIDTH - 1:0]);
-            }
-        }
-        return result;
-    }
-
     always_comb {
         let delta      : signed logic<SAMPLE_WIDTH + 1> = $signed({sample1[msb], sample1})
             - $signed({sample0[msb], sample0});
@@ -102,7 +120,14 @@ pub module LinearInterpolator #(
         let sample0_ext: signed logic<NUM_WIDTH>        = sample0;
         let delta_ext  : signed logic<NUM_WIDTH>        = delta;
         let numerator  : signed logic<NUM_WIDTH>        = (sample0_ext <<< PHASE_WIDTH) + delta_ext * phase_ext;
-        sample      = resize_interpolation(numerator);
+        sample      = resize_interpolation_global::<
+            NUM_WIDTH    ,
+            PHASE_WIDTH  ,
+            SAMPLE_WIDTH ,
+            0            ,
+            ROUNDING_MODE,
+            OVERFLOW_MODE,
+        >(numerator);
     }
 }
 
@@ -148,7 +173,7 @@ module test_linear_interpolator_exhaustive_small_width {
         let delta_ext  : signed logic<10> = delta;
         let phase_ext  : signed logic<4>  = $signed({1'b0, phase});
         let numerator  : signed logic<10> = (sample0_ext <<< 3) + delta_ext * phase_ext;
-        expected    = fixedpoint::SignedFixedPointRaw::resize::<
+        expected    = resize_interpolation_global::<
             10                                                        ,
             3                                                         ,
             4                                                         ,

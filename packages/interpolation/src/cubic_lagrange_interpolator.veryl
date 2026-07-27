@@ -7,6 +7,10 @@ pub module CubicLagrangeInterpolator #(
     param PHASE_WIDTH  : u32                                  = 32                                                        ,
     param ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode = fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
     param OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode = fixedpoint::FixedPoint::OverflowMode::SATURATE            ,
+    const NUM_WIDTH    : u32                                  = SAMPLE_WIDTH + 2 + 18 + PHASE_WIDTH * 3
+        + 3               ,
+    const OUTPUT_SHIFT : u32                                  = 16 + PHASE_WIDTH
+        * 3                                      ,
 ) (
     sample_m1: input  signed logic<SAMPLE_WIDTH>,
     sample0  : input  signed logic<SAMPLE_WIDTH>,
@@ -21,89 +25,6 @@ pub module CubicLagrangeInterpolator #(
     const PRODUCT_WIDTH : u32 = SAMPLE_EXT + COEFF_WIDTH;
     const H2_WIDTH      : u32 = PRODUCT_WIDTH + PHASE_WIDTH + 1;
     const H1_WIDTH      : u32 = PRODUCT_WIDTH + PHASE_WIDTH * 2 + 2;
-    const NUM_WIDTH     : u32 = PRODUCT_WIDTH + PHASE_WIDTH * 3 + 3;
-    const OUTPUT_SHIFT  : u32 = COEFF_FRACTION + PHASE_WIDTH * 3;
-
-    /// 積和結果を出力幅へ丸め、指定されたoverflow policyを適用する。
-    ///
-    /// TODO(veryl-generic-argument-visibility): このhelperは、module parameterを
-    /// generic functionのactual argumentへ渡せない場合があるというVerylの仕様上の
-    /// 制約を補うproject-local adapterである。仕様変更または推奨パターンの追加後に
-    /// 削除し、fixedpoint packageのcanonical APIへ戻す。
-    /// 現在はmodule parameter／constをgeneric引数へ渡すと
-    /// `unresolvable_generic_expression`になり、callee側で
-    /// `referring_before_definition`も二次的に発生する。
-    ///
-    /// ```text
-    /// fixedpoint::SignedFixedPointRaw::resize::<
-    ///     NUM_WIDTH, OUTPUT_SHIFT, SAMPLE_WIDTH, 0, ROUNDING_MODE, OVERFLOW_MODE,
-    /// >(value)
-    /// ```
-    ///
-    /// そのため、現時点ではfixedpointの`resize`と同じ丸め・overflow意味論を
-    /// package内へproject-localに複製している。削除時はこの関数とこのTODO markerを
-    /// まとめて除去し、`always_comb`の呼び出しを上記APIへ置き換えること。
-    /// `ROUNDING_MODE`、`OVERFLOW_MODE`、cubicの定数列・ramp・saturation／wrap
-    /// test、およびinterpolation benchmarkの結果を比較してから削除する。
-    function resize_interpolation (
-        value: input signed logic<NUM_WIDTH>,
-    ) -> signed logic<SAMPLE_WIDTH> {
-        const WORK_WIDTH: u32 = if NUM_WIDTH + 2 >= OUTPUT_SHIFT + 2 ? NUM_WIDTH + 2 : OUTPUT_SHIFT + 2;
-
-        let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - NUM_WIDTH, value});
-        let half_value         : signed logic<WORK_WIDTH> = $signed(
-            {1'b0 repeat WORK_WIDTH - 1, 1'b1} << (OUTPUT_SHIFT - 1),
-        );
-        let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
-        let truncated_magnitude: signed logic<WORK_WIDTH> = magnitude >>> OUTPUT_SHIFT;
-        let remainder          : signed logic<WORK_WIDTH> = magnitude - (truncated_magnitude <<< OUTPUT_SHIFT);
-        var rounded_magnitude  : signed logic<WORK_WIDTH>;
-        var aligned            : signed logic<WORK_WIDTH>;
-
-        rounded_magnitude = truncated_magnitude;
-        if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE {
-            aligned = value_ext >>> OUTPUT_SHIFT;
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_ZERO {
-            aligned = if value_ext[msb] == 1'b0 ? truncated_magnitude : -truncated_magnitude;
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_POSITIVE {
-            if value_ext[msb] == 1'b0 && remainder != '0 {
-                aligned = truncated_magnitude + 1'b1;
-            } else if value_ext[msb] == 1'b0 {
-                aligned = truncated_magnitude;
-            } else {
-                aligned = -truncated_magnitude;
-            }
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE {
-            aligned = (value_ext + half_value) >>> OUTPUT_SHIFT;
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO && value_ext[msb]
-            == 1'b0 {
-            aligned = (value_ext + half_value) >>> OUTPUT_SHIFT;
-        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO {
-            aligned = -((-value_ext + half_value) >>> OUTPUT_SHIFT);
-        } else {
-            if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
-                rounded_magnitude = truncated_magnitude + 1'b1;
-            }
-            aligned = if value_ext[msb] == 1'b0 ? rounded_magnitude : -rounded_magnitude;
-        }
-
-        const BODY_WIDTH  : u32                        = SAMPLE_WIDTH - 1;
-        const EXTEND_WIDTH: u32                        = WORK_WIDTH - SAMPLE_WIDTH;
-        let   max_value   : signed logic<WORK_WIDTH>   = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
-        let   min_value   : signed logic<WORK_WIDTH>   = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
-        var   result      : signed logic<SAMPLE_WIDTH>;
-
-        result = $signed(aligned[SAMPLE_WIDTH - 1:0]);
-        if OVERFLOW_MODE == fixedpoint::FixedPoint::OverflowMode::SATURATE {
-            if aligned >: max_value {
-                result = $signed(max_value[SAMPLE_WIDTH - 1:0]);
-            } else if aligned <: min_value {
-                result = $signed(min_value[SAMPLE_WIDTH - 1:0]);
-            }
-        }
-        return result;
-    }
-
     always_comb {
         let sample_m1_ext: signed logic<PRODUCT_WIDTH>   = sample_m1;
         let sample0_ext  : signed logic<PRODUCT_WIDTH>   = sample0;
@@ -131,7 +52,14 @@ pub module CubicLagrangeInterpolator #(
         let sample0_wide: signed logic<NUM_WIDTH> = sample0;
         let c0          : signed logic<NUM_WIDTH> = sample0_wide <<< (COEFF_FRACTION + PHASE_WIDTH * 3);
         let numerator   : signed logic<NUM_WIDTH> = c0 + h1_mu;
-        sample       = resize_interpolation(numerator);
+        sample       = resize_interpolation_global::<
+            NUM_WIDTH    ,
+            OUTPUT_SHIFT ,
+            SAMPLE_WIDTH ,
+            0            ,
+            ROUNDING_MODE,
+            OVERFLOW_MODE,
+        >(numerator);
     }
 }
 
