@@ -13,6 +13,15 @@ target = { type = "directory", path = "target" }
 [test]
 
 [dependencies]
-# `AkiyukiOkayasu/gndless-fixedpoint-veryl`へ分離後は次のGit依存へ置き換える。
-# fixedpoint = { project = "gndless_fixedpoint", github = "AkiyukiOkayasu/gndless-fixedpoint-veryl", version = "0.1.0" }
 fixedpoint = { path = "./packages/fixedpoint" }
+interpolation = { path = "./packages/interpolation" }
+nco = { path = "./packages/nco" }
+filter = { path = "./packages/filter" }
+oscillator = { path = "./packages/oscillator" }
+asrc = { path = "./packages/asrc" }
+delta_sigma = { path = "./packages/delta_sigma" }
+uart = { path = "./packages/uart" }
+midi = { path = "./packages/midi" }
+spi = { path = "./packages/spi" }
+adat = { path = "./packages/adat" }
+iec60958 = { path = "./packages/iec60958" }

@@ -1,0 +1,154 @@
+/// 補間kernelだけを比較する決定論的ベンチマーク。
+///
+/// oscillatorには依存せず、固定のstep/ramp/sign-crossing/impulse vectorを
+/// 256位相へ展開する。CSV schemaはrootの解析スクリプトと互換に保つ。
+#[test(interpolator_benchmark)]
+#[ignore]
+module interpolator_benchmark {
+    const SAMPLE_WIDTH  : u32 = 32;
+    const PHASE_WIDTH   : u32 = 8;
+    const IMPULSE_LENGTH: u32 = 32;
+
+    inst clk: $tb::clock_gen;
+
+    var sample0                : signed logic<SAMPLE_WIDTH>    ;
+    var sample1                : signed logic<SAMPLE_WIDTH>    ;
+    var sample_m1              : signed logic<SAMPLE_WIDTH>    ;
+    var sample2                : signed logic<SAMPLE_WIDTH>    ;
+    var phase                  : logic       <PHASE_WIDTH>     ;
+    var hold_sample            : signed logic<SAMPLE_WIDTH>    ;
+    var linear_sample          : signed logic<SAMPLE_WIDTH>    ;
+    var cubic_sample           : signed logic<SAMPLE_WIDTH>    ;
+    var linear_difference      : signed logic<SAMPLE_WIDTH + 1>;
+    var cubic_difference       : signed logic<SAMPLE_WIDTH + 1>;
+    var cubic_linear_difference: signed logic<SAMPLE_WIDTH + 1>;
+    var file                   : $tb::file                     ;
+
+    inst hold: ZeroOrderHold #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+    ) (
+        sample0             ,
+        sample1             ,
+        phase               ,
+        sample : hold_sample,
+    );
+
+    inst linear: LinearInterpolator #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+    ) (
+        sample0               ,
+        sample1               ,
+        phase                 ,
+        sample : linear_sample,
+    );
+
+    inst cubic: CubicLagrangeInterpolator #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+    ) (
+        sample_m1              ,
+        sample0                ,
+        sample1                ,
+        sample2                ,
+        phase                  ,
+        sample   : cubic_sample,
+    );
+
+    always_comb {
+        linear_difference       = $signed({linear_sample[msb], linear_sample})
+            - $signed({hold_sample[msb], hold_sample});
+        cubic_difference        = $signed({cubic_sample[msb], cubic_sample}) - $signed({hold_sample[msb], hold_sample});
+        cubic_linear_difference = $signed({cubic_sample[msb], cubic_sample})
+            - $signed({linear_sample[msb], linear_sample});
+    }
+
+    function write_window (
+        case_id    : input logic       <8> ,
+        previous   : input signed logic<32>,
+        start      : input signed logic<32>,
+        end_sample : input signed logic<32>,
+        next_sample: input signed logic<32>,
+    ) {
+        sample_m1 = previous;
+        sample0   = start;
+        sample1   = end_sample;
+        sample2   = next_sample;
+        for p in 0..256 {
+            phase = p as PHASE_WIDTH;
+            clk.next(1);
+            file.write(
+                "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h,%h,%h,%h\n",
+                case_id,
+                0,
+                0,
+                0,
+                phase,
+                sample0,
+                sample1,
+                hold_sample,
+                linear_sample,
+                cubic_sample,
+                linear_difference,
+                cubic_difference,
+                cubic_linear_difference,
+            );
+        }
+    }
+
+    function write_impulse () {
+        for sample_index in 0..IMPULSE_LENGTH {
+            if sample_index == 0 {
+                sample_m1 = 0;
+                sample0   = 32'sd1_000_000_000;
+                sample1   = 0;
+                sample2   = 0;
+            } else if sample_index == 1 {
+                sample_m1 = 32'sd1_000_000_000;
+                sample0   = 0;
+                sample1   = 0;
+                sample2   = 0;
+            } else {
+                sample_m1 = 0;
+                sample0   = 0;
+                sample1   = 0;
+                sample2   = 0;
+            }
+
+            for p in 0..256 {
+                phase = p as PHASE_WIDTH;
+                clk.next(1);
+                file.write(
+                    "%d,%d,%d,%d,%d,%h,%h,%h,%h,%h,%h,%h,%h\n",
+                    8'd4,
+                    1,
+                    0,
+                    sample_index,
+                    phase,
+                    sample0,
+                    sample1,
+                    hold_sample,
+                    linear_sample,
+                    cubic_sample,
+                    linear_difference,
+                    cubic_difference,
+                    cubic_linear_difference,
+                );
+            }
+        }
+    }
+
+    initial {
+        file.open("target/interpolator_benchmark.csv");
+        file.write(
+            "case,signal_kind,frequency_milli_fs,sample_index,phase,sample0_bits,sample1_bits,zero_order_hold_bits,linear_bits,cubic_bits,linear_minus_hold_bits,cubic_minus_hold_bits,cubic_minus_linear_bits\n",
+        );
+        write_window(8'd0, 32'sd0, 32'sd0, 32'sd1_000_000_000, 32'sd1_000_000_000);
+        write_window(8'd1, 32'sd0, 32'sd0, 32'sd1_000_000_000, 32'sd2_000_000_000);
+        write_window(8'd2, -32'sd1_000_000_000, -32'sd1_000_000_000, 32'sd1_000_000_000, 32'sd1_000_000_000);
+        write_impulse();
+        file.close();
+        $finish();
+    }
+}

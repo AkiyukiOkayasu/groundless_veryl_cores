@@ -1,0 +1,220 @@
+/// 4サンプル窓のCubic補間を使うASRC。
+///
+/// 初期化時に4サンプルを受け取り、出力tickごとに分数位相を進める。
+/// `ratio`が整数部Nを持つ場合は、窓をNサンプル進めて不足分をFIFOから
+/// 補充する。Cubic補間のため、最初の出力は初期窓の2番目のsample位置になる。
+pub module CubicLagrangeAsrc #(
+    param SAMPLE_WIDTH: u32 = 32,
+    param PHASE_WIDTH : u32 = 32,
+    param INPUT_DEPTH : u32 = 8 ,
+) (
+    clk          : input  clock                        ,
+    rst          : input  reset                        ,
+    input_valid  : input  logic                        ,
+    input_ready  : output logic                        ,
+    input_sample : input  signed logic<SAMPLE_WIDTH>   ,
+    output_tick  : input  logic                        ,
+    output_ready : output logic                        ,
+    output_valid : output logic                        ,
+    output_sample: output signed logic<SAMPLE_WIDTH>   ,
+    ratio        : input  logic       <PHASE_WIDTH + 2>,
+) {
+    const LEVEL_WIDTH: u32 = $clog2(INPUT_DEPTH + 1);
+
+    var fifo_empty      : logic                     ;
+    var fifo_almost_full: logic                     ;
+    var fifo_full       : logic                     ;
+    var fifo_level      : logic       <LEVEL_WIDTH> ;
+    var fifo_q          : signed logic<SAMPLE_WIDTH>;
+    var fifo_push       : logic                     ;
+    var fifo_pop        : logic                     ;
+    var sample_m1       : signed logic<SAMPLE_WIDTH>;
+    var sample0         : signed logic<SAMPLE_WIDTH>;
+    var sample1         : signed logic<SAMPLE_WIDTH>;
+    var sample2         : signed logic<SAMPLE_WIDTH>;
+    var window_count    : logic       <3>           ;
+    var refill_count    : logic       <3>           ;
+    var refill_start    : logic       <2>           ;
+    var phase           : logic       <PHASE_WIDTH> ;
+    var interpolated    : signed logic<SAMPLE_WIDTH>;
+
+    inst input_fifo: $std::fifo #(
+        WIDTH: SAMPLE_WIDTH              ,
+        TYPE : signed logic<SAMPLE_WIDTH>,
+        DEPTH: INPUT_DEPTH               ,
+    ) (
+        i_clk        : clk             ,
+        i_rst        : rst             ,
+        i_clear      : 1'b0            ,
+        i_push       : fifo_push       ,
+        i_data       : input_sample    ,
+        i_pop        : fifo_pop        ,
+        o_empty      : fifo_empty      ,
+        o_almost_full: fifo_almost_full,
+        o_full       : fifo_full       ,
+        o_word_count : fifo_level      ,
+        o_data       : fifo_q          ,
+    );
+
+    inst interpolator: interpolation::CubicLagrangeInterpolator #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+    ) (
+        sample_m1: sample_m1   ,
+        sample0  : sample0     ,
+        sample1  : sample1     ,
+        sample2  : sample2     ,
+        phase    : phase       ,
+        sample   : interpolated,
+    );
+
+    always_comb {
+        input_ready  = !fifo_full;
+        fifo_push    = input_valid && input_ready;
+        output_ready = window_count == 3'd4 && refill_count == 3'd0;
+        fifo_pop     = !fifo_empty && ((window_count <: 3'd4) || (refill_count != 3'd0));
+    }
+
+    always_ff {
+        if_reset {
+            sample_m1     = 0;
+            sample0       = 0;
+            sample1       = 0;
+            sample2       = 0;
+            window_count  = 0;
+            refill_count  = 0;
+            refill_start  = 0;
+            phase         = 0;
+            output_valid  = 0;
+            output_sample = 0;
+        } else {
+            output_valid = 0;
+
+            if fifo_pop {
+                if window_count <: 3'd4 {
+                    if window_count == 3'd0 {
+                        sample_m1 = fifo_q;
+                    } else if window_count == 3'd1 {
+                        sample0 = fifo_q;
+                    } else if window_count == 3'd2 {
+                        sample1 = fifo_q;
+                    } else {
+                        sample2 = fifo_q;
+                    }
+                    window_count += 1;
+                } else if refill_start == 2'd0 {
+                    sample_m1    =  fifo_q;
+                    refill_start += 1;
+                    refill_count -= 1;
+                } else if refill_start == 2'd1 {
+                    sample0      =  fifo_q;
+                    refill_start += 1;
+                    refill_count -= 1;
+                } else if refill_start == 2'd2 {
+                    sample1      =  fifo_q;
+                    refill_start += 1;
+                    refill_count -= 1;
+                } else {
+                    sample2      =  fifo_q;
+                    refill_count -= 1;
+                }
+            }
+
+            if output_tick && output_ready {
+                let phase_sum    : logic<PHASE_WIDTH + 3> = {3'b0, phase} + {1'b0, ratio};
+                let advance      : logic<3>               = phase_sum[PHASE_WIDTH + 2:PHASE_WIDTH];
+                output_sample = interpolated;
+                output_valid  = 1;
+                phase         = phase_sum[PHASE_WIDTH - 1:0];
+
+                if advance == 3'd1 {
+                    sample_m1    = sample0;
+                    sample0      = sample1;
+                    sample1      = sample2;
+                    refill_start = 2'd3;
+                    refill_count = 3'd1;
+                } else if advance == 3'd2 {
+                    sample_m1    = sample1;
+                    sample0      = sample2;
+                    refill_start = 2'd2;
+                    refill_count = 3'd2;
+                } else if advance == 3'd3 {
+                    sample_m1    = sample2;
+                    refill_start = 2'd1;
+                    refill_count = 3'd3;
+                } else if advance == 3'd4 {
+                    refill_start = 2'd0;
+                    refill_count = 3'd4;
+                }
+            }
+        }
+    }
+}
+
+/// Cubic Lagrange ASRCの4点窓、分数advance、FIFO補充を検証するNative test。
+#[test(test_cubic_lagrange_asrc)]
+module test_cubic_lagrange_asrc {
+    var input_valid  : logic           ;
+    var input_ready  : logic           ;
+    var input_sample : signed logic<16>;
+    var output_tick  : logic           ;
+    var output_ready : logic           ;
+    var output_valid : logic           ;
+    var output_sample: signed logic<16>;
+    var ratio        : logic       <6> ;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    inst dut: CubicLagrangeAsrc #(
+        SAMPLE_WIDTH: 16,
+        PHASE_WIDTH : 4 ,
+        INPUT_DEPTH : 4 ,
+    ) (
+        clk            ,
+        rst            ,
+        input_valid    ,
+        input_ready    ,
+        input_sample   ,
+        output_tick    ,
+        output_ready   ,
+        output_valid   ,
+        output_sample  ,
+        ratio          ,
+    );
+
+    initial {
+        input_valid  = 1;
+        input_sample = 16'sd0;
+        output_tick  = 0;
+        ratio        = 6'd24;
+        rst.assert();
+        clk.next(1);
+        input_sample = 16'sd100;
+        clk.next(1);
+        input_sample = 16'sd200;
+        clk.next(1);
+        input_sample = 16'sd300;
+        clk.next(1);
+        input_valid = 0;
+        clk.next(5);
+        $assert(output_ready, "Cubic Lagrange ASRC must fill its four-sample window");
+
+        input_sample = 16'sd400;
+        input_valid  = 1;
+        clk.next(1);
+        input_valid = 0;
+        output_tick = 1;
+        clk.next(1);
+        output_tick = 0;
+        $assert(output_valid && output_sample == 16'sd100, "Cubic Lagrange ASRC first sample mismatch");
+        clk.next(3);
+        $assert(output_ready, "Cubic Lagrange ASRC must refill after a one-sample advance");
+
+        output_tick = 1;
+        clk.next(1);
+        output_tick = 0;
+        $assert(output_valid && output_sample == 16'sd250, "Cubic Lagrange ASRC interpolated sample mismatch");
+        $finish();
+    }
+}

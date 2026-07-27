@@ -1,0 +1,10 @@
+pub module Caller #(
+    param WIDTH: u32 = 8,
+) (
+    value : input  logic<WIDTH>,
+    result: output logic<WIDTH>,
+) {
+    always_comb {
+        result = callee::Generic::identity::<WIDTH>(value);
+    }
+}

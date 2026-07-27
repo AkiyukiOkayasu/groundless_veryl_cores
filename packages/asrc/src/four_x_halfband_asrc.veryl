@@ -1,0 +1,167 @@
+/// 2段のhalfband補間と連続線形ASRCを接続した1ch 4倍オーバーサンプラ。
+///
+/// 入力1サンプルから論理的に4サンプルを生成し、後段のSTD FIFOへburstで
+/// 受け渡す。FIFOの読み出しと50MHz出力の位相進行は`ContinuousLinearAsrc`
+/// が担当するため、HBF自身は入力受理と2サンプルburstのready/validだけを扱う。
+pub module FourXHalfbandAsrc #(
+    param SAMPLE_WIDTH: u32 = 32,
+    param PHASE_WIDTH : u32 = 32,
+    param INPUT_DEPTH : u32 = 8 ,
+) (
+    clk            : input  clock                                ,
+    rst            : input  reset                                ,
+    input_valid    : input  bbool                                ,
+    input_ready    : output bbool                                ,
+    input_sample   : input  signed logic<SAMPLE_WIDTH>           ,
+    phase_increment: input  logic       <PHASE_WIDTH>            ,
+    output_active  : output bbool                                ,
+    output_sample  : output signed logic<SAMPLE_WIDTH>           ,
+    input_level    : output logic       <$clog2(INPUT_DEPTH + 1)>,
+    underflow      : output bbool                                ,
+) {
+    var phase       : logic<PHASE_WIDTH>;
+    var advance     : bbool             ;
+    var phase_enable: bbool             ;
+
+    var first_input_ready  : bbool                     ;
+    var first_output_valid : bbool                     ;
+    var first_output_ready : bbool                     ;
+    var first_output_sample: signed logic<SAMPLE_WIDTH>;
+
+    var second_input_ready  : bbool                     ;
+    var second_output_valid : bbool                     ;
+    var second_output_ready : bbool                     ;
+    var second_output_sample: signed logic<SAMPLE_WIDTH>;
+
+    var asrc_input_ready: bbool;
+
+    inst phase_accumulator: nco::FractionalPhaseAccumulator #(
+        WIDTH: PHASE_WIDTH,
+    ) (
+        clk                          ,
+        rst                          ,
+        enable         : phase_enable,
+        phase_increment              ,
+        phase                        ,
+        advance                      ,
+    );
+
+    inst first_halfband: filter::HalfbandInterpolator2x #(
+        SAMPLE_WIDTH   : SAMPLE_WIDTH,
+        COEFFICIENT_SET: 1           ,
+    ) (
+        clk                               ,
+        rst                               ,
+        input_valid                       ,
+        input_ready  : first_input_ready  ,
+        input_sample                      ,
+        output_valid : first_output_valid ,
+        output_ready : first_output_ready ,
+        output_sample: first_output_sample,
+    );
+
+    inst second_halfband: filter::HalfbandInterpolator2x #(
+        SAMPLE_WIDTH   : SAMPLE_WIDTH,
+        COEFFICIENT_SET: 2           ,
+    ) (
+        clk                                ,
+        rst                                ,
+        input_valid  : first_output_valid  ,
+        input_ready  : second_input_ready  ,
+        input_sample : first_output_sample ,
+        output_valid : second_output_valid ,
+        output_ready : second_output_ready ,
+        output_sample: second_output_sample,
+    );
+
+    inst continuous_asrc: ContinuousLinearAsrc #(
+        SAMPLE_WIDTH : SAMPLE_WIDTH,
+        PHASE_WIDTH  : PHASE_WIDTH ,
+        INPUT_DEPTH  : INPUT_DEPTH ,
+        STARTUP_LEVEL: 6           ,
+    ) (
+        clk                                ,
+        rst                                ,
+        input_valid  : second_output_valid ,
+        input_ready  : asrc_input_ready    ,
+        input_sample : second_output_sample,
+        input_level                        ,
+        phase                              ,
+        advance                            ,
+        output_active                      ,
+        output_sample                      ,
+        underflow                          ,
+    );
+
+    assign input_ready         = first_input_ready;
+    assign first_output_ready  = second_input_ready;
+    assign second_output_ready = asrc_input_ready;
+    assign phase_enable        = output_active;
+}
+
+/// 2段HBFのburst接続、STD FIFOの蓄積、50MHz連続出力を検証する。
+#[test(test_four_x_halfband_asrc)]
+module test_four_x_halfband_asrc {
+    const SAMPLE_WIDTH: u32 = 16;
+    const PHASE_WIDTH : u32 = 32;
+
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var input_valid    : bbool           ;
+    var input_ready    : bbool           ;
+    var input_sample   : signed logic<16>;
+    var phase_increment: logic       <32>;
+    var output_active  : bbool           ;
+    var output_sample  : signed logic<16>;
+    var input_level    : logic       <4> ;
+    var underflow      : bbool           ;
+
+    inst dut: FourXHalfbandAsrc #(
+        SAMPLE_WIDTH: SAMPLE_WIDTH,
+        PHASE_WIDTH : PHASE_WIDTH ,
+        INPUT_DEPTH : 8           ,
+    ) (
+        clk              ,
+        rst              ,
+        input_valid      ,
+        input_ready      ,
+        input_sample     ,
+        phase_increment  ,
+        output_active    ,
+        output_sample    ,
+        input_level      ,
+        underflow        ,
+    );
+
+    initial {
+        input_valid     = false;
+        input_sample    = 16'sd1000;
+        phase_increment = 0;
+        rst.assert();
+
+        // 位相を止めた状態で2入力分の4サンプルburstをFIFOへ蓄積する。
+        $assert(input_ready, "4x ASRC must accept the first input");
+        input_valid = true;
+        clk.next(1);
+        input_valid = false;
+        clk.next(80);
+
+        $assert(input_ready, "4x ASRC must accept the second input");
+        input_valid = true;
+        clk.next(1);
+        input_valid = false;
+        clk.next(80);
+
+        $assert(output_active, "4x ASRC must become active after HBF bursts");
+        $assert(input_level == 4'd6, "two HBF bursts must leave six FIFO samples after prefill");
+        $assert(!underflow, "4x ASRC must not underflow while phase is stopped");
+
+        // 192kHz / 50MHzのQ0.32進行へ切り替え、短時間の連続出力を確認する。
+        phase_increment = 32'd16492674;
+        clk.next(520);
+        $assert(output_active, "4x ASRC must keep its output active");
+        $assert(!underflow, "4x ASRC must not underflow from the buffered burst");
+        $finish();
+    }
+}

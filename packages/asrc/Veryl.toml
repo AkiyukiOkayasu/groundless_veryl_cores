@@ -1,0 +1,19 @@
+[project]
+name = "gndless_asrc"
+version = "0.1.0"
+authors = ["Akiyuki Okayasu"]
+description = "FIFO-backed asynchronous sample-rate converters for Veryl."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/AkiyukiOkayasu/gndless-asrc-veryl"
+
+[build]
+sources = ["src"]
+target = { type = "directory", path = "target" }
+
+[test]
+
+[dependencies]
+fixedpoint = { path = "../fixedpoint" }
+interpolation = { path = "../interpolation" }
+nco = { path = "../nco" }
+filter = { path = "../filter" }

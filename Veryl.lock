@@ -3,8 +3,116 @@
 version = 1
 
 [[projects]]
+name = "adat"
+source = "packages/adat"
+dependencies = []
+
+[projects.properties]
+
+[[projects]]
+name = "asrc"
+source = "packages/asrc"
+
+[projects.properties]
+
+[[projects.dependencies]]
+name = "interpolation"
+source = "packages/interpolation"
+
+[[projects.dependencies]]
+name = "nco"
+source = "packages/nco"
+
+[[projects.dependencies]]
+name = "filter"
+source = "packages/filter"
+
+[[projects.dependencies]]
 name = "fixedpoint"
 source = "packages/fixedpoint"
+
+[[projects]]
+name = "delta_sigma"
+source = "packages/delta_sigma"
+
+[projects.properties]
+
+[[projects.dependencies]]
+name = "fixedpoint"
+source = "packages/fixedpoint"
+
+[[projects]]
+name = "filter"
+source = "packages/filter"
+dependencies = []
+
+[projects.properties]
+
+[[projects]]
+name = "fixedpoint"
+source = "packages/fixedpoint"
+dependencies = []
+
+[projects.properties]
+
+[[projects]]
+name = "iec60958"
+source = "packages/iec60958"
+dependencies = []
+
+[projects.properties]
+
+[[projects]]
+name = "interpolation"
+source = "packages/interpolation"
+
+[projects.properties]
+
+[[projects.dependencies]]
+name = "fixedpoint"
+source = "packages/fixedpoint"
+
+[[projects]]
+name = "midi"
+source = "packages/midi"
+
+[projects.properties]
+
+[[projects.dependencies]]
+name = "uart"
+source = "packages/uart"
+
+[[projects]]
+name = "nco"
+source = "packages/nco"
+dependencies = []
+
+[projects.properties]
+
+[[projects]]
+name = "oscillator"
+source = "packages/oscillator"
+
+[projects.properties]
+
+[[projects.dependencies]]
+name = "fixedpoint"
+source = "packages/fixedpoint"
+
+[[projects.dependencies]]
+name = "nco"
+source = "packages/nco"
+
+[[projects]]
+name = "spi"
+source = "packages/spi"
+dependencies = []
+
+[projects.properties]
+
+[[projects]]
+name = "uart"
+source = "packages/uart"
 dependencies = []
 
 [projects.properties]

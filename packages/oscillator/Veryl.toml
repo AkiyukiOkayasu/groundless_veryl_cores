@@ -1,0 +1,17 @@
+[project]
+name = "gndless_oscillator"
+version = "0.1.0"
+authors = ["Akiyuki Okayasu"]
+description = "Periodic waveform and noise oscillators for Veryl."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/AkiyukiOkayasu/gndless-oscillator-veryl"
+
+[build]
+sources = ["src"]
+target = { type = "directory", path = "target" }
+
+[test]
+
+[dependencies]
+fixedpoint = { path = "../fixedpoint" }
+nco = { path = "../nco" }

@@ -1,0 +1,54 @@
+/// White Noise Generator (Xorshift32 Algorithm)
+///
+/// Generates high-quality pseudo-random numbers suitable for audio noise.
+/// No reset signal required. Initializes with a non-zero seed on power-up.
+pub module WhiteNoise #(
+    param DIV: u16 = 200, /// クロック分周比
+) (
+    clk  : input  clock                 , /// クロック
+    audio: output fixedpoint::Q8_24::Raw, /// 出力波形 (Q8.24形式)
+) {
+    // Initial value (Seed) must be non-zero.
+    // rng_stateが0の場合、Xorshift32アルゴリズムが停止してしまうため、初期値として非ゼロ値を設定する。
+    var   rng_state   : logic<32>;
+    const INITIAL_SEED: u32       = 32'h2463_5345;
+
+    // クロック分周カウンター
+    // たとえばclkが50MHzの場合、100kHz程度でLPFを通すと振幅が小さくなりすぎる。
+    // そのため分周して、エネルギーの分布範囲が広くなりすぎないようにする。
+    var cnt: u16;
+
+    always_ff {
+        // クロック分周
+        if (cnt == DIV - 1) {
+            cnt = 0;
+
+            // Xorshift32 algorithm:
+            // x ^= x << 13;
+            // x ^= x >> 17;
+            // x ^= x << 5;
+            var next: logic<32>;
+            next =  if (rng_state == 0) ? INITIAL_SEED : rng_state;
+            next ^= (next << 13);
+            next ^= (next >> 17);
+            next ^= (next << 5);
+
+            rng_state = next;
+        } else {
+            cnt += 1;
+        }
+    }
+
+    var audio_q1: fixedpoint::Q1_31::Raw;
+    var audio_q8: fixedpoint::Q8_24::Raw;
+    always_comb {
+        audio_q1 = $signed(rng_state);
+        audio_q8 = fixedpoint::SignedFixedPoint::convert::<
+            fixedpoint::Q1_31                                    ,
+            fixedpoint::Q8_24                                    ,
+            fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,
+            fixedpoint::FixedPoint::OverflowMode::SATURATE       ,
+        >(audio_q1); // Q1.31 -> Q8.24
+        audio    = audio_q8;
+    }
+}

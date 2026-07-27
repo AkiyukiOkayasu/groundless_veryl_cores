@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- monorepo内の`packages/fixedpoint/` inner projectとして他packageから直接参照する構成を確定
+
 ## [0.1.0] - 2026-07-26
 
 ### Added

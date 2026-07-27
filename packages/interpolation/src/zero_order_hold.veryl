@@ -1,0 +1,17 @@
+/// 0次ホールド補間器。
+///
+/// `phase`に関係なく、現在のサンプル`sample0`を出力する。latencyは0で、
+/// `sample1`と`phase`は交換可能な補間器インターフェースのために受け取る。
+pub module ZeroOrderHold #(
+    param SAMPLE_WIDTH : u32                                  = 32                                                        ,
+    param PHASE_WIDTH  : u32                                  = 32                                                        ,
+    param ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode = fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
+    param OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode = fixedpoint::FixedPoint::OverflowMode::SATURATE            ,
+) (
+    sample0: input  signed logic<SAMPLE_WIDTH>,
+    sample1: input  signed logic<SAMPLE_WIDTH>,
+    phase  : input  logic       <PHASE_WIDTH> ,
+    sample : output signed logic<SAMPLE_WIDTH>,
+) {
+    assign sample = sample0;
+}

@@ -1,0 +1,16 @@
+[project]
+name = "gndless_midi"
+version = "0.1.0"
+authors = ["Akiyuki Okayasu"]
+description = "MIDI-rate byte receiver built on the UART package for Veryl."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/AkiyukiOkayasu/gndless-midi-veryl"
+
+[build]
+sources = ["src"]
+target = { type = "directory", path = "target" }
+
+[test]
+
+[dependencies]
+uart = { path = "../uart" }

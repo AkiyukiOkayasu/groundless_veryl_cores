@@ -1,0 +1,69 @@
+/// 矩形波生成コアモジュール
+/// 位相入力から波形を生成する純粋な変換モジュール
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module SquareWaveCore (
+    phase     : input  nco::Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
+    duty_cycle: input  nco::Phase::phase_t   , /// デューティ比 位相のどこまで High にするか (0 ~ 2^32-1)
+    audio     : output fixedpoint::Q8_24::Raw, /// 出力波形 (Q8.24形式)
+) {
+    always_comb {
+        // phase が しきい値(duty_cycle) より小さい間は High
+        if phase <: duty_cycle {
+            audio = fixedpoint::Q8_24::ONE;
+        } else {
+            audio = fixedpoint::Q8_24::NEG_ONE;
+        }
+    }
+}
+
+/// PWM変調可能な矩形波オシレーター
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module PwmSquareOscillator (
+    clk       : input  clock                 , /// クロック
+    phase_rst : input  bbool                 , /// 位相ゼロリセット (同期)
+    phase_step: input  nco::Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    duty_cycle: input  nco::Phase::phase_t   , /// デューティ比 位相のどこまで High にするか (0 ~ 2^32-1)
+    audio     : output fixedpoint::Q8_24::Raw, /// 波形出力 (Q8.24形式)
+) {
+    // 位相生成
+    var phase: nco::Phase::phase_t;
+    inst phasor: nco::Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
+
+    // 矩形波生成
+    inst core: SquareWaveCore ( phase, duty_cycle, audio );
+}
+
+/// 矩形波コアのしきい値判定を検証
+#[test(test_square_wave_core)]
+module test_square_wave_core {
+    var phase     : nco::Phase::phase_t   ;
+    var duty_cycle: nco::Phase::phase_t   ;
+    var audio     : fixedpoint::Q8_24::Raw;
+
+    inst dut: SquareWaveCore ( phase, duty_cycle, audio );
+
+    initial {
+        duty_cycle = 32'h4000_0000;
+
+        phase = 32'h0000_0000;
+        $assert(audio == fixedpoint::Q8_24::ONE, "矩形波のHigh区間が不正です");
+
+        phase = 32'h3FFF_FFFF;
+        $assert(audio == fixedpoint::Q8_24::ONE, "矩形波のHigh区間終端が不正です");
+
+        phase = 32'h4000_0001;
+        $assert(audio == fixedpoint::Q8_24::NEG_ONE, "矩形波のLow区間が不正です");
+
+        duty_cycle = 32'h0000_0000;
+        phase      = 32'h0000_0001;
+        $assert(audio == fixedpoint::Q8_24::NEG_ONE, "デューティ0の矩形波がHighになっています");
+
+        $finish();
+    }
+}

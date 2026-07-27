@@ -1,0 +1,70 @@
+/// ノコギリ波生成コアモジュール
+/// 位相入力から波形を生成する純粋な変換モジュール
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module SawWaveCore (
+    phase: input  nco::Phase::phase_t   , /// 位相入力
+    audio: output fixedpoint::Q8_24::Raw, /// 出力波形 (Q8.24形式)
+) {
+    // 位相のMSBを反転させることで、Q1.31形式のノコギリ波を生成
+    // 0x0000_0000 (0度)  -> 0x8000_0000 (負の最大 = -1.0)
+    // 0x8000_0000 (180度) -> 0x0000_0000 (0.0)
+    // 0xFFFF_FFFF (360度) -> 0x7FFF_FFFF (正の最大 = +1.0)
+
+    // Q1.31形式→Q8.24形式へ変換して出力
+    var q1_value: fixedpoint::Q1_31::Raw;
+    var q8_value: fixedpoint::Q8_24::Raw;
+    always_comb {
+        q1_value = $signed({~phase[msb], phase[msb - 1:0]});
+        q8_value = fixedpoint::SignedFixedPoint::convert::<
+            fixedpoint::Q1_31                                    ,
+            fixedpoint::Q8_24                                    ,
+            fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,
+            fixedpoint::FixedPoint::OverflowMode::SATURATE       ,
+        >(q1_value);
+        audio    = q8_value;
+    }
+}
+
+/// ノコギリ波オシレーター
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module SawOscillator (
+    clk       : input  clock                 , /// クロック
+    phase_rst : input  bbool                 , /// 位相ゼロリセット (同期)
+    phase_step: input  nco::Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    audio     : output fixedpoint::Q8_24::Raw, /// 出力波形 (Q8.24形式)
+) {
+    // 位相生成
+    var phase: nco::Phase::phase_t;
+    inst phasor: nco::Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
+
+    // ノコギリ波生成
+    inst core: SawWaveCore ( phase, audio );
+}
+
+/// ノコギリ波コアの位相変換を検証
+#[test(test_saw_wave_core)]
+module test_saw_wave_core {
+    var phase: nco::Phase::phase_t   ;
+    var audio: fixedpoint::Q8_24::Raw;
+
+    inst dut: SawWaveCore ( phase, audio );
+
+    initial {
+        phase = 32'h0000_0000;
+        $assert(audio == fixedpoint::Q8_24::NEG_ONE, "ノコギリ波の開始点が不正です");
+
+        phase = 32'h8000_0000;
+        $assert(audio == fixedpoint::Q8_24::ZERO, "ノコギリ波の半周期点が不正です");
+
+        phase = 32'hFFFF_FFFF;
+        $assert(audio >: fixedpoint::Q8_24::ZERO && audio <: fixedpoint::Q8_24::ONE, "ノコギリ波の最大値付近が不正です");
+
+        $finish();
+    }
+}

@@ -24,11 +24,11 @@
 - AES3 status streamとS/PDIF/AES3のstereo transceiverを追加し、Native loopbackを追加
 - S/PDIF/AES3 receiverへblock start pulseを追加し、旧metadata loopbackの回帰assertを追加
 - BMC preambleの8cell golden Native testを追加
-- `LinearInterpolator`/`FarrowInterpolator`とFIFO接続型`LinearAsrc`を追加し、Native testを追加
+- `LinearInterpolator`/`CubicLagrangeInterpolator`とFIFO接続型`LinearAsrc`を追加し、Native testを追加
 - `ContinuousLinearAsrc`を追加し、STD FIFO／分数位相アキュムレータとの連続出力Native testを追加
 - `FourXHalfbandAsrc`を追加し、2段HBF burstから50MHz連続出力までのNative testを追加
-- 4サンプル窓の`FarrowAsrc`を追加し、Linear/Farrow ASRCのFIFO補充Native testを追加
-- ADAT RX/TXコアを`src/adat/`へ移行し、groundlessの命名規則に統一
+- 4サンプル窓の`CubicLagrangeAsrc`を追加し、Linear/Cubic Lagrange ASRCのFIFO補充Native testを追加
+- ADAT RX/TXコアを`packages/adat/`へ移行し、groundlessの命名規則に統一
 - ADAT内部テストをVeryl Native testへ移行
 - ADATの利用例とNRZI説明を現行API名に更新
 - `AdatTx`にフレーム送信完了パルスを追加し、TX→RXイベント駆動ループバックテストを追加
@@ -47,18 +47,23 @@
 - `SampleRateTracker`を追加し、サンプル到着周期の固定小数点平滑化とロック状態を提供
 - 補間ベンチマークCSVを検証・集計する依存パッケージなしの解析スクリプトを追加
 - 補間ベンチマークへ0.05／0.15／0.25／0.40 Fsの正弦波ケースを追加
-- 補間ベンチマークへFarrow補間出力と3方式間の誤差・周波数応答解析を追加
+- 補間ベンチマークへCubic Lagrange補間出力と3方式間の誤差・周波数応答解析を追加
 - 固定48kHz／50MHz比で直接線形補間と4倍HBF経路を比較するignoredベンチマークを追加
 - 固定レートASRCのCSVから正弦波振幅・ゲイン差・残差RMSを求める解析スクリプトを追加
 
 ### Changed
 
-- 固定小数点実装を`packages/fixedpoint/`の独立Veryl project `gndless_fixedpoint`へ分離し、親projectからローカルoverride付きGit依存として参照
+- 公開RTLを12個のinner projectへ分割し、ルートをpackage横断integration／benchmark専用projectへ整理
+- 全packageをlocal path dependencyで接続し、package単独のfmt/check/test/build/docとbackend validationをCIへ追加
+- 補間kernelを`gndless_interpolation`へ移動し、`CubicLagrangeInterpolator`の丸め・overflow policyと小幅全探索testを追加
+- `FarrowInterpolator`/`FarrowAsrc`をそれぞれ`CubicLagrangeInterpolator`/`CubicLagrangeAsrc`へ移行し、`spi_pkg`を`Spi`へ改名
+- Verylのcross-package generic制約を回避する補間adapterと、根本修正後の削除手順を文書化
+- 固定小数点実装を`packages/fixedpoint/`の独立Veryl project `gndless_fixedpoint`へ分離し、親projectからlocal path dependencyとして参照
 - 固定小数点の丸めモード指定を数値定数から `FixedPoint::RoundingMode` enumへ変更
 - 固定小数点formatのassociated typeを`Q1_31::Value`などから`Q1_31::Raw`へ変更
 - 固定小数点formatの`WIDTH`/`FRACTION_BITS`/`Raw`および丸め・overflow policyのdocumentation commentを拡充
 - ADAT→50MHz差動PDMの高音質化計画を、帯域制限付き4倍オーバーサンプリング、Farrow分数遅延、レート追従、ΔΣ評価の段階構成へ更新
-- Farrow実装を`src/asrc/farrow_asrc.veryl`へ、定量ベンチマークを`src/asrc/interpolator_benchmark.veryl`へ分離
+- Cubic Lagrange実装を`packages/interpolation/`と`packages/asrc/`へ、定量ベンチマークを`packages/interpolation/`へ分離
 - 公開APIをS/PDIF/AES3のtransceiverと周辺コアに整理し、Sine ROMとIEC60958共通実装moduleをprivate化
 - S/PDIFの未実装領域をTODOとして明示し、公開packageとして維持
 - 公開moduleとpackageのdocumentation commentを`veryl doc`に関連付け、UART/MIDIレシーバの説明を追加
@@ -71,10 +76,7 @@
 - NCOの`configured`状態を2値保証された`bbool`へ整理
 - ADATのFrameParser/TxFrameBuilder Native testを8チャンネル対象へ拡張し、公開モジュール構成と型方針をREADMEに追記
 - 連続ASRCの起動時FIFO蓄積量を設定可能にし、4倍HBFのburstによる起動直後underflowを防止
-
-### Changed
-
-- ADAT固有のS/MUX2 packer/unpackerを`src/smux/`から`src/adat/`へ移動
+- ADAT固有のS/MUX2 packer/unpackerを`packages/adat/`へ移動
 
 ## [0.5.1] - 2026-05-20
 

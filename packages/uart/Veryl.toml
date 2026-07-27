@@ -1,0 +1,13 @@
+[project]
+name = "gndless_uart"
+version = "0.1.0"
+authors = ["Akiyuki Okayasu"]
+description = "Parameterized asynchronous UART receiver for Veryl."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/AkiyukiOkayasu/gndless-uart-veryl"
+
+[build]
+sources = ["src"]
+target = { type = "directory", path = "target" }
+
+[test]

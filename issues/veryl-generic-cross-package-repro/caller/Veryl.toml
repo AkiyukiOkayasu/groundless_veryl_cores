@@ -1,0 +1,12 @@
+[project]
+name = "gndless_generic_caller"
+version = "0.1.0"
+
+[build]
+sources = ["src"]
+target = { type = "directory", path = "target" }
+
+[test]
+
+[dependencies]
+callee = { path = "../callee" }

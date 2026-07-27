@@ -7,6 +7,10 @@ on:
             - 'src/**/*.veryl'
             - 'Veryl.toml'
             - 'Veryl.lock'
+            - 'packages/**/*.veryl'
+            - 'packages/**/Veryl.toml'
+            - 'packages/**/README.md'
+            - 'packages/**/Veryl.lock'
             - 'dependencies/**/*.veryl'
             - '.github/workflows/pages.yml'
 

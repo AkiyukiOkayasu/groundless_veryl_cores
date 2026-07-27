@@ -150,8 +150,8 @@ PDMの50MHzはPCMのサンプルレートではない。50MHzの各出力周期�
 | --- | --- | --- |
 | ADAT | `AdatRx` | 50MHz受信、8物理スロット、`valid`/`locked`出力 |
 | 固定小数点 | `FixedPoint` | Q1.31演算・丸め・飽和 |
-| 補間 | `ZeroOrderHold`, `LinearInterpolator`, `FarrowInterpolator` | 単体Native test済み。3方式のステップ／ランプ／正弦波／インパルス比較CSVベンチマークを追加 |
-| ASRC | `LinearAsrc`, `ContinuousLinearAsrc`, `FarrowAsrc`, `SampleRateTracker` | 汎用stream型と50MHz連続出力型を実装済み。Trackerは周期測定・平滑化まで |
+| 補間 | `ZeroOrderHold`, `LinearInterpolator`, `CubicLagrangeInterpolator` | 単体Native test済み。3方式のステップ／ランプ／正弦波／インパルス比較CSVベンチマークを追加 |
+| ASRC | `LinearAsrc`, `ContinuousLinearAsrc`, `CubicLagrangeAsrc`, `SampleRateTracker` | 汎用stream型と50MHz連続出力型を実装済み。Trackerは周期測定・平滑化まで |
 | CIC | `CicDecimator`, `CicInterpolator` | 乗算器なしの間引き・補間。ゲイン補正は後段で行う |
 | PDM | `DeltaSigma1st`, `DeltaSigma2nd` | 密度Native test済み。音質評価は未実施 |
 | NCO | `NcoTick`, `ClockEnableNco` | 分数比tick生成 |
@@ -251,7 +251,7 @@ tap数は先に固定せず、上記を満たす最小の奇数tap数を選ぶ�
 
 #### 固定レート比較ベンチマーク
 
-`src/asrc/fixed_rate_asrc_benchmark.veryl`は、実際の48kHz／50MHz比で同じ正弦波を
+`src/integration/fixed_rate_asrc_benchmark.veryl`は、実際の48kHz／50MHz比で同じ正弦波を
 直接線形補間経路と4倍HBF＋線形補間経路へ入力する。1kHz、10kHz、18kHz、20kHzを各200,000
 クロック生成し、50MHz PCMをCSVへ出力する。起動過渡は解析側で除外する。
 
@@ -345,19 +345,17 @@ RTLを大きく変更する前に、固定入力に対するPDMの品質を測�
 
 `veryl test`は機能回帰に使用する。FFT、SNR、THD+Nなどの音質指標は、固定PDM列を外部の数値解析モデルへ渡して評価する。Veryl Native testだけで音質を判定しない。
 
-補間器単体の比較では、入力サンプル列と位相列を固定し、`ZeroOrderHold`、`LinearInterpolator`、4点窓の`FarrowInterpolator`へ同じ値を与える。ADATの`valid`間隔、FIFO、ΔΣ変調器はこの測定へ混ぜない。定量評価は実装ファイルから分離した`src/asrc/interpolator_benchmark.veryl`で行い、`$tb::file`で`target/interpolator_benchmark.csv`を書き出す。
-
-```text
-veryl test --ignored -t interpolator_benchmark
-```
+補間器単体の比較では、入力サンプル列と位相列を固定し、`ZeroOrderHold`、`LinearInterpolator`、4点窓の`CubicLagrangeInterpolator`へ同じ値を与える。ADATの`valid`間隔、FIFO、ΔΣ変調器はこの測定へ混ぜない。定量評価は実装ファイルから分離した`packages/interpolation/src/interpolator_benchmark.veryl`で行い、`$tb::file`で`target/interpolator_benchmark.csv`を書き出す。
 
 CSVは2の補数の固定小数点値を出力する。`case=0..3`はステップ・ランプ・振幅反転、`case=4`は64サンプル長のインパルス列、`case=5..8`は0.05／0.15／0.25／0.40 Fsの正弦波である。正弦波は各64入力サンプル区間を256位相へ展開する。`sample_index`、`phase`、`frequency_milli_fs`を使って入力サンプルレートと出力点を復元し、外部数値解析で最大誤差・平均誤差・インパルス応答・周波数応答を求める。
 
 このベンチマークにはADATの`valid`間隔、FIFO、ΔΣ変調器を接続しない。したがって、ここで測るのは補間カーネルそのものの差であり、クロックジッターやレート追従の影響は含まれない。
 
-解析は依存パッケージなしの[`tools/analyze_interpolator_benchmark.py`](tools/analyze_interpolator_benchmark.py)で行う。CSVの列、2の補数、3方式間の差、phase列の連続性を検証したうえで、最大差・平均差・RMS差、正弦波の理想連続正弦波に対する誤差、インパルス応答のDCゲイン、指定周波数の相対dBを出力する。
+解析は依存パッケージなしの[`packages/interpolation/tools/analyze_interpolator_benchmark.py`](packages/interpolation/tools/analyze_interpolator_benchmark.py)で行う。CSVの列、2の補数、3方式間の差、phase列の連続性を検証したうえで、最大差・平均差・RMS差、正弦波の理想連続正弦波に対する誤差、インパルス応答のDCゲイン、指定周波数の相対dBを出力する。
 
 ```text
+cd packages/interpolation
+veryl test --ignored -t interpolator_benchmark
 python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.csv
 python3 tools/analyze_interpolator_benchmark.py --format json target/interpolator_benchmark.csv
 ```
@@ -410,7 +408,7 @@ CICは音声帯域の最終フィルタにはせず、まずNative testでDCゲ�
 
 ### Phase 4: 50MHz PDM専用ASRC
 
-現在の`LinearAsrc`/`FarrowAsrc`は`output_ready`による停止を許容する汎用stream型である。PDMは50MHzごとに連続してbitを出す必要があるため、まず`FractionalPhaseAccumulator`と`ContinuousLinearAsrc`を作る。PDM向けのwrapperは、これらと`DeltaSigma2nd`を接続するだけにする。
+現在の`LinearAsrc`/`CubicLagrangeAsrc`は`output_ready`による停止を許容する汎用stream型である。PDMは50MHzごとに連続してbitを出す必要があるため、まず`FractionalPhaseAccumulator`と`ContinuousLinearAsrc`を作る。PDM向けのwrapperは、これらと`DeltaSigma2nd`を接続するだけにする。
 
 要求仕様:
 
@@ -440,7 +438,7 @@ phase_increment = Fs_input / 50_000_000 × 2^PHASE_WIDTH
 3. 4倍halfband/polyphase FIR + 4点Farrow補間
 4. 必要なら8倍オーバーサンプリングまたは8〜32タップpolyphase FIR
 
-Farrowについては、`src/asrc/farrow_asrc.veryl`に4点窓の補間器とASRC、実装内の既知値Native testをまとめ、正弦波・インパルス応答の比較ベンチマークまで実装済みである。今後はFarrow単体の改善よりも、手前の帯域制限付きオーバーサンプリングとの組み合わせを主な評価対象にする。
+Farrowについては、`packages/interpolation/src/cubic_lagrange_interpolator.veryl`と`packages/asrc/src/cubic_lagrange_asrc.veryl`に4点窓の補間器とASRC、実装内の既知値Native testをまとめ、正弦波・インパルス応答の比較ベンチマークまで実装済みである。今後はFarrow単体の改善よりも、手前の帯域制限付きオーバーサンプリングとの組み合わせを主な評価対象にする。
 
 - 2倍halfband/polyphase FIRを2段接続した4倍オーバーサンプラ
 - FIR係数の量子化誤差、遅延、通過帯域droop、阻止帯域減衰
@@ -519,7 +517,7 @@ Native testで確認する項目:
 - NCOの平均tick周期
 - FIFOの入力受理とアンダーフロー検出
 - ASRCの位相連続性
-- 線形／Farrow補間の既知値
+- 線形／Cubic Lagrange補間の既知値
 - デルタシグマの密度と長時間安定性
 - ADATからPDMまでの固定レートloopback
 - I2Sのbit順、LRCLK、valid/ready

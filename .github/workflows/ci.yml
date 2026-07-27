@@ -8,9 +8,29 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  build:
+  package-fast:
+    name: ${{ matrix.project }}
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - .
+          - packages/fixedpoint
+          - packages/nco
+          - packages/filter
+          - packages/uart
+          - packages/spi
+          - packages/adat
+          - packages/iec60958
+          - packages/interpolation
+          - packages/oscillator
+          - packages/delta_sigma
+          - packages/midi
+          - packages/asrc
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
     steps:
       - uses: actions/checkout@v6
       - uses: veryl-lang/setup-veryl@v1
@@ -18,9 +38,53 @@ jobs:
           version: nightly
       - run: veryl fmt --check
       - run: veryl check
-      - name: Build
-        run: veryl build
-      - name: Tests
-        run: veryl test
-      - name: Native backend validation
-        run: veryl test --backend-validate
+      - run: veryl build
+      - run: veryl test
+
+  backend-validation:
+    name: backend validation (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - .
+          - packages/fixedpoint
+          - packages/nco
+          - packages/filter
+          - packages/uart
+          - packages/spi
+          - packages/adat
+          - packages/iec60958
+          - packages/interpolation
+          - packages/oscillator
+          - packages/delta_sigma
+          - packages/midi
+          - packages/asrc
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: veryl-lang/setup-veryl@v1
+        with:
+          version: nightly
+      - run: veryl test --backend-validate
+
+  numerical-smoke:
+    name: numerical smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: veryl-lang/setup-veryl@v1
+        with:
+          version: nightly
+      - name: Interpolation benchmark
+        working-directory: packages/interpolation
+        run: |
+          veryl test --ignored -t interpolator_benchmark
+          python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.csv --format json
+      - name: Fixed-rate ASRC benchmark
+        run: |
+          veryl test --ignored -t fixed_rate_asrc_benchmark
+          python3 tools/analyze_fixed_rate_asrc.py target/fixed_rate_asrc_benchmark.csv

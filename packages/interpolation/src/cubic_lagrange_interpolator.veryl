@@ -1,0 +1,235 @@
+/// 4点3次Lagrange補間器。
+///
+/// `sample_m1`、`sample0`、`sample1`、`sample2`の4点を3次Horner形式で
+/// 評価する。係数はQ2.16へ量子化し、組み合わせlatencyは0です。
+pub module CubicLagrangeInterpolator #(
+    param SAMPLE_WIDTH : u32                                  = 32                                                        ,
+    param PHASE_WIDTH  : u32                                  = 32                                                        ,
+    param ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode = fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
+    param OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode = fixedpoint::FixedPoint::OverflowMode::SATURATE            ,
+) (
+    sample_m1: input  signed logic<SAMPLE_WIDTH>,
+    sample0  : input  signed logic<SAMPLE_WIDTH>,
+    sample1  : input  signed logic<SAMPLE_WIDTH>,
+    sample2  : input  signed logic<SAMPLE_WIDTH>,
+    phase    : input  logic       <PHASE_WIDTH> ,
+    sample   : output signed logic<SAMPLE_WIDTH>,
+) {
+    const COEFF_WIDTH   : u32 = 18;
+    const COEFF_FRACTION: u32 = 16;
+    const SAMPLE_EXT    : u32 = SAMPLE_WIDTH + 2;
+    const PRODUCT_WIDTH : u32 = SAMPLE_EXT + COEFF_WIDTH;
+    const H2_WIDTH      : u32 = PRODUCT_WIDTH + PHASE_WIDTH + 1;
+    const H1_WIDTH      : u32 = PRODUCT_WIDTH + PHASE_WIDTH * 2 + 2;
+    const NUM_WIDTH     : u32 = PRODUCT_WIDTH + PHASE_WIDTH * 3 + 3;
+    const OUTPUT_SHIFT  : u32 = COEFF_FRACTION + PHASE_WIDTH * 3;
+
+    /// 積和結果を出力幅へ丸め、指定されたoverflow policyを適用する。
+    ///
+    /// TODO(veryl-generic-cross-package): この関数はVerylのcross-package generic
+    /// 式解決が改善されたら削除し、fixedpoint packageのcanonical APIへ戻す。
+    /// 現在のVeryl 0.20.2-nightlyでは、module parameter／constをgeneric引数に
+    /// 渡す次の呼び出しがpackage境界を越えると`unresolvable_generic_expression`
+    /// になり、呼び出し先のgeneric本体で`referring_before_definition`も発生する。
+    ///
+    /// ```text
+    /// fixedpoint::SignedFixedPointRaw::resize::<
+    ///     NUM_WIDTH, OUTPUT_SHIFT, SAMPLE_WIDTH, 0, ROUNDING_MODE, OVERFLOW_MODE,
+    /// >(value)
+    /// ```
+    ///
+    /// そのため、現時点ではfixedpointの`resize`と同じ丸め・overflow意味論を
+    /// package内へ一時的に複製している。削除時はこの関数とこのTODO markerを
+    /// まとめて除去し、`always_comb`の呼び出しを上記APIへ置き換えること。
+    /// `ROUNDING_MODE`、`OVERFLOW_MODE`、cubicの定数列・ramp・saturation／wrap
+    /// test、およびinterpolation benchmarkの結果を比較してから削除する。
+    function resize_interpolation (
+        value: input signed logic<NUM_WIDTH>,
+    ) -> signed logic<SAMPLE_WIDTH> {
+        const WORK_WIDTH: u32 = if NUM_WIDTH + 2 >= OUTPUT_SHIFT + 2 ? NUM_WIDTH + 2 : OUTPUT_SHIFT + 2;
+
+        let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - NUM_WIDTH, value});
+        let half_value         : signed logic<WORK_WIDTH> = $signed(
+            {1'b0 repeat WORK_WIDTH - 1, 1'b1} << (OUTPUT_SHIFT - 1),
+        );
+        let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
+        let truncated_magnitude: signed logic<WORK_WIDTH> = magnitude >>> OUTPUT_SHIFT;
+        let remainder          : signed logic<WORK_WIDTH> = magnitude - (truncated_magnitude <<< OUTPUT_SHIFT);
+        var rounded_magnitude  : signed logic<WORK_WIDTH>;
+        var aligned            : signed logic<WORK_WIDTH>;
+
+        rounded_magnitude = truncated_magnitude;
+        if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE {
+            aligned = value_ext >>> OUTPUT_SHIFT;
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_ZERO {
+            aligned = if value_ext[msb] == 1'b0 ? truncated_magnitude : -truncated_magnitude;
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_POSITIVE {
+            if value_ext[msb] == 1'b0 && remainder != '0 {
+                aligned = truncated_magnitude + 1'b1;
+            } else if value_ext[msb] == 1'b0 {
+                aligned = truncated_magnitude;
+            } else {
+                aligned = -truncated_magnitude;
+            }
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE {
+            aligned = (value_ext + half_value) >>> OUTPUT_SHIFT;
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO && value_ext[msb]
+            == 1'b0 {
+            aligned = (value_ext + half_value) >>> OUTPUT_SHIFT;
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO {
+            aligned = -((-value_ext + half_value) >>> OUTPUT_SHIFT);
+        } else {
+            if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
+                rounded_magnitude = truncated_magnitude + 1'b1;
+            }
+            aligned = if value_ext[msb] == 1'b0 ? rounded_magnitude : -rounded_magnitude;
+        }
+
+        const BODY_WIDTH  : u32                        = SAMPLE_WIDTH - 1;
+        const EXTEND_WIDTH: u32                        = WORK_WIDTH - SAMPLE_WIDTH;
+        let   max_value   : signed logic<WORK_WIDTH>   = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
+        let   min_value   : signed logic<WORK_WIDTH>   = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
+        var   result      : signed logic<SAMPLE_WIDTH>;
+
+        result = $signed(aligned[SAMPLE_WIDTH - 1:0]);
+        if OVERFLOW_MODE == fixedpoint::FixedPoint::OverflowMode::SATURATE {
+            if aligned >: max_value {
+                result = $signed(max_value[SAMPLE_WIDTH - 1:0]);
+            } else if aligned <: min_value {
+                result = $signed(min_value[SAMPLE_WIDTH - 1:0]);
+            }
+        }
+        return result;
+    }
+
+    always_comb {
+        let sample_m1_ext: signed logic<PRODUCT_WIDTH>   = sample_m1;
+        let sample0_ext  : signed logic<PRODUCT_WIDTH>   = sample0;
+        let sample1_ext  : signed logic<PRODUCT_WIDTH>   = sample1;
+        let sample2_ext  : signed logic<PRODUCT_WIDTH>   = sample2;
+        let mu           : signed logic<PHASE_WIDTH + 1> = $signed({1'b0, phase});
+
+        // c1 = -sample_m1/3 - sample0/2 + sample1 - sample2/6
+        let c1_raw: signed logic<PRODUCT_WIDTH> = sample_m1_ext * -18'sd21845 + sample0_ext * -18'sd32768 + sample1_ext
+            * 18'sd65536 + sample2_ext * -18'sd10923;
+        // c2 = sample_m1/2 - sample0 + sample1/2
+        let c2_raw: signed logic<PRODUCT_WIDTH> = sample_m1_ext * 18'sd32768 + sample0_ext * -18'sd65536 + sample1_ext
+            * 18'sd32768;
+        // c3 = -sample_m1/6 + sample0/2 - sample1/2 + sample2/6
+        let c3_raw: signed logic<PRODUCT_WIDTH> = sample_m1_ext * -18'sd10923 + sample0_ext * 18'sd32768 + sample1_ext
+            * -18'sd32768 + sample2_ext * 18'sd10923;
+
+        let c2_wide     : signed logic<H2_WIDTH>  = c2_raw;
+        let c3_mu       : signed logic<H2_WIDTH>  = c3_raw * mu;
+        let h2          : signed logic<H2_WIDTH>  = (c2_wide <<< PHASE_WIDTH) + c3_mu;
+        let c1_wide     : signed logic<H1_WIDTH>  = c1_raw;
+        let h2_mu       : signed logic<H1_WIDTH>  = h2 * mu;
+        let h1          : signed logic<H1_WIDTH>  = (c1_wide <<< (PHASE_WIDTH * 2)) + h2_mu;
+        let h1_mu       : signed logic<NUM_WIDTH> = h1 * mu;
+        let sample0_wide: signed logic<NUM_WIDTH> = sample0;
+        let c0          : signed logic<NUM_WIDTH> = sample0_wide <<< (COEFF_FRACTION + PHASE_WIDTH * 3);
+        let numerator   : signed logic<NUM_WIDTH> = c0 + h1_mu;
+        sample       = resize_interpolation(numerator);
+    }
+}
+
+/// 3次Lagrange補間の定数列、ramp、端点を検証する。
+#[test(test_cubic_lagrange_interpolator)]
+module test_cubic_lagrange_interpolator {
+    var sample_m1: signed logic<16>;
+    var sample0  : signed logic<16>;
+    var sample1  : signed logic<16>;
+    var sample2  : signed logic<16>;
+    var phase    : logic       <4> ;
+    var sample   : signed logic<16>;
+
+    inst dut: CubicLagrangeInterpolator #(
+        SAMPLE_WIDTH: 16,
+        PHASE_WIDTH : 4 ,
+    ) (
+        sample_m1  ,
+        sample0    ,
+        sample1    ,
+        sample2    ,
+        phase      ,
+        sample     ,
+    );
+
+    initial {
+        sample_m1 = 16'sd100;
+        sample0   = 16'sd100;
+        sample1   = 16'sd100;
+        sample2   = 16'sd100;
+        phase     = 4'd8;
+        $assert(sample == 16'sd100, "cubic constant mismatch");
+        sample_m1 = 16'sd0;
+        sample0   = 16'sd100;
+        sample1   = 16'sd200;
+        sample2   = 16'sd300;
+        phase     = 4'd0;
+        $assert(sample == 16'sd100, "cubic phase zero mismatch");
+        phase = 4'd8;
+        $assert(sample == 16'sd150, "cubic midpoint mismatch");
+        $finish();
+    }
+}
+
+/// 4点窓のovershootに対するsaturationとwrapを検証する。
+#[test(test_cubic_lagrange_interpolator_overflow)]
+module test_cubic_lagrange_interpolator_overflow {
+    inst clk: $tb::clock_gen;
+
+    var sample_m1: signed logic<4>;
+    var sample0  : signed logic<4>;
+    var sample1  : signed logic<4>;
+    var sample2  : signed logic<4>;
+    var phase    : logic       <3>;
+    var saturated: signed logic<4>;
+    var wrapped  : signed logic<4>;
+
+    inst dut_saturated: CubicLagrangeInterpolator #(
+        SAMPLE_WIDTH : 4                                             ,
+        PHASE_WIDTH  : 3                                             ,
+        OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode::SATURATE,
+    ) (
+        sample_m1           ,
+        sample0             ,
+        sample1             ,
+        sample2             ,
+        phase               ,
+        sample   : saturated,
+    );
+    inst dut_wrapped: CubicLagrangeInterpolator #(
+        SAMPLE_WIDTH : 4                                         ,
+        PHASE_WIDTH  : 3                                         ,
+        OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode::WRAP,
+    ) (
+        sample_m1         ,
+        sample0           ,
+        sample1           ,
+        sample2           ,
+        phase             ,
+        sample   : wrapped,
+    );
+
+    initial {
+        sample_m1 = -8;
+        sample0   = 4;
+        sample1   = 7;
+        sample2   = -8;
+        phase     = 3'd5;
+        clk.next();
+        $assert(saturated == 4'sd7, "positive cubic saturation mismatch");
+        $assert(wrapped == -4'sd8, "positive cubic wrap mismatch");
+
+        sample_m1 = -8;
+        sample0   = -8;
+        sample1   = -8;
+        sample2   = 0;
+        phase     = 3'd4;
+        clk.next();
+        $assert(saturated == -4'sd8, "negative cubic saturation mismatch");
+        $assert(wrapped == 4'sd7, "negative cubic wrap mismatch");
+        $finish();
+    }
+}

@@ -1,0 +1,74 @@
+/// 三角波生成コアモジュール
+/// 位相入力から波形を生成する純粋な変換モジュール
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module TriangleWaveCore (
+    phase: input  nco::Phase::phase_t   , /// 位相入力 (0 ~ 2^32-1)
+    audio: output fixedpoint::Q8_24::Raw, /// 出力波形 (Q8.24形式)
+) {
+    // 三角波シェイピング (Folding)
+    var tri_wave: logic<32>;
+
+    // 位相の後半(MSB=1)のときだけビットを反転させることで、「ノコギリ波」を「ピラミッド型 (0 -> Max -> 0)」に変換
+    // XORでphase[msb]が 1 の時だけ、下位31bitを反転する
+    // 0 -> 2^31-1 -> 0の三角波
+    assign tri_wave = {
+        1'b0, // MSBはゼロ固定
+        phase[msb - 1:0]
+            ^ {
+                phase[msb] repeat 31
+            } // 下位31bitを反転条件付きで反転
+    };
+
+    // 出力スケーリングとオフセット
+    always_comb {
+        // 右シフト 6bit: 31bitフルスケールを Q8.24の "+2.0"にスケール
+        let unipolar_2_0: signed logic<32> = $signed(tri_wave >> 6);
+
+        // オフセット: 0.0～2.0 の範囲を -1.0～1.0 にずらす
+        audio = unipolar_2_0 - fixedpoint::Q8_24::ONE;
+    }
+}
+
+/// 三角波オシレーター
+/// 全て組み合わせ回路で実装しているため遅延ゼロ
+pub module TriangleOscillator (
+    clk       : input  clock                 , /// クロック
+    phase_rst : input  bbool                 , /// 位相ゼロリセット (同期)
+    phase_step: input  nco::Phase::step_t    , /// 1クロックあたりの位相ステップ量: step = (ターゲット周波数 * 2^48) / システムクロック周波数
+    audio     : output fixedpoint::Q8_24::Raw, /// 出力波形 (Q8.24形式)
+) {
+    // 位相生成
+    var phase: nco::Phase::phase_t;
+    inst phasor: nco::Phasor (
+        clk          ,
+        phase_rst    ,
+        phase_step   ,
+        phase        ,
+        eoc       : _,
+    );
+
+    // 三角波生成
+    inst core: TriangleWaveCore ( phase, audio );
+}
+
+/// 三角波コアの位相変換を検証
+#[test(test_triangle_wave_core)]
+module test_triangle_wave_core {
+    var phase: nco::Phase::phase_t   ;
+    var audio: fixedpoint::Q8_24::Raw;
+
+    inst dut: TriangleWaveCore ( phase, audio );
+
+    initial {
+        phase = 32'h0000_0000;
+        $assert(audio == fixedpoint::Q8_24::NEG_ONE, "三角波の開始点が不正です");
+
+        phase = 32'h4000_0000;
+        $assert(audio == fixedpoint::Q8_24::ZERO, "三角波の頂点が不正です");
+
+        phase = 32'h8000_0000;
+        $assert(audio >: fixedpoint::Q8_24::ZERO && audio <: fixedpoint::Q8_24::ONE, "三角波の正の頂点が不正です");
+
+        $finish();
+    }
+}

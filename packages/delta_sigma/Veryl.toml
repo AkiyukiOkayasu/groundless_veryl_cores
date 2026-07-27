@@ -1,0 +1,16 @@
+[project]
+name = "gndless_delta_sigma"
+version = "0.1.0"
+authors = ["Akiyuki Okayasu"]
+description = "First- and second-order Q1.31 delta-sigma modulators for Veryl."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/AkiyukiOkayasu/gndless-delta-sigma-veryl"
+
+[build]
+sources = ["src"]
+target = { type = "directory", path = "target" }
+
+[test]
+
+[dependencies]
+fixedpoint = { path = "../fixedpoint" }

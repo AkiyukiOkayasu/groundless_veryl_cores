@@ -1,0 +1,274 @@
+/// 2点間の線形補間器。
+///
+/// `phase`は0以上1未満のunsigned Q0.`PHASE_WIDTH`値で、sample0から
+/// sample1へ移動する割合を表す。入力窓からの組み合わせlatencyは0です。
+pub module LinearInterpolator #(
+    param SAMPLE_WIDTH : u32                                  = 32                                                        ,
+    param PHASE_WIDTH  : u32                                  = 32                                                        ,
+    param ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode = fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
+    param OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode = fixedpoint::FixedPoint::OverflowMode::SATURATE            ,
+) (
+    sample0: input  signed logic<SAMPLE_WIDTH>,
+    sample1: input  signed logic<SAMPLE_WIDTH>,
+    phase  : input  logic       <PHASE_WIDTH> ,
+    sample : output signed logic<SAMPLE_WIDTH>,
+) {
+    const NUM_WIDTH: u32 = SAMPLE_WIDTH + PHASE_WIDTH + 3;
+
+    /// 積和結果を出力幅へ丸め、指定されたoverflow policyを適用する。
+    ///
+    /// TODO(veryl-generic-cross-package): この関数はVerylのcross-package generic
+    /// 式解決が改善されたら削除し、fixedpoint packageのcanonical APIへ戻す。
+    /// 現在のVeryl 0.20.2-nightlyでは、module parameter／constをgeneric引数に
+    /// 渡す次の呼び出しがpackage境界を越えると`unresolvable_generic_expression`
+    /// になり、呼び出し先のgeneric本体で`referring_before_definition`も発生する。
+    ///
+    /// ```text
+    /// fixedpoint::SignedFixedPointRaw::resize::<
+    ///     NUM_WIDTH, PHASE_WIDTH, SAMPLE_WIDTH, 0, ROUNDING_MODE, OVERFLOW_MODE,
+    /// >(value)
+    /// ```
+    ///
+    /// そのため、現時点ではfixedpointの`resize`と同じ丸め・overflow意味論を
+    /// package内へ一時的に複製している。削除時はこの関数とこのTODO markerを
+    /// まとめて除去し、`always_comb`の呼び出しを上記APIへ置き換えること。
+    /// `ROUNDING_MODE`、`OVERFLOW_MODE`、全rounding mode test、cubicのsaturation／
+    /// wrap test、およびinterpolation benchmarkの結果を比較してから削除する。
+    function resize_interpolation (
+        value: input signed logic<NUM_WIDTH>,
+    ) -> signed logic<SAMPLE_WIDTH> {
+        const WORK_WIDTH: u32 = if NUM_WIDTH + 2 >= PHASE_WIDTH + 2 ? NUM_WIDTH + 2 : PHASE_WIDTH + 2;
+
+        let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - NUM_WIDTH, value});
+        let half_value         : signed logic<WORK_WIDTH> = $signed(
+            {1'b0 repeat WORK_WIDTH - 1, 1'b1} << (PHASE_WIDTH - 1),
+        );
+        let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
+        let truncated_magnitude: signed logic<WORK_WIDTH> = magnitude >>> PHASE_WIDTH;
+        let remainder          : signed logic<WORK_WIDTH> = magnitude - (truncated_magnitude <<< PHASE_WIDTH);
+        var rounded_magnitude  : signed logic<WORK_WIDTH>;
+        var aligned            : signed logic<WORK_WIDTH>;
+
+        rounded_magnitude = truncated_magnitude;
+        if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE {
+            aligned = value_ext >>> PHASE_WIDTH;
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_ZERO {
+            aligned = if value_ext[msb] == 1'b0 ? truncated_magnitude : -truncated_magnitude;
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::TOWARD_POSITIVE {
+            if value_ext[msb] == 1'b0 && remainder != '0 {
+                aligned = truncated_magnitude + 1'b1;
+            } else if value_ext[msb] == 1'b0 {
+                aligned = truncated_magnitude;
+            } else {
+                aligned = -truncated_magnitude;
+            }
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE {
+            aligned = (value_ext + half_value) >>> PHASE_WIDTH;
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO && value_ext[msb]
+            == 1'b0 {
+            aligned = (value_ext + half_value) >>> PHASE_WIDTH;
+        } else if ROUNDING_MODE == fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO {
+            aligned = -((-value_ext + half_value) >>> PHASE_WIDTH);
+        } else {
+            if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
+                rounded_magnitude = truncated_magnitude + 1'b1;
+            }
+            aligned = if value_ext[msb] == 1'b0 ? rounded_magnitude : -rounded_magnitude;
+        }
+
+        const BODY_WIDTH  : u32                        = SAMPLE_WIDTH - 1;
+        const EXTEND_WIDTH: u32                        = WORK_WIDTH - SAMPLE_WIDTH;
+        let   max_value   : signed logic<WORK_WIDTH>   = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
+        let   min_value   : signed logic<WORK_WIDTH>   = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
+        var   result      : signed logic<SAMPLE_WIDTH>;
+
+        result = $signed(aligned[SAMPLE_WIDTH - 1:0]);
+        if OVERFLOW_MODE == fixedpoint::FixedPoint::OverflowMode::SATURATE {
+            if aligned >: max_value {
+                result = $signed(max_value[SAMPLE_WIDTH - 1:0]);
+            } else if aligned <: min_value {
+                result = $signed(min_value[SAMPLE_WIDTH - 1:0]);
+            }
+        }
+        return result;
+    }
+
+    always_comb {
+        let delta      : signed logic<SAMPLE_WIDTH + 1> = $signed({sample1[msb], sample1})
+            - $signed({sample0[msb], sample0});
+        let phase_ext  : signed logic<PHASE_WIDTH + 1>  = $signed({1'b0, phase});
+        let sample0_ext: signed logic<NUM_WIDTH>        = sample0;
+        let delta_ext  : signed logic<NUM_WIDTH>        = delta;
+        let numerator  : signed logic<NUM_WIDTH>        = (sample0_ext <<< PHASE_WIDTH) + delta_ext * phase_ext;
+        sample      = resize_interpolation(numerator);
+    }
+}
+
+/// LinearInterpolatorの端点・中点と符号跨ぎを検証する。
+#[test(test_linear_interpolator)]
+module test_linear_interpolator {
+    var sample0: signed logic<16>;
+    var sample1: signed logic<16>;
+    var phase  : logic       <4> ;
+    var sample : signed logic<16>;
+
+    inst dut: LinearInterpolator #( SAMPLE_WIDTH: 16, PHASE_WIDTH: 4 ) ( sample0, sample1, phase, sample );
+
+    initial {
+        sample0 = -16'sd1000;
+        sample1 = 16'sd3000;
+        phase   = 4'd0;
+        $assert(sample == -16'sd1000, "linear phase zero mismatch");
+        phase = 4'd8;
+        $assert(sample == 16'sd1000, "linear midpoint mismatch");
+        phase = 4'd15;
+        $assert(sample == 16'sd2750, "linear maximum phase mismatch");
+        $finish();
+    }
+}
+
+/// sample width 4、phase width 3の全入力組み合わせを検証する。
+#[test(test_linear_interpolator_exhaustive_small_width)]
+module test_linear_interpolator_exhaustive_small_width {
+    inst clk: $tb::clock_gen;
+
+    var sample0 : signed logic<4>;
+    var sample1 : signed logic<4>;
+    var phase   : logic       <3>;
+    var sample  : signed logic<4>;
+    var expected: signed logic<4>;
+
+    inst dut: LinearInterpolator #( SAMPLE_WIDTH: 4, PHASE_WIDTH: 3 ) ( sample0, sample1, phase, sample );
+
+    always_comb {
+        let delta      : signed logic<5>  = $signed({sample1[msb], sample1}) - $signed({sample0[msb], sample0});
+        let sample0_ext: signed logic<10> = sample0;
+        let delta_ext  : signed logic<10> = delta;
+        let phase_ext  : signed logic<4>  = $signed({1'b0, phase});
+        let numerator  : signed logic<10> = (sample0_ext <<< 3) + delta_ext * phase_ext;
+        expected    = fixedpoint::SignedFixedPointRaw::resize::<
+            10                                                        ,
+            3                                                         ,
+            4                                                         ,
+            0                                                         ,
+            fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
+            fixedpoint::FixedPoint::OverflowMode::SATURATE            ,
+        >(numerator);
+    }
+
+    initial {
+        for sample0_bits in 0..16 {
+            for sample1_bits in 0..16 {
+                sample0 = sample0_bits as 4;
+                sample1 = sample1_bits as 4;
+                for phase_value in 0..8 {
+                    phase = phase_value as 3;
+                    clk.next();
+                    $assert(sample == expected, "linear exhaustive mismatch");
+                }
+            }
+        }
+        $finish();
+    }
+}
+
+/// 正負tieを含む全rounding modeの結果を検証する。
+#[test(test_linear_interpolator_rounding_modes)]
+module test_linear_interpolator_rounding_modes {
+    inst clk: $tb::clock_gen;
+
+    var sample0        : signed logic<8>;
+    var sample1        : signed logic<8>;
+    var phase          : logic       <3>;
+    var toward_negative: signed logic<8>;
+    var toward_zero    : signed logic<8>;
+    var toward_positive: signed logic<8>;
+    var ties_positive  : signed logic<8>;
+    var ties_away      : signed logic<8>;
+    var ties_even      : signed logic<8>;
+
+    inst dut_toward_negative: LinearInterpolator #(
+        SAMPLE_WIDTH : 8                                                    ,
+        PHASE_WIDTH  : 3                                                    ,
+        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,
+    ) (
+        sample0                 ,
+        sample1                 ,
+        phase                   ,
+        sample : toward_negative,
+    );
+    inst dut_toward_zero: LinearInterpolator #(
+        SAMPLE_WIDTH : 8                                                ,
+        PHASE_WIDTH  : 3                                                ,
+        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::TOWARD_ZERO,
+    ) (
+        sample0             ,
+        sample1             ,
+        phase               ,
+        sample : toward_zero,
+    );
+    inst dut_toward_positive: LinearInterpolator #(
+        SAMPLE_WIDTH : 8                                                    ,
+        PHASE_WIDTH  : 3                                                    ,
+        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::TOWARD_POSITIVE,
+    ) (
+        sample0                 ,
+        sample1                 ,
+        phase                   ,
+        sample : toward_positive,
+    );
+    inst dut_ties_positive: LinearInterpolator #(
+        SAMPLE_WIDTH : 8                                                                 ,
+        PHASE_WIDTH  : 3                                                                 ,
+        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE,
+    ) (
+        sample0               ,
+        sample1               ,
+        phase                 ,
+        sample : ties_positive,
+    );
+    inst dut_ties_away: LinearInterpolator #(
+        SAMPLE_WIDTH : 8                                                                ,
+        PHASE_WIDTH  : 3                                                                ,
+        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
+    ) (
+        sample0           ,
+        sample1           ,
+        phase             ,
+        sample : ties_away,
+    );
+    inst dut_ties_even: LinearInterpolator #(
+        SAMPLE_WIDTH : 8                                                         ,
+        PHASE_WIDTH  : 3                                                         ,
+        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
+    ) (
+        sample0           ,
+        sample1           ,
+        phase             ,
+        sample : ties_even,
+    );
+
+    initial {
+        sample0 = 0;
+        sample1 = 1;
+        phase   = 3'd4;
+        clk.next();
+        $assert(toward_negative == 8'sd0, "positive tie toward-negative mismatch");
+        $assert(toward_zero == 8'sd0, "positive tie toward-zero mismatch");
+        $assert(toward_positive == 8'sd1, "positive tie toward-positive mismatch");
+        $assert(ties_positive == 8'sd1, "positive tie nearest-positive mismatch");
+        $assert(ties_away == 8'sd1, "positive tie away mismatch");
+        $assert(ties_even == 8'sd0, "positive tie even mismatch");
+
+        sample0 = -1;
+        sample1 = 0;
+        clk.next();
+        $assert(toward_negative == -8'sd1, "negative tie toward-negative mismatch");
+        $assert(toward_zero == 8'sd0, "negative tie toward-zero mismatch");
+        $assert(toward_positive == 8'sd0, "negative tie toward-positive mismatch");
+        $assert(ties_positive == 8'sd0, "negative tie nearest-positive mismatch");
+        $assert(ties_away == -8'sd1, "negative tie away mismatch");
+        $assert(ties_even == 8'sd0, "negative tie even mismatch");
+        $finish();
+    }
+}

@@ -1,0 +1,129 @@
+/// MIDI UARTレシーバ。
+///
+/// 非同期MIDI入力を同期化して8N1のデータを受信し、1バイト受信ごとに
+/// `valid`を1クロックだけアサートする。
+///
+/// `CLK_FREQ`は入力クロック周波数をHzで指定する。
+pub module MidiRx #(
+    param CLK_FREQ: u32 = 50_000_000,
+) (
+    clk  : input  clock   ,
+    rst  : input  reset   ,
+    rx   : input  logic   , // MIDI入力信号 (非同期)
+    data : output logic<8>, // MIDI data byte
+    valid: output logic   , // MIDIデータ受信完了フラグ (1クロックパルス)
+) {
+    var rx_synced: logic;
+
+    // 非同期MIDI入力信号を2段FFで同期化
+    inst sync: $std::synchronizer_basic #(
+        WIDTH        : 1 ,
+        INITIAL_VALUE: '1, // Idle状態はHIGH
+        STAGES       : 2 ,
+    ) (
+        i_clk: clk      ,
+        i_rst: rst      ,
+        i_d  : rx       ,
+        o_d  : rx_synced,
+    );
+
+    // 同期済み信号をUART受信モジュールに渡す
+    inst u_uart_rx: uart::UartRx #(
+        CLK_FREQ  : CLK_FREQ,
+        BAUD_RATE : 31250   ,
+        DATA_WIDTH: 8       ,
+    ) (
+        clk             ,
+        rst             ,
+        rx   : rx_synced,
+        data            ,
+        valid           ,
+    );
+}
+
+// MidiRx 1バイト正常受信テスト (0x90 = Note On)
+// MidiRxは内部に $std::synchronizer_basic (2段FF) があるため
+// ストップビット完了後に数クロックのマージンが必要
+#[test(test_midi_rx)]
+module test_midi_rx {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var rx        : logic   ;
+    var data      : logic<8>;
+    var valid     : logic   ;
+    var valid_seen: logic   ; // valid の 1クロックパルスをラッチするフラグ
+
+    // CLK_FREQ=50MHz, BAUD_RATE=31250 → CYCLES_PER_BIT=1600
+    const CYCLES_PER_BIT: u32 = 1600;
+
+    inst dut: MidiRx #(
+        CLK_FREQ: 50_000_000,
+    ) (
+        clk         ,
+        rst         ,
+        rx   : rx   ,
+        data : data ,
+        valid: valid,
+    );
+
+    // valid パルスをラッチ: valid==1 のクロックが来たら valid_seen を 1 にする
+    always_ff (clk, rst) {
+        if_reset {
+            valid_seen = 0;
+        } else {
+            if valid {
+                valid_seen = 1;
+            }
+        }
+    }
+
+    initial {
+        rx = 1; // アイドル (High)
+        rst.assert();
+        clk.next(10); // 安定待ち
+
+        // 0x90 (= 0b10010000) を LSBファーストで送信
+        // Start bit
+        rx = 0;
+        clk.next(CYCLES_PER_BIT);
+        // Bit 0 (LSB) = 0
+        rx = 0;
+        clk.next(CYCLES_PER_BIT);
+        // Bit 1 = 0
+        rx = 0;
+        clk.next(CYCLES_PER_BIT);
+        // Bit 2 = 0
+        rx = 0;
+        clk.next(CYCLES_PER_BIT);
+        // Bit 3 = 0
+        rx = 0;
+        clk.next(CYCLES_PER_BIT);
+        // Bit 4 = 1
+        rx = 1;
+        clk.next(CYCLES_PER_BIT);
+        // Bit 5 = 0
+        rx = 0;
+        clk.next(CYCLES_PER_BIT);
+        // Bit 6 = 0
+        rx = 0;
+        clk.next(CYCLES_PER_BIT);
+        // Bit 7 (MSB) = 1
+        rx = 1;
+        clk.next(CYCLES_PER_BIT);
+        // Stop bit: 受信完了まで全クロック待つ
+        rx = 1;
+        clk.next(CYCLES_PER_BIT);
+
+        // synchronizer_basic (2段FF) 分の伝播遅延マージン
+        clk.next(4);
+
+        // valid パルスが来たことをラッチで確認 (valid 自体は既に 0 に戻っている)
+        $assert(valid_seen == 1'b1, "o_valid should have been asserted");
+        $assert(data == 8'h90, "received data should be 0x90");
+        // 受信完了後は valid=0 (アイドル状態)
+        $assert(valid == 1'b0, "o_valid should be 0 after reception");
+
+        $finish();
+    }
+}
