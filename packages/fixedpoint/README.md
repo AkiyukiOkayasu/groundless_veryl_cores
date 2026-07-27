@@ -6,6 +6,10 @@ formatを表すproto package、任意format、名前付きQ形式preset、丸め
 clamp、resize、乗算を提供します。固定小数点値は合成可能な
 `signed logic<WIDTH>`として扱い、format間の変換はformat-aware APIで明示します。
 
+任意幅のraw値を変換するgeneric関数はproject-scopeの`resize::<...>`です。
+VerylのSystemVerilog出力制約により、module parameterをgeneric引数へ渡せる形を
+維持するため、`SignedFixedPointRaw` packageの外に定義しています。
+
 ## 利用例
 
 ```toml

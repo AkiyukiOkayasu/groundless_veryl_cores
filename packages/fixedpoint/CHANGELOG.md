@@ -7,6 +7,8 @@
 ### Changed
 
 - monorepo内の`packages/fixedpoint/` inner projectとして他packageから直接参照する構成を確定
+- module parameterをgeneric引数へ渡せるよう、raw `resize`を`SignedFixedPointRaw` packageから
+  project-scope functionへ移動
 
 ## [0.1.0] - 2026-07-26
 

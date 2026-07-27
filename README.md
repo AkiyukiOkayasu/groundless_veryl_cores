@@ -87,6 +87,7 @@ python3 tools/analyze_fixed_rate_asrc.py target/fixed_rate_asrc_benchmark.csv
 
 `--format json`を付けると、CIや別の数値解析へ渡しやすいJSONになります。
 
-Verylのgeneric引数可視性制約と一時workaroundの削除条件は、
+Verylのgeneric引数可視性制約とfixedpointのAPI設計理由は、
 [`packages/interpolation/README.md`](packages/interpolation/README.md)と
+[fixedpointのREADME](packages/fixedpoint/README.md)、
 [Veryl #3110](https://github.com/veryl-lang/veryl/issues/3110)に記録しています。

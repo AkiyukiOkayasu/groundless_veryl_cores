@@ -52,14 +52,9 @@ pub module CubicLagrangeInterpolator #(
         let sample0_wide: signed logic<NUM_WIDTH> = sample0;
         let c0          : signed logic<NUM_WIDTH> = sample0_wide <<< (COEFF_FRACTION + PHASE_WIDTH * 3);
         let numerator   : signed logic<NUM_WIDTH> = c0 + h1_mu;
-        sample       = resize_interpolation_global::<
-            NUM_WIDTH    ,
-            OUTPUT_SHIFT ,
-            SAMPLE_WIDTH ,
-            0            ,
-            ROUNDING_MODE,
-            OVERFLOW_MODE,
-        >(numerator);
+        sample       = fixedpoint::resize::<NUM_WIDTH, OUTPUT_SHIFT, SAMPLE_WIDTH, 0, ROUNDING_MODE, OVERFLOW_MODE>(
+            numerator,
+        );
     }
 }
 

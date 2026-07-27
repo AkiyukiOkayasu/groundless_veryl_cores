@@ -16,22 +16,13 @@ SystemVerilogの制約により、module／interface／packageの外で定義し
 
 このprojectで確認した限り、project-scope関数への変更だけでは、interpolationから
 別packageの`fixedpoint::SignedFixedPointRaw::resize`へmodule由来のgeneric引数を渡す
-呼び出しは現行toolchainで解決できません。そのため、module内にあった2つの重複helperを
-削除し、`linear_interpolator.veryl`のproject-scopeに`resize_interpolation_global`を
-1つだけ置いて、linearとcubicの両方から使っています。この関数は利用者向けの数値API
-ではなく、cross-package呼び出しが可能になるまでのworkaroundです。丸めとoverflowの
-意味論は`SignedFixedPointRaw::resize`と一致させています。linearの`NUM_WIDTH`とcubicの
-`NUM_WIDTH`／`OUTPUT_SHIFT`は、この呼び出しに必要な導出constであり、moduleの設定値では
-ありません。
+呼び出しは解決できません。そのため`resize`本体を`fixedpoint` project直下の
+project-scope functionへ移し、linearとcubicから`fixedpoint::resize::<...>`を直接
+呼び出しています。`SignedFixedPointRaw`内にresizeの複製やadapterはありません。
 
-Veryl側でcross-packageのgeneric呼び出しがサポートされたら、次の順でこのworkaroundを
-削除します。
-
-1. `resize_interpolation_global`を削除する。
-2. linear／cubicの呼び出しを`fixedpoint::SignedFixedPointRaw::resize::<...>`へ置き換える。
-3. 全rounding mode、cubicのsaturation／wrap、小幅全探索、benchmarkの結果を比較する。
-4. interpolation packageとroot integrationの`veryl fmt`／`check`／`test`／`build`／
-   `doc`を実行する。
+この構成はVeryl #3110の制約に合わせたfixedpointの公開APIです。Veryl側でpackage内の
+functionにもmodule parameterを渡せるようになった場合は、APIの整理としてresizeを
+`SignedFixedPointRaw`へ戻す選択肢がありますが、現時点でinterpolation側の変更は不要です。
 
 ```veryl
 inst interp: interpolation::CubicLagrangeInterpolator (...);
