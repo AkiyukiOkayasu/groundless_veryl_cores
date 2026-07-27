@@ -6,8 +6,8 @@ Can a module parameter be used as a generic argument across packages?
 
 ## Body
 
-With Veryl `0.20.2-nightly` (`306c891`, 2026-07-26), the minimal project in
-[`veryl-generic-cross-package-repro`](./veryl-generic-cross-package-repro) fails on `veryl check`.
+With Veryl `0.20.2-nightly` (`306c891`, 2026-07-26), running `veryl check` on the two-package
+example below fails.
 
 The callee defines:
 
