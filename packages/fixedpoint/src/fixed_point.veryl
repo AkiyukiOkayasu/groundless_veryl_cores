@@ -323,351 +323,264 @@ pub function resize::<
     return result;
 }
 
-/// signed固定小数点のraw演算。
+/// signed値を算術右シフトし、指定モードで丸める。
 ///
-/// formatを型として受け取らないため、任意幅の中間値やformat-aware APIに依存しない
-/// 演算をまとめる。formatを変換する`resize`はproject-scope functionとして定義する。
-pub package SignedFixedPointRaw {
+/// `SHIFT == 0`では入力をそのまま返す。`SHIFT > 0`では小数ビットを
+/// `SHIFT`個削減し、結果は入力と同じ幅で返す。丸めによる幅超過は
+/// この関数では飽和せず、出力幅の下位ビットが残る。
+///
+/// # 引数
+///
+/// - `value`: 算術右シフトするsigned raw値。
+/// - `WIDTH`: `value`と戻り値のビット幅。
+/// - `SHIFT`: 右シフトするビット数。
+/// - `MODE`: 適用する`RoundingMode`。
+///
+/// # 戻り値
+///
+/// 丸め後のsigned raw値。小数点位置は`SHIFT`ビット右へ移動したものとして
+/// 解釈する。
+///
+/// # 使用例
+///
+/// ```
+/// let result: signed logic<8> = raw_round_shift::<
+///     8,
+///     2,
+///     FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
+/// >(7'sd7); // 7 / 4 = 1.75 -> 2
+/// ```
+pub function raw_round_shift::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::RoundingMode> (
+    value: input signed logic<WIDTH>,
+) -> signed logic<WIDTH> {
+    // SHIFTが入力幅を超えてもhalf値を保持できるよう、作業幅をシフト量からも導出する。
+    const WORK_WIDTH: u32 = if WIDTH + 2 >= SHIFT + 2 ? WIDTH + 2 : SHIFT + 2;
 
-    /// signed値を算術右シフトし、指定モードで丸める。
-    ///
-    /// `SHIFT == 0`では入力をそのまま返す。`SHIFT > 0`では小数ビットを
-    /// `SHIFT`個削減し、結果は入力と同じ幅で返す。丸めによる幅超過は
-    /// この関数では飽和せず、出力幅の下位ビットが残る。
-    ///
-    /// # 引数
-    ///
-    /// - `value`: 算術右シフトするsigned raw値。
-    /// - `WIDTH`: `value`と戻り値のビット幅。
-    /// - `SHIFT`: 右シフトするビット数。
-    /// - `MODE`: 適用する`RoundingMode`。
-    ///
-    /// # 戻り値
-    ///
-    /// 丸め後のsigned raw値。小数点位置は`SHIFT`ビット右へ移動したものとして
-    /// 解釈する。
-    ///
-    /// # 使用例
-    ///
-    /// ```
-    /// let result: signed logic<8> = SignedFixedPointRaw::round_shift::<
-    ///     8,
-    ///     2,
-    ///     FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
-    /// >(7'sd7); // 7 / 4 = 1.75 -> 2
-    /// ```
-    function round_shift::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::RoundingMode> (
-        value: input signed logic<WIDTH>,
-    ) -> signed logic<WIDTH> {
-        // SHIFTが入力幅を超えてもhalf値を保持できるよう、作業幅をシフト量からも導出する。
-        const WORK_WIDTH: u32 = if WIDTH + 2 >= SHIFT + 2 ? WIDTH + 2 : SHIFT + 2;
+    let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - WIDTH, value});
+    let half_value         : signed logic<WORK_WIDTH> = if SHIFT == 0 ?
+        '0
+    :
+        $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (SHIFT - 1))
+    ;
+    let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
+    let truncated_magnitude: signed logic<WORK_WIDTH> = if SHIFT == 0 ? magnitude : magnitude >>> SHIFT;
+    let remainder          : signed logic<WORK_WIDTH> = if SHIFT == 0 ?
+        '0
+    :
+        magnitude - (truncated_magnitude <<< SHIFT)
+    ;
+    var rounded_magnitude  : signed logic<WORK_WIDTH>;
+    var result             : signed logic<WORK_WIDTH>;
 
-        let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - WIDTH, value});
-        let half_value         : signed logic<WORK_WIDTH> = if SHIFT == 0 ?
-            '0
-        :
-            $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (SHIFT - 1))
-        ;
-        let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
-        let truncated_magnitude: signed logic<WORK_WIDTH> = if SHIFT == 0 ? magnitude : magnitude >>> SHIFT;
-        let remainder          : signed logic<WORK_WIDTH> = if SHIFT == 0 ?
-            '0
-        :
-            magnitude - (truncated_magnitude <<< SHIFT)
-        ;
-        var rounded_magnitude  : signed logic<WORK_WIDTH>;
-        var result             : signed logic<WORK_WIDTH>;
+    rounded_magnitude = truncated_magnitude;
 
-        rounded_magnitude = truncated_magnitude;
-
-        if SHIFT == 0 {
-            result = value_ext;
-        } else if MODE == FixedPoint::RoundingMode::TOWARD_NEGATIVE {
-            result = value_ext >>> SHIFT;
-        } else if MODE == FixedPoint::RoundingMode::TOWARD_ZERO {
-            if value_ext[msb] == 1'b0 {
+    if SHIFT == 0 {
+        result = value_ext;
+    } else if MODE == FixedPoint::RoundingMode::TOWARD_NEGATIVE {
+        result = value_ext >>> SHIFT;
+    } else if MODE == FixedPoint::RoundingMode::TOWARD_ZERO {
+        if value_ext[msb] == 1'b0 {
+            result = truncated_magnitude;
+        } else {
+            result = -truncated_magnitude;
+        }
+    } else if MODE == FixedPoint::RoundingMode::TOWARD_POSITIVE {
+        if value_ext[msb] == 1'b0 {
+            if remainder != '0 {
+                result = truncated_magnitude + 1'b1;
+            } else {
                 result = truncated_magnitude;
-            } else {
-                result = -truncated_magnitude;
-            }
-        } else if MODE == FixedPoint::RoundingMode::TOWARD_POSITIVE {
-            if value_ext[msb] == 1'b0 {
-                if remainder != '0 {
-                    result = truncated_magnitude + 1'b1;
-                } else {
-                    result = truncated_magnitude;
-                }
-            } else {
-                result = -truncated_magnitude;
-            }
-        } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE {
-            result = (value_ext + half_value) >>> SHIFT;
-        } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO && value_ext[msb] == 1'b0 {
-            result = (value_ext + half_value) >>> SHIFT;
-        } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO {
-            result = -((-value_ext + half_value) >>> SHIFT);
-        } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN {
-            if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
-                rounded_magnitude = truncated_magnitude + 1'b1;
-            }
-            if value_ext[msb] == 1'b0 {
-                result = rounded_magnitude;
-            } else {
-                result = -rounded_magnitude;
             }
         } else {
-            result = value_ext >>> SHIFT;
+            result = -truncated_magnitude;
         }
-
-        return $signed(result[WIDTH - 1:0]);
-    }
-
-    /// signed値を指定幅へ飽和させる。
-    ///
-    /// 出力範囲は`[-2^(OUT_WIDTH-1), 2^(OUT_WIDTH-1)-1]`とする。入力が
-    /// 範囲内の場合は数値を保持し、範囲外の場合は最小値または最大値を返す。
-    ///
-    /// # 引数
-    ///
-    /// - `value`: 飽和対象のsigned値。
-    /// - `IN_WIDTH`: `value`のビット幅。
-    /// - `OUT_WIDTH`: 戻り値のビット幅。
-    ///
-    /// # 戻り値
-    ///
-    /// `OUT_WIDTH`で表現可能な範囲に制限されたsigned値。
-    ///
-    /// # 使用例
-    ///
-    /// ```
-    /// let result: signed logic<8> = SignedFixedPointRaw::saturate::<12, 8>(12'sd200);
-    /// // 200は8-bit signedの最大値127を超えるため、127。
-    /// ```
-    function saturate::<IN_WIDTH: u32, OUT_WIDTH: u32> (
-        value: input signed logic<IN_WIDTH>,
-    ) -> signed logic<OUT_WIDTH> {
-        const WORK_WIDTH  : u32 = if IN_WIDTH >= OUT_WIDTH ? IN_WIDTH + 1 : OUT_WIDTH + 1;
-        const BODY_WIDTH  : u32 = OUT_WIDTH - 1;
-        const EXTEND_WIDTH: u32 = WORK_WIDTH - OUT_WIDTH;
-
-        let value_ext: signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - IN_WIDTH, value});
-        let max_value: signed logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
-        let min_value: signed logic<WORK_WIDTH> = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
-
-        if value_ext >: max_value {
-            return $signed(max_value[OUT_WIDTH - 1:0]);
-        } else if value_ext <: min_value {
-            return $signed(min_value[OUT_WIDTH - 1:0]);
+    } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE {
+        result = (value_ext + half_value) >>> SHIFT;
+    } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO && value_ext[msb] == 1'b0 {
+        result = (value_ext + half_value) >>> SHIFT;
+    } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO {
+        result = -((-value_ext + half_value) >>> SHIFT);
+    } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN {
+        if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
+            rounded_magnitude = truncated_magnitude + 1'b1;
+        }
+        if value_ext[msb] == 1'b0 {
+            result = rounded_magnitude;
         } else {
-            return $signed(value_ext[OUT_WIDTH - 1:0]);
+            result = -rounded_magnitude;
         }
+    } else {
+        result = value_ext >>> SHIFT;
     }
 
-    /// signed値を任意の上下限へ制限する。
-    ///
-    /// `lower <= upper`となる範囲で使用する。`value`が範囲内ならそのまま、
-    /// 下限未満なら`lower`、上限超過なら`upper`を返す。
-    ///
-    /// # 引数
-    ///
-    /// - `value`: 制限対象のsigned値。
-    /// - `lower`: 許可する下限。
-    /// - `upper`: 許可する上限。
-    /// - `WIDTH`: 3つの引数と戻り値のビット幅。
-    ///
-    /// # 戻り値
-    ///
-    /// `[lower, upper]`へ制限された値。
-    ///
-    /// # 使用例
-    ///
-    /// ```
-    /// let result: signed logic<8> = SignedFixedPointRaw::clamp::<8>(8'sd100, -8'sd8, 8'sd8);
-    /// // result == 8。
-    /// ```
-    function clamp::<WIDTH: u32> (
-        value: input signed logic<WIDTH>,
-        lower: input signed logic<WIDTH>,
-        upper: input signed logic<WIDTH>,
-    ) -> signed logic<WIDTH> {
-        if value <: lower {
-            return lower;
-        } else if value >: upper {
-            return upper;
-        } else {
-            return value;
-        }
+    return $signed(result[WIDTH - 1:0]);
+}
+
+/// signed値を指定幅へ飽和させる。
+///
+/// 出力範囲は`[-2^(OUT_WIDTH-1), 2^(OUT_WIDTH-1)-1]`とする。入力が
+/// 範囲内の場合は数値を保持し、範囲外の場合は最小値または最大値を返す。
+///
+/// # 引数
+///
+/// - `value`: 飽和対象のsigned値。
+/// - `IN_WIDTH`: `value`のビット幅。
+/// - `OUT_WIDTH`: 戻り値のビット幅。
+///
+/// # 戻り値
+///
+/// `OUT_WIDTH`で表現可能な範囲に制限されたsigned値。
+///
+/// # 使用例
+///
+/// ```
+/// let result: signed logic<8> = raw_saturate::<12, 8>(12'sd200);
+/// // 200は8-bit signedの最大値127を超えるため、127。
+/// ```
+pub function raw_saturate::<IN_WIDTH: u32, OUT_WIDTH: u32> (
+    value: input signed logic<IN_WIDTH>,
+) -> signed logic<OUT_WIDTH> {
+    const WORK_WIDTH  : u32 = if IN_WIDTH >= OUT_WIDTH ? IN_WIDTH + 1 : OUT_WIDTH + 1;
+    const BODY_WIDTH  : u32 = OUT_WIDTH - 1;
+    const EXTEND_WIDTH: u32 = WORK_WIDTH - OUT_WIDTH;
+
+    let value_ext: signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - IN_WIDTH, value});
+    let max_value: signed logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
+    let min_value: signed logic<WORK_WIDTH> = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
+
+    if value_ext >: max_value {
+        return $signed(max_value[OUT_WIDTH - 1:0]);
+    } else if value_ext <: min_value {
+        return $signed(min_value[OUT_WIDTH - 1:0]);
+    } else {
+        return $signed(value_ext[OUT_WIDTH - 1:0]);
     }
+}
 
-    /// signed整数同士を、入力幅の合計幅で乗算する。
-    ///
-    /// 結果の幅は`A_WIDTH + B_WIDTH`。固定小数点値として解釈する場合、
-    /// 結果の小数ビット数は入力の小数ビット数の合計になる。丸めや出力幅の
-    /// 制限は行わないため、必要に応じて`resize`を続けて呼び出す。
-    ///
-    /// # 引数
-    ///
-    /// - `a`: 第一入力のsigned raw値。
-    /// - `b`: 第二入力のsigned raw値。
-    /// - `A_WIDTH`: `a`のビット幅。
-    /// - `B_WIDTH`: `b`のビット幅。
-    ///
-    /// # 戻り値
-    ///
-    /// `A_WIDTH + B_WIDTH`ビットのsigned積。
-    ///
-    /// # 使用例
-    ///
-    /// ```
-    /// let product: signed logic<16> = SignedFixedPointRaw::multiply::<8, 8>(8'sd32, 8'sd16);
-    /// // product == 512。Q4.4同士なら実数値は2.0 * 1.0 = 2.0。
-    /// ```
-    function multiply::<A_WIDTH: u32, B_WIDTH: u32> (
-        a: input signed logic<A_WIDTH>,
-        b: input signed logic<B_WIDTH>,
-    ) -> signed logic<A_WIDTH + B_WIDTH> {
-        const PRODUCT_WIDTH: u32 = A_WIDTH + B_WIDTH;
-
-        let a_ext: signed logic<PRODUCT_WIDTH> = $signed({a[msb] repeat B_WIDTH, a});
-        let b_ext: signed logic<PRODUCT_WIDTH> = $signed({b[msb] repeat A_WIDTH, b});
-
-        return a_ext * b_ext;
+/// signed値を任意の上下限へ制限する。
+///
+/// `lower <= upper`となる範囲で使用する。`value`が範囲内ならそのまま、
+/// 下限未満なら`lower`、上限超過なら`upper`を返す。
+///
+/// # 引数
+///
+/// - `value`: 制限対象のsigned値。
+/// - `lower`: 許可する下限。
+/// - `upper`: 許可する上限。
+/// - `WIDTH`: 3つの引数と戻り値のビット幅。
+///
+/// # 戻り値
+///
+/// `[lower, upper]`へ制限された値。
+///
+/// # 使用例
+///
+/// ```
+/// let result: signed logic<8> = raw_clamp::<8>(8'sd100, -8'sd8, 8'sd8);
+/// // result == 8。
+/// ```
+pub function raw_clamp::<WIDTH: u32> (
+    value: input signed logic<WIDTH>,
+    lower: input signed logic<WIDTH>,
+    upper: input signed logic<WIDTH>,
+) -> signed logic<WIDTH> {
+    if value <: lower {
+        return lower;
+    } else if value >: upper {
+        return upper;
+    } else {
+        return value;
     }
+}
 
-    /// signed乗算結果を指定formatへ変換する。
-    ///
-    /// 積の小数ビット数は`A_FRAC + B_FRAC`として扱い、`resize`と同じ順序で
-    /// 小数位置調整、丸め、overflow処理を行う。
-    ///
-    /// # 引数
-    ///
-    /// - `a`: 第一入力のsigned raw値。
-    /// - `b`: 第二入力のsigned raw値。
-    /// - `A_WIDTH`/`B_WIDTH`: 入力の総ビット幅。
-    /// - `A_FRAC`/`B_FRAC`: 入力の小数ビット数。
-    /// - `OUT_WIDTH`: 出力の総ビット幅。
-    /// - `OUT_FRAC`: 出力の小数ビット数。
-    /// - `MODE`: 小数ビット削減時の丸め方。
-    /// - `OVERFLOW`: 出力幅超過時の処理。
-    ///
-    /// # 戻り値
-    ///
-    /// 指定した出力formatのsigned raw値。
-    ///
-    /// # 使用例
-    ///
-    /// ```
-    /// let product: signed logic<8> = SignedFixedPointRaw::multiply_resize::<
-    ///     8,
-    ///     4,
-    ///     8,
-    ///     4,
-    ///     8,
-    ///     4,
-    ///     FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
-    ///     FixedPoint::OverflowMode::SATURATE,
-    /// >(8'sd32, 8'sd16); // Q4.4の2.0 * 1.0 -> 2.0、result == 8'sd32。
-    /// ```
-    function multiply_resize::<
-        A_WIDTH  : u32                     ,
-        A_FRAC   : u32                     ,
-        B_WIDTH  : u32                     ,
-        B_FRAC   : u32                     ,
-        OUT_WIDTH: u32                     ,
-        OUT_FRAC : u32                     ,
-        MODE     : FixedPoint::RoundingMode,
-        OVERFLOW : FixedPoint::OverflowMode,
-    > (
-        a: input signed logic<A_WIDTH>,
-        b: input signed logic<B_WIDTH>,
-    ) -> signed logic<OUT_WIDTH> {
-        const PRODUCT_WIDTH: u32 = A_WIDTH + B_WIDTH;
-        const PRODUCT_FRAC : u32 = A_FRAC + B_FRAC;
+/// signed整数同士を、入力幅の合計幅で乗算する。
+///
+/// 結果の幅は`A_WIDTH + B_WIDTH`。固定小数点値として解釈する場合、
+/// 結果の小数ビット数は入力の小数ビット数の合計になる。丸めや出力幅の
+/// 制限は行わないため、必要に応じて`resize`を続けて呼び出す。
+///
+/// # 引数
+///
+/// - `a`: 第一入力のsigned raw値。
+/// - `b`: 第二入力のsigned raw値。
+/// - `A_WIDTH`: `a`のビット幅。
+/// - `B_WIDTH`: `b`のビット幅。
+///
+/// # 戻り値
+///
+/// `A_WIDTH + B_WIDTH`ビットのsigned積。
+///
+/// # 使用例
+///
+/// ```
+/// let product: signed logic<16> = raw_multiply::<8, 8>(8'sd32, 8'sd16);
+/// // product == 512。Q4.4同士なら実数値は2.0 * 1.0 = 2.0。
+/// ```
+pub function raw_multiply::<A_WIDTH: u32, B_WIDTH: u32> (
+    a: input signed logic<A_WIDTH>,
+    b: input signed logic<B_WIDTH>,
+) -> signed logic<A_WIDTH + B_WIDTH> {
+    const PRODUCT_WIDTH: u32 = A_WIDTH + B_WIDTH;
 
-        let product: signed logic<PRODUCT_WIDTH> = multiply::<A_WIDTH, B_WIDTH>(a, b);
+    let a_ext: signed logic<PRODUCT_WIDTH> = $signed({a[msb] repeat B_WIDTH, a});
+    let b_ext: signed logic<PRODUCT_WIDTH> = $signed({b[msb] repeat A_WIDTH, b});
 
-        const LEFT_SHIFT : u32 = if PRODUCT_FRAC >= OUT_FRAC ? 0 : OUT_FRAC - PRODUCT_FRAC;
-        const RIGHT_SHIFT: u32 = if OUT_FRAC >= PRODUCT_FRAC ? 0 : PRODUCT_FRAC - OUT_FRAC;
-        const BASE_WIDTH : u32 = PRODUCT_WIDTH + LEFT_SHIFT + OUT_WIDTH + 2;
-        const WORK_WIDTH : u32 = if BASE_WIDTH >= RIGHT_SHIFT + 2 ? BASE_WIDTH : RIGHT_SHIFT + 2;
+    return a_ext * b_ext;
+}
 
-        let product_ext        : signed logic<WORK_WIDTH> = $signed(
-            {product[msb] repeat WORK_WIDTH - PRODUCT_WIDTH, product},
-        );
-        let half_value         : signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
-            '0
-        :
-            $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (RIGHT_SHIFT - 1))
-        ;
-        let magnitude          : signed logic<WORK_WIDTH> = if product_ext[msb] == 1'b0 ? product_ext : -product_ext;
-        let truncated_magnitude: signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ? magnitude : magnitude >>> RIGHT_SHIFT;
-        let remainder          : signed logic<WORK_WIDTH> = if RIGHT_SHIFT == 0 ?
-            '0
-        :
-            magnitude - (truncated_magnitude <<< RIGHT_SHIFT)
-        ;
-        var rounded_magnitude  : signed logic<WORK_WIDTH>;
-        var aligned            : signed logic<WORK_WIDTH>;
+/// signed乗算結果を指定formatへ変換する。
+///
+/// 積の小数ビット数は`A_FRAC + B_FRAC`として扱い、`resize`と同じ順序で
+/// 小数位置調整、丸め、overflow処理を行う。
+///
+/// # 引数
+///
+/// - `a`: 第一入力のsigned raw値。
+/// - `b`: 第二入力のsigned raw値。
+/// - `A_WIDTH`/`B_WIDTH`: 入力の総ビット幅。
+/// - `A_FRAC`/`B_FRAC`: 入力の小数ビット数。
+/// - `OUT_WIDTH`: 出力の総ビット幅。
+/// - `OUT_FRAC`: 出力の小数ビット数。
+/// - `MODE`: 小数ビット削減時の丸め方。
+/// - `OVERFLOW`: 出力幅超過時の処理。
+///
+/// # 戻り値
+///
+/// 指定した出力formatのsigned raw値。
+///
+/// # 使用例
+///
+/// ```
+/// let product: signed logic<8> = raw_multiply_resize::<
+///     8,
+///     4,
+///     8,
+///     4,
+///     8,
+///     4,
+///     FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
+///     FixedPoint::OverflowMode::SATURATE,
+/// >(8'sd32, 8'sd16); // Q4.4の2.0 * 1.0 -> 2.0、result == 8'sd32。
+/// ```
+pub function raw_multiply_resize::<
+    A_WIDTH  : u32                     ,
+    A_FRAC   : u32                     ,
+    B_WIDTH  : u32                     ,
+    B_FRAC   : u32                     ,
+    OUT_WIDTH: u32                     ,
+    OUT_FRAC : u32                     ,
+    MODE     : FixedPoint::RoundingMode,
+    OVERFLOW : FixedPoint::OverflowMode,
+> (
+    a: input signed logic<A_WIDTH>,
+    b: input signed logic<B_WIDTH>,
+) -> signed logic<OUT_WIDTH> {
+    const PRODUCT_WIDTH: u32 = A_WIDTH + B_WIDTH;
+    const PRODUCT_FRAC : u32 = A_FRAC + B_FRAC;
 
-        rounded_magnitude = truncated_magnitude;
+    let product: signed logic<PRODUCT_WIDTH> = raw_multiply::<A_WIDTH, B_WIDTH>(a, b);
 
-        if RIGHT_SHIFT == 0 {
-            aligned = product_ext <<< LEFT_SHIFT;
-        } else if MODE == FixedPoint::RoundingMode::TOWARD_NEGATIVE {
-            aligned = product_ext >>> RIGHT_SHIFT;
-        } else if MODE == FixedPoint::RoundingMode::TOWARD_ZERO {
-            if product_ext[msb] == 1'b0 {
-                aligned = truncated_magnitude;
-            } else {
-                aligned = -truncated_magnitude;
-            }
-        } else if MODE == FixedPoint::RoundingMode::TOWARD_POSITIVE {
-            if product_ext[msb] == 1'b0 {
-                if remainder != '0 {
-                    aligned = truncated_magnitude + 1'b1;
-                } else {
-                    aligned = truncated_magnitude;
-                }
-            } else {
-                aligned = -truncated_magnitude;
-            }
-        } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE {
-            aligned = (product_ext + half_value) >>> RIGHT_SHIFT;
-        } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO && product_ext[msb] == 1'b0 {
-            aligned = (product_ext + half_value) >>> RIGHT_SHIFT;
-        } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO {
-            aligned = -((-product_ext + half_value) >>> RIGHT_SHIFT);
-        } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN {
-            if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
-                rounded_magnitude = truncated_magnitude + 1'b1;
-            }
-            if product_ext[msb] == 1'b0 {
-                aligned = rounded_magnitude;
-            } else {
-                aligned = -rounded_magnitude;
-            }
-        } else {
-            aligned = product_ext >>> RIGHT_SHIFT;
-        }
-
-        const BODY_WIDTH  : u32                      = OUT_WIDTH - 1;
-        const EXTEND_WIDTH: u32                      = WORK_WIDTH - OUT_WIDTH;
-        let   max_value   : signed logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
-        let   min_value   : signed logic<WORK_WIDTH> = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
-        var   result      : signed logic<OUT_WIDTH> ;
-
-        result = $signed(aligned[OUT_WIDTH - 1:0]);
-        if OVERFLOW == FixedPoint::OverflowMode::SATURATE {
-            if aligned >: max_value {
-                result = $signed(max_value[OUT_WIDTH - 1:0]);
-            } else if aligned <: min_value {
-                result = $signed(min_value[OUT_WIDTH - 1:0]);
-            }
-        }
-
-        return result;
-    }
-
+    return resize::<PRODUCT_WIDTH, PRODUCT_FRAC, OUT_WIDTH, OUT_FRAC, MODE, OVERFLOW>(product);
 }
 
 /// formatを型に結び付けたsigned固定小数点値の演算。
@@ -697,7 +610,7 @@ pub package SignedFixedPoint {
     function round_shift::<FORMAT: SignedFixedPointFormat, SHIFT: u32, MODE: FixedPoint::RoundingMode> (
         value: input FORMAT::Raw,
     ) -> FORMAT::Raw {
-        return SignedFixedPointRaw::round_shift::<FORMAT::WIDTH, SHIFT, MODE>(value);
+        return raw_round_shift::<FORMAT::WIDTH, SHIFT, MODE>(value);
     }
 
     /// 小数位置調整、丸め、指定overflow処理の順でformat変換する。
@@ -777,7 +690,7 @@ pub package SignedFixedPoint {
         lower: input FORMAT::Raw,
         upper: input FORMAT::Raw,
     ) -> FORMAT::Raw {
-        return SignedFixedPointRaw::clamp::<FORMAT::WIDTH>(value, lower, upper);
+        return raw_clamp::<FORMAT::WIDTH>(value, lower, upper);
     }
 
     /// signed固定小数点値を乗算し、出力formatへ変換する。
@@ -933,29 +846,13 @@ module test_fixed_point_round_shift {
     var shift_zero     : signed logic<8>;
 
     always_comb {
-        toward_negative = SignedFixedPointRaw::round_shift::<8, 1, FixedPoint::RoundingMode::TOWARD_NEGATIVE>(
-            test_input,
-        );
-        toward_zero     = SignedFixedPointRaw::round_shift::<8, 1, FixedPoint::RoundingMode::TOWARD_ZERO>(test_input);
-        toward_positive = SignedFixedPointRaw::round_shift::<8, 1, FixedPoint::RoundingMode::TOWARD_POSITIVE>(
-            test_input,
-        );
-        ties_positive   = SignedFixedPointRaw::round_shift::<
-            8                                                     ,
-            1                                                     ,
-            FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE,
-        >(test_input);
-        ties_away       = SignedFixedPointRaw::round_shift::<
-            8                                                    ,
-            1                                                    ,
-            FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
-        >(test_input);
-        ties_even       = SignedFixedPointRaw::round_shift::<8, 1, FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN>(
-            test_input,
-        );
-        shift_zero      = SignedFixedPointRaw::round_shift::<8, 0, FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN>(
-            test_input,
-        );
+        toward_negative = raw_round_shift::<8, 1, FixedPoint::RoundingMode::TOWARD_NEGATIVE>(test_input);
+        toward_zero     = raw_round_shift::<8, 1, FixedPoint::RoundingMode::TOWARD_ZERO>(test_input);
+        toward_positive = raw_round_shift::<8, 1, FixedPoint::RoundingMode::TOWARD_POSITIVE>(test_input);
+        ties_positive   = raw_round_shift::<8, 1, FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE>(test_input);
+        ties_away       = raw_round_shift::<8, 1, FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO>(test_input);
+        ties_even       = raw_round_shift::<8, 1, FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN>(test_input);
+        shift_zero      = raw_round_shift::<8, 0, FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN>(test_input);
     }
 
     initial {
@@ -998,22 +895,22 @@ module test_fixed_point_round_shift {
         test_input = 2;
         clk.next();
         $assert(
-            SignedFixedPointRaw::round_shift::<8, 2, FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN>(test_input) == 8'sd0,
+            raw_round_shift::<8, 2, FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN>(test_input) == 8'sd0,
             "positive even tie mismatch",
         );
         $assert(
-            SignedFixedPointRaw::round_shift::<8, 2, FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO>(test_input) == 8'sd1,
+            raw_round_shift::<8, 2, FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO>(test_input) == 8'sd1,
             "positive away tie mismatch",
         );
 
         test_input = -2;
         clk.next();
         $assert(
-            SignedFixedPointRaw::round_shift::<8, 2, FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN>(test_input) == -8'sd0,
+            raw_round_shift::<8, 2, FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN>(test_input) == -8'sd0,
             "negative even tie mismatch",
         );
         $assert(
-            SignedFixedPointRaw::round_shift::<8, 2, FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO>(test_input) == -8'sd1,
+            raw_round_shift::<8, 2, FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO>(test_input) == -8'sd1,
             "negative away tie mismatch",
         );
 
@@ -1039,8 +936,8 @@ module test_fixed_point_saturation {
     var widened        : signed logic<10>;
 
     always_comb {
-        saturated_small = SignedFixedPointRaw::saturate::<8, 4>(test_input);
-        widened         = SignedFixedPointRaw::saturate::<8, 10>(test_input);
+        saturated_small = raw_saturate::<8, 4>(test_input);
+        widened         = raw_saturate::<8, 10>(test_input);
     }
 
     initial {
@@ -1087,7 +984,7 @@ module test_fixed_point_clamp {
     var clamped: signed logic<8>;
 
     always_comb {
-        clamped = SignedFixedPointRaw::clamp::<8>(value, -8'sd3, 8'sd5);
+        clamped = raw_clamp::<8>(value, -8'sd3, 8'sd5);
     }
 
     initial {
@@ -1167,13 +1064,9 @@ module test_fixed_point_resize_and_mul {
             FixedPoint::OverflowMode::WRAP                       ,
         >(resize_sat_in);
         resize_ext      = $signed({resize_input[msb] repeat 2, resize_input});
-        resize_direct   = SignedFixedPointRaw::round_shift::<
-            10                                                   ,
-            2                                                    ,
-            FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
-        >(resize_ext);
-        product         = SignedFixedPointRaw::multiply::<8, 8>(a, b);
-        product_resized = SignedFixedPointRaw::multiply_resize::<
+        resize_direct   = raw_round_shift::<10, 2, FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO>(resize_ext);
+        product         = raw_multiply::<8, 8>(a, b);
+        product_resized = raw_multiply_resize::<
             8                                                    ,
             2                                                    ,
             8                                                    ,
@@ -1307,13 +1200,9 @@ module test_fixed_point_generic_api {
             FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
             FixedPoint::OverflowMode::WRAP                       ,
         >(sat_input);
-        wide_rounded = SignedFixedPointRaw::round_shift::<
-            40                                                   ,
-            33                                                   ,
-            FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
-        >(wide_input);
-        product      = SignedFixedPointRaw::multiply::<4, 6>(signed_a, signed_b);
-        resized      = SignedFixedPointRaw::multiply_resize::<
+        wide_rounded = raw_round_shift::<40, 33, FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO>(wide_input);
+        product      = raw_multiply::<4, 6>(signed_a, signed_b);
+        resized      = raw_multiply_resize::<
             4                                                    ,
             2                                                    ,
             6                                                    ,
@@ -1323,7 +1212,7 @@ module test_fixed_point_generic_api {
             FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
             FixedPoint::OverflowMode::SATURATE                   ,
         >(signed_a, signed_b);
-        even_resized = SignedFixedPointRaw::multiply_resize::<
+        even_resized = raw_multiply_resize::<
             4                                             ,
             2                                             ,
             6                                             ,

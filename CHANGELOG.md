@@ -10,7 +10,7 @@
   - signed固定小数点の右シフト、飽和、clamp、resize、multiply helper
 - `SignedFixedPointFormat` protoと`SignedFixedPointFormatOf::<W, F>`によるformat generic APIを追加
 - Q1.31/Q2.16/Q3.24/Q8.19/Q8.24を`SignedFixedPointFormat`実装の名前付きpresetへ移行
-- `SignedFixedPointRaw`と`SignedFixedPoint`を追加し、raw値とformat-aware値の演算を分離
+- project-scopeのraw generic演算と`SignedFixedPoint`を追加し、raw値とformat-aware値の演算を分離
 - 既存モジュールの固定小数点portと演算をsigned format presetへ移行
 - 固定小数点Native testを丸め境界、符号、幅変換、飽和、wrap、format変換、非対称乗算まで拡張
 - `NcoTick`/`ClockEnableNco`と分数比clock-enable Native testを追加
@@ -57,7 +57,8 @@
 - 全packageをlocal path dependencyで接続し、package単独のfmt/check/test/build/docとbackend validationをCIへ追加
 - 補間kernelを`gndless_interpolation`へ移動し、`CubicLagrangeInterpolator`の丸め・overflow policyと小幅全探索testを追加
 - `FarrowInterpolator`/`FarrowAsrc`をそれぞれ`CubicLagrangeInterpolator`/`CubicLagrangeAsrc`へ移行し、`spi_pkg`を`Spi`へ改名
-- Veryl #3110の制約に合わせ、fixedpoint project-scopeの`resize`を補間から直接呼び出す構成へ変更
+- fixedpointのraw generic演算をproject-scopeへ統一し、parameterized moduleから直接利用する構成へ変更
+- halfband固有の幅変換adapterを削除し、fixedpointのproject-scope `resize`を使用
 - 固定小数点実装を`packages/fixedpoint/`の独立Veryl project `gndless_fixedpoint`へ分離し、親projectからlocal path dependencyとして参照
 - 固定小数点の丸めモード指定を数値定数から `FixedPoint::RoundingMode` enumへ変更
 - 固定小数点formatのassociated typeを`Q1_31::Value`などから`Q1_31::Raw`へ変更

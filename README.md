@@ -9,7 +9,7 @@ Verylで記述した、オーディオ信号処理・デジタルオーディオ
 
 | package | 主な公開API | 用途 |
 | --- | --- | --- |
-| `fixedpoint` | `SignedFixedPoint`, Q形式preset | signed固定小数点演算 |
+| `fixedpoint` | project-scope raw演算、`SignedFixedPoint`、Q形式preset | signed固定小数点演算 |
 | `interpolation` | `ZeroOrderHold`, `LinearInterpolator`, `CubicLagrangeInterpolator` | 組み合わせ補間kernel |
 | `nco` | `NcoTick`, `FractionalPhaseAccumulator`, `Phase`, `Phasor` | phaseとclock-enable生成 |
 | `filter` | CIC、halfband、LPF/HPF | レート変換とaudio filter |
@@ -86,8 +86,3 @@ python3 tools/analyze_fixed_rate_asrc.py target/fixed_rate_asrc_benchmark.csv
 ```
 
 `--format json`を付けると、CIや別の数値解析へ渡しやすいJSONになります。
-
-Verylのgeneric引数可視性制約とfixedpointのAPI設計理由は、
-[`packages/interpolation/README.md`](packages/interpolation/README.md)と
-[fixedpointのREADME](packages/fixedpoint/README.md)、
-[Veryl #3110](https://github.com/veryl-lang/veryl/issues/3110)に記録しています。

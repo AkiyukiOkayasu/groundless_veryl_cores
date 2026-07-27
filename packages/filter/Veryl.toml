@@ -11,3 +11,6 @@ sources = ["src"]
 target = { type = "directory", path = "target" }
 
 [test]
+
+[dependencies]
+fixedpoint = { path = "../fixedpoint" }
