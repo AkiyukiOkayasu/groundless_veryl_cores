@@ -1,0 +1,68 @@
+/// TX NRZIエンコーダ
+///
+/// シリアル入力ビットをNRZI信号へ変換する。
+/// - `serial_bit = 1` のとき出力レベルを反転
+/// - `serial_bit = 0` のとき出力レベルを維持
+module NrziEncoder (
+    /// システムクロック
+    clk: input clock,
+    rst: input reset,
+    /// シリアル入力ビット
+    serial_bit: input logic,
+    /// 入力ビット有効
+    valid: input logic,
+    /// NRZI出力
+    nrzi: output logic,
+) {
+    var nrzi_level: logic;
+
+    assign nrzi = nrzi_level;
+
+    always_ff {
+        if_reset {
+            nrzi_level = 1'b0;
+        } else if valid {
+            if serial_bit {
+                nrzi_level = ~nrzi_level;
+            }
+        }
+    }
+}
+
+#[test(test_adat_nrzi_encoder)]
+module test_adat_nrzi_encoder {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var serial_bit: logic;
+    var valid     : logic;
+    var nrzi      : logic;
+
+    inst dut: NrziEncoder ( clk, rst, serial_bit, valid, nrzi );
+
+    function send_bit (
+        value: input logic,
+    ) {
+        serial_bit = value;
+        valid      = 1'b1;
+        clk.next(1);
+        valid = 1'b0;
+        clk.next(1);
+    }
+
+    initial {
+        serial_bit = 1'b0;
+        valid      = 1'b0;
+        rst.assert();
+        $assert(nrzi == 1'b0, "NRZI reset level mismatch");
+
+        send_bit(1'b1);
+        $assert(nrzi == 1'b1, "NRZI one should toggle");
+        send_bit(1'b0);
+        $assert(nrzi == 1'b1, "NRZI zero should hold");
+        send_bit(1'b1);
+        $assert(nrzi == 1'b0, "NRZI second one should toggle");
+
+        $finish();
+    }
+}

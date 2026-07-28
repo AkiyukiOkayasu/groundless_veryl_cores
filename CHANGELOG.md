@@ -53,6 +53,8 @@
 
 ### Changed
 
+- ADAT RX/TXの実機確認範囲をREADMEとmodule documentationへ明記
+- ADAT内部の送信helperから`Tx` prefixを外し、各unit testを対応する実装ファイルへ移動
 - ASRC専用の`asrc` packageを、同期・非同期sample-rate converterをまとめる`sample_rate_conversion` packageへ改名
 - 公開RTLを12個のinner projectへ分割し、ルートをpackage横断integration／benchmark専用projectへ整理
 - 全packageをlocal path dependencyで接続し、package単独のfmt/check/test/build/docとbackend validationをCIへ追加
@@ -75,10 +77,10 @@
 - Veryl Native testを現行APIに更新し、`rst.assert()`とenum member importを採用
 - フィルタテストの収束条件を`$assert`で検証し、矩形波・三角波・ノコギリ波コアのNative testを追加
 - CIに生成チェックとNative backend間の整合性検証を追加
-- `enable`など真偽属性として自然な1bit信号に`bbool`を限定し、ADATの`FrameParser`と`TxFrameBuilder`の重複ロジックを生成ループへ整理
+- `enable`など真偽属性として自然な1bit信号に`bbool`を限定し、ADATの`FrameParser`と`FrameBuilder`の重複ロジックを生成ループへ整理
 - IEC60958のパリティ・preamble判定とinvalid/lock/error状態を明示的な真偽型へ整理
 - NCOの`configured`状態を2値保証された`bbool`へ整理
-- ADATのFrameParser/TxFrameBuilder Native testを8チャンネル対象へ拡張し、公開モジュール構成と型方針をREADMEに追記
+- ADATのFrameParser/FrameBuilder Native testを8チャンネル対象へ拡張し、公開モジュール構成と型方針をREADMEに追記
 - 連続ASRCの起動時FIFO蓄積量を設定可能にし、4倍HBFのburstによる起動直後underflowを防止
 - ADAT固有のS/MUX2 packer/unpackerを`packages/adat/`へ移動
 

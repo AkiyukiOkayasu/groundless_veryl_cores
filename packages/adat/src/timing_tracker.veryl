@@ -113,3 +113,46 @@ module TimingTracker (
         }
     }
 }
+
+#[test(test_adat_timing_tracker)]
+module test_adat_timing_tracker {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var edge_pulse : logic    ;
+    var edge_time  : logic<12>;
+    var sync_detect: logic    ;
+    var frame_time : logic<12>;
+
+    inst dut: TimingTracker ( clk, rst, edge_pulse, edge_time, sync_detect, frame_time );
+
+    function pulse_edge (
+        gap_cycles: input logic<12>,
+    ) {
+        edge_pulse = 1'b0;
+        clk.next(gap_cycles);
+        edge_pulse = 1'b1;
+        clk.next(1);
+        edge_pulse = 1'b0;
+    }
+
+    initial {
+        edge_pulse = 1'b0;
+        rst.assert();
+
+        // 短いエッジ間隔はデータ期間として扱う。
+        pulse_edge(12'd4);
+        $assert(sync_detect == 1'b1, "short interval should be data");
+
+        // 長いエッジ間隔はSYNC期間として扱う。
+        pulse_edge(12'd40);
+        $assert(sync_detect == 1'b0, "long interval should be sync");
+
+        // SYNC後にデータ期間へ復帰する。
+        pulse_edge(12'd4);
+        $assert(sync_detect == 1'b1, "data should resume after sync");
+        $assert(frame_time == 12'd1042, "initial frame time should be 1042");
+
+        $finish();
+    }
+}

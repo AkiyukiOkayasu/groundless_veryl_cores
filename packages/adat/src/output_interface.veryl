@@ -150,3 +150,73 @@ module OutputInterface (
         }
     }
 }
+
+#[test(test_adat_output_interface)]
+module test_adat_output_interface {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var frame_time : logic<12>    ;
+    var data       : logic<24>    ;
+    var channel    : logic<3>     ;
+    var data_valid : logic        ;
+    var sync       : logic        ;
+    var user_bits  : logic<4>     ;
+    var smux_active: bbool        ;
+    var frame_clk  : logic        ;
+    var channels   : logic<24> [8];
+    var valid      : logic        ;
+    var locked     : bbool        ;
+
+    inst dut: OutputInterface (
+        clk          ,
+        rst          ,
+        frame_time   ,
+        data         ,
+        channel      ,
+        data_valid   ,
+        sync         ,
+        user_bits    ,
+        smux_active  ,
+        frame_clk    ,
+        channels     ,
+        valid        ,
+        locked       ,
+    );
+
+    function push_channel (
+        index : input logic<3> ,
+        sample: input logic<24>,
+    ) {
+        channel    = index;
+        data       = sample;
+        data_valid = 1'b1;
+        clk.next(1);
+        data_valid = 1'b0;
+    }
+
+    initial {
+        frame_time = 12'd2048;
+        data       = 24'd0;
+        channel    = 3'd0;
+        data_valid = 1'b0;
+        sync       = 1'b1;
+        user_bits  = 4'b0010;
+        rst.assert();
+
+        push_channel(3'd0, 24'h100000);
+        push_channel(3'd1, 24'h200000);
+        push_channel(3'd2, 24'h300000);
+        push_channel(3'd3, 24'h400000);
+        push_channel(3'd4, 24'h500000);
+        push_channel(3'd5, 24'h600000);
+        push_channel(3'd6, 24'h700000);
+        push_channel(3'd7, 24'h7FFFFF);
+
+        $assert(valid == 1'b1, "complete frame should assert valid");
+        $assert(smux_active == 1'b1, "S/MUX flag mismatch");
+        $assert(channels[0] == 24'h100000, "channel 0 data mismatch");
+        $assert(channels[7] == 24'h7FFFFF, "channel 7 data mismatch");
+        $finish();
+    }
+}

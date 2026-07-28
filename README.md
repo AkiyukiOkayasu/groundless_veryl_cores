@@ -43,7 +43,7 @@ local path dependencyだけを使用し、外部repository化とregistry publish
 - ポート名は方向接頭辞を付けないsemantic nameに統一しています。
 
 ADATの`FrameParser`は内部カウンタ上のチャンネル終了位置を生成ループで判定し、
-`TxFrameBuilder`は8チャンネルの30bit符号化を生成配列へまとめてフレームを構築します。
+`FrameBuilder`は8チャンネルの30bit符号化を生成配列へまとめてフレームを構築します。
 両方とも8チャンネルを対象にしたNative testで回帰を検証しています。
 
 IEC60958では、共通codecの上にS/PDIFとAES3の公開ラッパーを配置しています。

@@ -10,7 +10,7 @@ import Adat::AdatFamily;
 /// 1. `load`パルスで`frame`をロード
 /// 2. 自動でビット出力開始（MSB first）
 /// 3. 256bit完了時に`frame_done`パルス
-module TxBitSerializer #(
+module BitSerializer #(
     /// システムクロック周波数 [Hz]
     param CLK_FREQ: u32 = 50_000_000,
 ) (
@@ -121,5 +121,75 @@ module TxBitSerializer #(
                 }
             }
         }
+    }
+}
+
+#[test(test_adat_bit_serializer)]
+module test_adat_bit_serializer {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var frame     : logic     <256>;
+    var load      : logic          ;
+    var family    : AdatFamily     ;
+    var serial_bit: logic          ;
+    var bit_valid : logic          ;
+    var frame_done: logic          ;
+    var bit_count : logic     <9>  ;
+    var first_bit : logic          ;
+    var last_bit  : logic          ;
+    var done_seen : logic          ;
+
+    inst dut: BitSerializer #(
+        CLK_FREQ: 50_000_000,
+    ) (
+        clk         ,
+        rst         ,
+        frame       ,
+        load        ,
+        family      ,
+        serial_bit  ,
+        bit_valid   ,
+        frame_done  ,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            bit_count = 0;
+            first_bit = 0;
+            last_bit  = 0;
+            done_seen = 0;
+        } else {
+            if bit_valid {
+                if bit_count == 0 {
+                    first_bit = serial_bit;
+                }
+                last_bit  = serial_bit;
+                bit_count = bit_count + 1;
+            }
+            if frame_done {
+                done_seen = 1;
+            }
+        }
+    }
+
+    initial {
+        frame  = {1'b1, 254'd0, 1'b1};
+        load   = 1'b0;
+        family = AdatFamily::F48K;
+        rst.assert();
+        clk.next(10);
+
+        load = 1'b1;
+        clk.next(1);
+        load = 1'b0;
+        // 256bit / 12.288Mbps at 50MHz is about 1042 clocks。
+        clk.next(1200);
+
+        $assert(bit_count == 9'd256, "serializer bit count mismatch");
+        $assert(first_bit == 1'b1, "serializer MSB order mismatch");
+        $assert(last_bit == 1'b1, "serializer LSB order mismatch");
+        $assert(done_seen == 1'b1, "serializer frame_done was not observed");
+        $finish();
     }
 }

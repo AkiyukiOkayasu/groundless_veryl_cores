@@ -3,14 +3,20 @@ import Adat::AdatFamily;
 /// ADAT TXトップモジュール
 ///
 /// 8ch 24bit PCMをADATフレームへ変換し、NRZI信号として出力する。
+///
+/// # 実機確認状況
+/// 実機動作は未確認。現時点ではNative testと、RTL内部で接続した
+/// `AdatTx`→`AdatRx` loopback testだけを確認している。
+/// 外部ADAT機器との相互接続、光送信回路を含む電気的条件、実機上のタイミングは未検証。
+///
 /// 送信パイプラインは以下の3段で構成される。
 ///
-/// 1. `tx_frame_builder`
+/// 1. `frame_builder`
 ///    - `frame_clk`立ち上がりをトリガに256bit ADATフレームを構築
-/// 2. `tx_bit_serializer`
+/// 2. `bit_serializer`
 ///    - 256bitフレームをMSB-firstでシリアル化
 ///    - `ADAT_FAMILY`に応じて44.1kHz系/48kHz系のビット周期を選択
-/// 3. `tx_nrzi_encoder`
+/// 3. `nrzi_encoder`
 ///    - シリアルビットをNRZIへ変換して`adat`へ出力
 ///
 /// ```wavedrom
@@ -81,7 +87,7 @@ pub module AdatTx #(
     );
 
     // フレーム構築
-    inst u_frame_builder: TxFrameBuilder (
+    inst u_frame_builder: FrameBuilder (
         clk                         ,
         rst                         ,
         channels                    ,
@@ -92,7 +98,7 @@ pub module AdatTx #(
     );
 
     // 256bitフレームのシリアル化
-    inst u_serializer: TxBitSerializer #(
+    inst u_serializer: BitSerializer #(
         CLK_FREQ  ,
     ) (
         clk                          ,
@@ -106,7 +112,7 @@ pub module AdatTx #(
     );
 
     // NRZIエンコード
-    inst u_nrzi_encoder: TxNrziEncoder (
+    inst u_nrzi_encoder: NrziEncoder (
         clk                         ,
         rst                         ,
         serial_bit: serial_bit      ,

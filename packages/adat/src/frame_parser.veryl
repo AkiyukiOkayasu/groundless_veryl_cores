@@ -143,3 +143,73 @@ module FrameParser (
         }
     }
 }
+
+#[test(test_adat_frame_parser)]
+module test_adat_frame_parser {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var bits      : logic<5> ;
+    var bit_count : logic<3> ;
+    var valid     : logic    ;
+    var sync      : logic    ;
+    var user_bits : logic<4> ;
+    var data      : logic<24>;
+    var channel   : logic<3> ;
+    var data_valid: logic    ;
+
+    inst dut: FrameParser (
+        clk       : clk       ,
+        rst       : rst       ,
+        bits      : bits      ,
+        bit_count : bit_count ,
+        valid     : valid     ,
+        sync      : sync      ,
+        user_bits : user_bits ,
+        data      : data      ,
+        channel   : channel   ,
+        data_valid: data_valid,
+    );
+
+    function push_bits (
+        value: input logic<5>,
+        count: input logic<3>,
+    ) {
+        bits      = value;
+        bit_count = count;
+        valid     = 1'b1;
+        clk.next(1);
+        valid = 1'b0;
+    }
+
+    function push_channel_123456 () {
+        push_bits(5'b11000, 3'd5);
+        push_bits(5'b10100, 3'd5);
+        push_bits(5'b11100, 3'd5);
+        push_bits(5'b10010, 3'd5);
+        push_bits(5'b11010, 3'd5);
+        push_bits(5'b10110, 3'd5);
+    }
+
+    initial {
+        bits      = 5'd0;
+        bit_count = 3'd0;
+        valid     = 1'b0;
+        sync      = 1'b1;
+        rst.assert();
+
+        // User=0xA。先頭のseparatorを含む反転済み入力。
+        push_bits(5'b10101, 3'd5);
+        $assert(user_bits == 4'hA, "user bits mismatch");
+
+        // 同じPCM値を全8チャンネルへ送り、チャンネル抽出と番号を検証する。
+        for i in 0..8 {
+            push_channel_123456();
+            $assert(data_valid == 1'b1, "channel data should be valid");
+            $assert(channel == (i as 3), "channel index mismatch");
+            $assert(data == 24'h123456, "PCM data mismatch");
+        }
+
+        $finish();
+    }
+}

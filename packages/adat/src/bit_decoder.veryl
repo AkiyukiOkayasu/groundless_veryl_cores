@@ -94,3 +94,55 @@ module BitDecoder (
         }
     }
 }
+
+#[test(test_adat_bit_decoder)]
+module test_adat_bit_decoder {
+    inst clk: $tb::clock_gen;
+    inst rst: $tb::reset_gen ( clk );
+
+    var edge_pulse: logic    ;
+    var edge_time : logic<12>;
+    var frame_time: logic<12>;
+    var sync_mask : logic    ;
+    var bits      : logic<5> ;
+    var bit_count : logic<3> ;
+    var valid     : logic    ;
+
+    inst dut: BitDecoder ( clk, rst, edge_pulse, edge_time, frame_time, sync_mask, bits, bit_count, valid );
+
+    function trigger_edge (
+        interval: input logic<12>,
+    ) {
+        edge_time  = interval;
+        edge_pulse = 1'b1;
+        clk.next(1);
+        edge_pulse = 1'b0;
+    }
+
+    initial {
+        edge_pulse = 1'b0;
+        edge_time  = 12'd0;
+        frame_time = 12'd2048;
+        sync_mask  = 1'b1;
+        rst.assert();
+
+        trigger_edge(12'd1);
+        $assert(valid == 1'b1, "one-bit decode should be valid");
+        $assert(bit_count == 3'd1, "one-bit decode count mismatch");
+        $assert(bits == 5'b00001, "one-bit decode value mismatch");
+
+        trigger_edge(12'd16);
+        $assert(bit_count == 3'd2, "two-bit decode count mismatch");
+        $assert(bits == 5'b00010, "two-bit decode value mismatch");
+
+        trigger_edge(12'd40);
+        $assert(bit_count == 3'd5, "five-bit decode count mismatch");
+        $assert(bits == 5'b10000, "five-bit decode value mismatch");
+
+        sync_mask = 1'b0;
+        trigger_edge(12'd1);
+        $assert(valid == 1'b0, "sync interval should not emit data");
+
+        $finish();
+    }
+}
