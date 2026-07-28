@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ['main', 'dev']
+  pull_request:
+    branches: ['main']
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: veryl-lang/setup-veryl@v1
+        with:
+          version: nightly
+      - name: Format check
+        continue-on-error: true
+        run: veryl fmt --check
+      - run: veryl check
+      - run: veryl build
+      - run: veryl test
+      - run: veryl doc
+      - name: Interpolation benchmark
+        if: ${{ hashFiles('tools/analyze_interpolator_benchmark.py') != '' }}
+        run: |
+          veryl test --ignored -t interpolator_benchmark
+          python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.csv --format json
+      - name: Fixed-rate ASRC benchmark
+        if: ${{ hashFiles('tools/analyze_fixed_rate_asrc.py') != '' }}
+        run: |
+          veryl test --ignored -t fixed_rate_asrc_benchmark
+          python3 tools/analyze_fixed_rate_asrc.py target/fixed_rate_asrc_benchmark.csv
+
+  backend-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: veryl-lang/setup-veryl@v1
+        with:
+          version: nightly
+      - run: veryl test --backend-validate

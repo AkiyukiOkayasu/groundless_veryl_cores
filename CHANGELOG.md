@@ -10,6 +10,8 @@
 - ADATの公開型packageをproject名と重複する`Adat`から`Types`へ改名
 - FixedPoint、SPI、IEC60958の公開型packageもproject名と重複しない`Types`へ改名
 - 固定レートASRC benchmarkと解析スクリプトを`sample_rate_conversion` packageへ移動
+- 固定レートASRC benchmarkを固定正弦波vector化し、`sample_rate_conversion`から`oscillator`依存を削除
+- 各packageへ個別repository用のlicense、gitignore、共通CIを追加
 
 ### Added
 
