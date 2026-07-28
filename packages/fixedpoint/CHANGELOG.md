@@ -11,6 +11,7 @@
 - `multiply_resize`をproject-scopeの`multiply`と`resize`を組み合わせる実装へ整理
 - `SignedFixedPoint` packageを廃止し、`convert`を含む演算をflatなproject-scope APIへ統一
 - 固定小数点固有でない`clamp`を削除し、`round_shift`と`saturate`を`resize`利用の専用APIへ整理
+- 単独リポジトリでの検証手順をREADMEへ追加
 
 ## [0.1.0] - 2026-07-26
 

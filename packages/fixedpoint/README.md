@@ -47,3 +47,7 @@ assign output = convert::<
 現在は`groundless_veryl_cores`リポジトリ内のinner projectとして開発しています。
 APIとリリース手順が安定した後、
 `AkiyukiOkayasu/gndless-fixedpoint-veryl`へ分離する予定です。
+
+## 検証
+
+`veryl check && veryl test && veryl build && veryl doc`。

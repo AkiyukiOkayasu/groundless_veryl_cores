@@ -1,3 +1,16 @@
+/// ベンチマーク専用の0次ホールド基準。
+module BenchmarkZeroOrderHold #(
+    param SAMPLE_WIDTH: u32 = 32,
+    param PHASE_WIDTH : u32 = 32,
+) (
+    sample0: input  signed logic<SAMPLE_WIDTH>,
+    sample1: input  signed logic<SAMPLE_WIDTH>,
+    phase  : input  logic       <PHASE_WIDTH> ,
+    sample : output signed logic<SAMPLE_WIDTH>,
+) {
+    assign sample = sample0;
+}
+
 /// 補間kernelだけを比較する決定論的ベンチマーク。
 ///
 /// oscillatorには依存せず、固定のstep/ramp/sign-crossing/impulse vectorを
@@ -24,7 +37,7 @@ module interpolator_benchmark {
     var cubic_linear_difference: signed logic<SAMPLE_WIDTH + 1>;
     var file                   : $tb::file                     ;
 
-    inst hold: ZeroOrderHold #(
+    inst hold: BenchmarkZeroOrderHold #(
         SAMPLE_WIDTH: SAMPLE_WIDTH,
         PHASE_WIDTH : PHASE_WIDTH ,
     ) (

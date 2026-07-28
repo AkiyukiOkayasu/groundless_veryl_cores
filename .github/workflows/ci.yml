@@ -27,7 +27,7 @@ jobs:
           - packages/oscillator
           - packages/delta_sigma
           - packages/midi
-          - packages/asrc
+          - packages/sample_rate_conversion
     defaults:
       run:
         working-directory: ${{ matrix.project }}
@@ -60,7 +60,7 @@ jobs:
           - packages/oscillator
           - packages/delta_sigma
           - packages/midi
-          - packages/asrc
+          - packages/sample_rate_conversion
     defaults:
       run:
         working-directory: ${{ matrix.project }}

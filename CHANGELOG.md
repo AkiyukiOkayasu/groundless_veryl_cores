@@ -42,7 +42,7 @@
 - AES3用`Aes3Tx`/`Aes3Rx`ラッパー、channel status CRC、Nativeループバックテストを追加
 - 固定小数点とADATのNative単体テストを各実装ファイルへ統合
 - 固定小数点formatのraw表現名を`Value`から`Raw`へ変更し、公開APIへ引数・戻り値・使用例のdocumentation commentを追加
-- `ZeroOrderHold`を追加し、Linearとのステップ・ランプ・インパルス比較を行うNativeベンチマークを追加
+- Linearとのステップ・ランプ・インパルス比較を行うNativeベンチマークを追加（0次ホールド基準はベンチマーク内部に限定）
 - `CicDecimator`/`CicInterpolator`と基本動作のNative testを追加
 - `SampleRateTracker`を追加し、サンプル到着周期の固定小数点平滑化とロック状態を提供
 - 補間ベンチマークCSVを検証・集計する依存パッケージなしの解析スクリプトを追加
@@ -67,7 +67,7 @@
 - 固定小数点formatのassociated typeを`Q1_31::Value`などから`Q1_31::Raw`へ変更
 - 固定小数点formatの`WIDTH`/`FRACTION_BITS`/`Raw`および丸め・overflow policyのdocumentation commentを拡充
 - ADAT→50MHz差動PDMの高音質化計画を、帯域制限付き4倍オーバーサンプリング、Farrow分数遅延、レート追従、ΔΣ評価の段階構成へ更新
-- Cubic Lagrange実装を`packages/interpolation/`と`packages/asrc/`へ、定量ベンチマークを`packages/interpolation/`へ分離
+- Cubic Lagrange実装を`packages/interpolation/`と`packages/sample_rate_conversion/`へ、定量ベンチマークを`packages/interpolation/`へ分離
 - 公開APIをS/PDIF/AES3のtransceiverと周辺コアに整理し、Sine ROMとIEC60958共通実装moduleをprivate化
 - S/PDIFの未実装領域をTODOとして明示し、公開packageとして維持
 - 公開moduleとpackageのdocumentation commentを`veryl doc`に関連付け、UART/MIDIレシーバの説明を追加
