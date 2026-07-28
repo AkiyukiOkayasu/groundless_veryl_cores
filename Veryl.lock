@@ -10,28 +10,6 @@ dependencies = []
 [projects.properties]
 
 [[projects]]
-name = "asrc"
-source = "packages/asrc"
-
-[projects.properties]
-
-[[projects.dependencies]]
-name = "interpolation"
-source = "packages/interpolation"
-
-[[projects.dependencies]]
-name = "nco"
-source = "packages/nco"
-
-[[projects.dependencies]]
-name = "filter"
-source = "packages/filter"
-
-[[projects.dependencies]]
-name = "fixedpoint"
-source = "packages/fixedpoint"
-
-[[projects]]
 name = "delta_sigma"
 source = "packages/delta_sigma"
 
@@ -44,9 +22,12 @@ source = "packages/fixedpoint"
 [[projects]]
 name = "filter"
 source = "packages/filter"
-dependencies = []
 
 [projects.properties]
+
+[[projects.dependencies]]
+name = "fixedpoint"
+source = "packages/fixedpoint"
 
 [[projects]]
 name = "fixedpoint"
@@ -102,6 +83,28 @@ source = "packages/fixedpoint"
 [[projects.dependencies]]
 name = "nco"
 source = "packages/nco"
+
+[[projects]]
+name = "sample_rate_conversion"
+source = "packages/sample_rate_conversion"
+
+[projects.properties]
+
+[[projects.dependencies]]
+name = "nco"
+source = "packages/nco"
+
+[[projects.dependencies]]
+name = "fixedpoint"
+source = "packages/fixedpoint"
+
+[[projects.dependencies]]
+name = "interpolation"
+source = "packages/interpolation"
+
+[[projects.dependencies]]
+name = "filter"
+source = "packages/filter"
 
 [[projects]]
 name = "spi"

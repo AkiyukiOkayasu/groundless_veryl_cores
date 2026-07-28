@@ -1,10 +1,10 @@
 [project]
-name = "gndless_asrc"
+name = "gndless_sample_rate_conversion"
 version = "0.1.0"
 authors = ["Akiyuki Okayasu"]
-description = "FIFO-backed asynchronous sample-rate converters for Veryl."
+description = "Synchronous and asynchronous sample-rate converters for Veryl."
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/AkiyukiOkayasu/gndless-asrc-veryl"
+repository = "https://github.com/AkiyukiOkayasu/gndless-sample-rate-conversion-veryl"
 
 [build]
 sources = ["src"]

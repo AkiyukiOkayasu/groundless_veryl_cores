@@ -74,7 +74,7 @@ module fixed_rate_asrc_benchmark {
         advance        : direct_advance        ,
     );
 
-    inst direct_asrc: asrc::ContinuousLinearAsrc #(
+    inst direct_asrc: sample_rate_conversion::ContinuousLinearAsrc #(
         SAMPLE_WIDTH: SAMPLE_WIDTH,
         PHASE_WIDTH : PHASE_WIDTH ,
         INPUT_DEPTH : 8           ,
@@ -92,7 +92,7 @@ module fixed_rate_asrc_benchmark {
         underflow    : direct_underflow    ,
     );
 
-    inst four_asrc: asrc::FourXHalfbandAsrc #(
+    inst four_asrc: sample_rate_conversion::FourXHalfbandAsrc #(
         SAMPLE_WIDTH: SAMPLE_WIDTH,
         PHASE_WIDTH : PHASE_WIDTH ,
         INPUT_DEPTH : 8           ,

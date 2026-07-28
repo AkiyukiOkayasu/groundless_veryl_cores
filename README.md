@@ -14,7 +14,7 @@ Verylで記述した、オーディオ信号処理・デジタルオーディオ
 | `nco` | `NcoTick`, `FractionalPhaseAccumulator`, `Phase`, `Phasor` | phaseとclock-enable生成 |
 | `filter` | CIC、halfband、LPF/HPF | レート変換とaudio filter |
 | `oscillator` | sine/triangle/saw/square/noise | 波形・ノイズ生成 |
-| `asrc` | `LinearAsrc`, `CubicLagrangeAsrc`, `FourXHalfbandAsrc` | 分数比sample-rate conversion |
+| `sample_rate_conversion` | `LinearAsrc`, `CubicLagrangeAsrc`, `FourXHalfbandAsrc` | 同期・非同期のsample-rate conversion |
 | `delta_sigma` | `DeltaSigma1st`, `DeltaSigma2nd` | Q1.31 PCMからPDM生成 |
 | `uart` / `midi` | `UartRx`, `MidiRx` | UARTとMIDI速度byte受信 |
 | `spi` | `Spi::SpiMode`, `SpiMaster` | SPI master |

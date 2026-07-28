@@ -53,6 +53,7 @@
 
 ### Changed
 
+- ASRC専用の`asrc` packageを、同期・非同期sample-rate converterをまとめる`sample_rate_conversion` packageへ改名
 - 公開RTLを12個のinner projectへ分割し、ルートをpackage横断integration／benchmark専用projectへ整理
 - 全packageをlocal path dependencyで接続し、package単独のfmt/check/test/build/docとbackend validationをCIへ追加
 - 補間kernelを`gndless_interpolation`へ移動し、`CubicLagrangeInterpolator`の丸め・overflow policyと小幅全探索testを追加

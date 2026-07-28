@@ -18,7 +18,7 @@ interpolation = { path = "./packages/interpolation" }
 nco = { path = "./packages/nco" }
 filter = { path = "./packages/filter" }
 oscillator = { path = "./packages/oscillator" }
-asrc = { path = "./packages/asrc" }
+sample_rate_conversion = { path = "./packages/sample_rate_conversion" }
 delta_sigma = { path = "./packages/delta_sigma" }
 uart = { path = "./packages/uart" }
 midi = { path = "./packages/midi" }
