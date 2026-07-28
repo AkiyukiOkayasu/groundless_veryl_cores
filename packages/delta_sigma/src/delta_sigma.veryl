@@ -62,7 +62,7 @@ pub module DeltaSigma2nd (
     }
 }
 
-/// デルタシグマ変調器のPDM密度を検証するVeryl Native test。
+/// 1次デルタシグマ変調器の出力密度が入力振幅に追従することを検証
 #[test(test_delta_sigma_1st_density)]
 module test_delta_sigma_1st_density {
     inst clk: $tb::clock_gen;
@@ -129,6 +129,7 @@ module test_delta_sigma_1st_density {
     }
 }
 
+/// 2次デルタシグマ変調器の出力密度が入力振幅に追従することを検証
 #[test(test_delta_sigma_2nd_density)]
 module test_delta_sigma_2nd_density {
     inst clk: $tb::clock_gen;

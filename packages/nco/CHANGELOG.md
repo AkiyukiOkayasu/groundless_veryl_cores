@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 各testのdoc commentを検証目的が分かる表現へ統一
 ### Changed
 
 - NCO tick、分数位相アキュムレータ、`Phase`、`Phasor`を独立packageへ移動

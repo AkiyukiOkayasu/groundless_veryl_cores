@@ -246,7 +246,7 @@ module Iec60958StereoRx (
     }
 }
 
-/// 1 stereo sampleをA/B subframeへ送り、同じstreamから復元する。
+/// 1 stereo sampleをA/B subframeへ送り、同じstreamから復元
 #[test(test_iec60958_stereo_io_loopback)]
 module test_iec60958_stereo_io_loopback {
     inst clk: $tb::clock_gen;

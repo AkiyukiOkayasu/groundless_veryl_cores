@@ -95,6 +95,7 @@ module BitDecoder (
     }
 }
 
+/// エッジ間隔から1〜5bitの連続値を復号し、SYNC期間を除外できることを検証
 #[test(test_adat_bit_decoder)]
 module test_adat_bit_decoder {
     inst clk: $tb::clock_gen;

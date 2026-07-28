@@ -63,7 +63,7 @@ module Aes3ChannelStatusBit (
     }
 }
 
-/// S/PDIFとAES3のchannel status bit orderingを確認する。
+/// S/PDIFとAES3のchannel status bit orderingを検証
 #[test(test_iec60958_channel_status_bit)]
 module test_iec60958_channel_status_bit {
     inst clk: $tb::clock_gen;

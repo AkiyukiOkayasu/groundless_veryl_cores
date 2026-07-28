@@ -46,6 +46,7 @@ pub module MidiRx #(
 // MidiRx 1バイト正常受信テスト (0x90 = Note On)
 // MidiRxは内部に $std::synchronizer_basic (2段FF) があるため
 // ストップビット完了後に数クロックのマージンが必要
+/// 31.25kbaudのMIDI byte 0x90をLSB-firstで受信し、valid pulseを検証
 #[test(test_midi_rx)]
 module test_midi_rx {
     inst clk: $tb::clock_gen;

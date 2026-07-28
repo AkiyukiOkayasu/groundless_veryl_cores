@@ -234,7 +234,7 @@ module Iec60958BmcDeserializer (
     }
 }
 
-/// BMC serializerとdeserializerをcell_tick直結で検証する。
+/// BMC serializerとdeserializerをcell_tick直結で検証
 #[test(test_iec60958_bmc_codec)]
 module test_iec60958_bmc_codec {
     inst clk: $tb::clock_gen;
@@ -326,7 +326,7 @@ module test_iec60958_bmc_codec {
     }
 }
 
-/// BMC serializerがpreambleの8cell golden patternをそのまま送出することを確認する。
+/// BMC serializerがpreambleの8cell golden patternをそのまま送出することを検証
 #[test(test_iec60958_bmc_preamble_golden)]
 module test_iec60958_bmc_preamble_golden {
     inst clk: $tb::clock_gen;

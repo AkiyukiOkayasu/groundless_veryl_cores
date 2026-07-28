@@ -50,7 +50,7 @@ module Iec60958BlockScheduler #(
     }
 }
 
-/// 192フレームでpreambleがB/A/Bへ巡回することを確認する。
+/// 192フレームでpreambleがB/A/Bへ巡回することを検証
 #[test(test_iec60958_block_scheduler)]
 module test_iec60958_block_scheduler {
     inst clk: $tb::clock_gen;

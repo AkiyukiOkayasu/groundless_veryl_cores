@@ -7,8 +7,8 @@ pub module CubicLagrangeInterpolator #(
     param PHASE_WIDTH  : u32                             = 32                                                   ,
     param ROUNDING_MODE: fixedpoint::Types::RoundingMode = fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN,
     param OVERFLOW_MODE: fixedpoint::Types::OverflowMode = fixedpoint::Types::OverflowMode::SATURATE            ,
-    const NUM_WIDTH    : u32                             = SAMPLE_WIDTH + 2 + 18 + PHASE_WIDTH * 3 + 3,
-    const OUTPUT_SHIFT : u32                             = 16 + PHASE_WIDTH * 3,
+    const NUM_WIDTH    : u32                             = SAMPLE_WIDTH + 2 + 18 + PHASE_WIDTH * 3 + 3          ,
+    const OUTPUT_SHIFT : u32                             = 16 + PHASE_WIDTH * 3                                 ,
 ) (
     sample_m1: input  signed logic<SAMPLE_WIDTH>,
     sample0  : input  signed logic<SAMPLE_WIDTH>,
@@ -56,7 +56,7 @@ pub module CubicLagrangeInterpolator #(
     }
 }
 
-/// 3次Lagrange補間の定数列、ramp、端点を検証する。
+/// 3次Lagrange補間の定数列、ramp、端点を検証
 #[test(test_cubic_lagrange_interpolator)]
 module test_cubic_lagrange_interpolator {
     var sample_m1: signed logic<16>;
@@ -97,7 +97,7 @@ module test_cubic_lagrange_interpolator {
     }
 }
 
-/// 4点窓のovershootに対するsaturationとwrapを検証する。
+/// 4点窓のovershootに対するsaturationとwrapを検証
 #[test(test_cubic_lagrange_interpolator_overflow)]
 module test_cubic_lagrange_interpolator_overflow {
     inst clk: $tb::clock_gen;

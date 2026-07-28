@@ -275,7 +275,7 @@ pub module ContinuousLinearAsrc #(
     }
 }
 
-/// 線形補間と分数比sample列変換を検証するVeryl Native test。
+/// 線形補間と分数比sample列変換を検証
 #[test(test_linear_asrc)]
 module test_linear_asrc {
     const SAMPLE_WIDTH: u32 = 16;
@@ -366,7 +366,7 @@ module test_linear_asrc {
     }
 }
 
-/// 連続出力ASRCと分数位相アキュムレータの最小統合を検証する。
+/// 連続出力ASRCと分数位相アキュムレータの最小統合を検証
 #[test(test_continuous_linear_asrc)]
 module test_continuous_linear_asrc {
     const SAMPLE_WIDTH: u32 = 16;

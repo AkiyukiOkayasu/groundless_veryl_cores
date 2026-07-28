@@ -121,7 +121,7 @@ pub module FourXHalfbandAsrc #(
     assign phase_enable        = output_active;
 }
 
-/// 2段HBFのburst接続、STD FIFOの蓄積、50MHz連続出力を検証する。
+/// 2段HBFのburst接続、STD FIFOの蓄積、50MHz連続出力を検証
 #[test(test_four_x_halfband_asrc)]
 module test_four_x_halfband_asrc {
     const SAMPLE_WIDTH: u32 = 16;

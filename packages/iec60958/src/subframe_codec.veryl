@@ -31,7 +31,7 @@ module Iec60958SubframeUnpacker (
     }
 }
 
-/// payloadのbit配置と偶数parityを固定golden値で検証する。
+/// payloadのbit配置と偶数parityを固定golden値で検証
 #[test(test_iec60958_subframe_codec)]
 module test_iec60958_subframe_codec {
     inst clk: $tb::clock_gen;

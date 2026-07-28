@@ -7,7 +7,7 @@ pub module LinearInterpolator #(
     param PHASE_WIDTH  : u32                             = 32                                                   ,
     param ROUNDING_MODE: fixedpoint::Types::RoundingMode = fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN,
     param OVERFLOW_MODE: fixedpoint::Types::OverflowMode = fixedpoint::Types::OverflowMode::SATURATE            ,
-    const NUM_WIDTH    : u32                             = SAMPLE_WIDTH + PHASE_WIDTH + 3,
+    const NUM_WIDTH    : u32                             = SAMPLE_WIDTH + PHASE_WIDTH + 3                       ,
 ) (
     sample0: input  signed logic<SAMPLE_WIDTH>,
     sample1: input  signed logic<SAMPLE_WIDTH>,
@@ -27,7 +27,7 @@ pub module LinearInterpolator #(
     }
 }
 
-/// LinearInterpolatorの端点・中点と符号跨ぎを検証する。
+/// LinearInterpolatorの端点・中点と符号跨ぎを検証
 #[test(test_linear_interpolator)]
 module test_linear_interpolator {
     var sample0: signed logic<16>;
@@ -50,7 +50,7 @@ module test_linear_interpolator {
     }
 }
 
-/// sample width 4、phase width 3の全入力組み合わせを検証する。
+/// sample width 4、phase width 3の全入力組み合わせを検証
 #[test(test_linear_interpolator_exhaustive_small_width)]
 module test_linear_interpolator_exhaustive_small_width {
     inst clk: $tb::clock_gen;
@@ -95,7 +95,7 @@ module test_linear_interpolator_exhaustive_small_width {
     }
 }
 
-/// 正負tieを含む全rounding modeの結果を検証する。
+/// 正負tieを含む全rounding modeの結果を検証
 #[test(test_linear_interpolator_rounding_modes)]
 module test_linear_interpolator_rounding_modes {
     inst clk: $tb::clock_gen;

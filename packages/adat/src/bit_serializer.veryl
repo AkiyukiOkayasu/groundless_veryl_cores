@@ -124,6 +124,7 @@ module BitSerializer #(
     }
 }
 
+/// 256bitフレームをMSB-firstで送出し、最後にframe_doneを生成することを検証
 #[test(test_adat_bit_serializer)]
 module test_adat_bit_serializer {
     inst clk: $tb::clock_gen;

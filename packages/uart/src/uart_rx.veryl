@@ -113,7 +113,7 @@ pub module UartRx #(
     }
 }
 
-/// 1バイト正常受信テスト (0x90 = MIDI Note On)
+/// UART frameから0x90をLSB-firstで受信し、valid pulseを検証
 #[test(test_uart_rx)]
 module test_uart_rx {
     inst clk: $tb::clock_gen;

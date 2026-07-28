@@ -522,7 +522,7 @@ pub function convert::<
     >(value);
 }
 
-/// 丸め付き右シフトの動作を検証する。
+/// 丸め付き右シフトの動作を検証
 #[test(test_fixed_point_round_shift)]
 module test_fixed_point_round_shift {
     inst clk: $tb::clock_gen;
@@ -617,7 +617,7 @@ module test_fixed_point_round_shift {
     }
 }
 
-/// signed saturationの動作を検証する。
+/// signed saturationの動作を検証
 #[test(test_fixed_point_saturation)]
 module test_fixed_point_saturation {
     inst clk: $tb::clock_gen;
@@ -666,7 +666,7 @@ module test_fixed_point_saturation {
     }
 }
 
-/// signed resizeとmultiply helperの動作を検証する。
+/// signed resizeとmultiply helperの動作を検証
 #[test(test_fixed_point_resize_and_mul)]
 module test_fixed_point_resize_and_mul {
     inst clk: $tb::clock_gen;
@@ -780,7 +780,7 @@ module test_fixed_point_resize_and_mul {
     }
 }
 
-/// signed generic APIの幅変換、丸め境界、非対称乗算を検証する。
+/// signed generic APIの幅変換、丸め境界、非対称乗算を検証
 #[test(test_fixed_point_generic_api)]
 module test_fixed_point_generic_api {
     inst clk: $tb::clock_gen;
@@ -910,7 +910,7 @@ module test_fixed_point_generic_api {
     }
 }
 
-/// formatを使った変換APIを検証する。
+/// formatを使った変換APIを検証
 #[test(test_fixed_point_convert)]
 module test_fixed_point_convert {
     inst clk: $tb::clock_gen;
@@ -952,7 +952,7 @@ module test_fixed_point_convert {
     }
 }
 
-/// 名前付きQ形式presetがformat定数とValue型を正しく提供することを検証する。
+/// 名前付きQ形式presetによるformat定数とRaw型の提供を検証
 #[test(test_fixed_point_presets)]
 module test_fixed_point_presets {
     var q1_31: Q1_31::Raw;

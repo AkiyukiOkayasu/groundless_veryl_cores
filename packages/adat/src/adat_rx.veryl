@@ -208,6 +208,7 @@ pub module AdatRx (
     );
 }
 
+/// TXからRXへ11フレームをloopbackし、lock獲得と全channelの復元を検証
 #[test(test_adat_loopback)]
 module test_adat_loopback {
     inst clk: $tb::clock_gen;

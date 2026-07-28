@@ -135,7 +135,7 @@ pub module ClockEnableNco #(
     }
 }
 
-/// NcoTickの基本的な剰余計算を検証する。
+/// NcoTickの基本的な剰余計算を検証
 #[test(test_nco_tick_basic)]
 module test_nco_tick_basic {
     inst clk: $tb::clock_gen;
@@ -211,7 +211,7 @@ module test_nco_tick_basic {
     }
 }
 
-/// 固定比NCOが自動初期化され、指定比率でtickを生成することを検証する。
+/// 固定比NCOが自動初期化され、指定比率でtickを生成することを検証
 #[test(test_clock_enable_nco)]
 module test_clock_enable_nco {
     inst clk: $tb::clock_gen;

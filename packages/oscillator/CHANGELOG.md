@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 各testのdoc commentを検証目的が分かる表現へ統一
 ### Changed
 
 - waveform/noise oscillatorを独立packageへ移動

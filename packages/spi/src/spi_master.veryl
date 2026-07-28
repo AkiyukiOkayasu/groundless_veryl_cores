@@ -295,7 +295,7 @@ pub module SpiMaster::<MODE: SpiMode = SpiMode::Mode0> #(
 // Verylネイティブテスト
 // ==========================================================================
 
-/// Mode 0ループバックテスト
+/// Mode 0で1byteを送受信し、受信値と完了通知を検証
 #[test(test_spi_mode0_loopback)]
 module test_spi_mode0_loopback {
     // SPI共通型をimport
@@ -349,7 +349,7 @@ module test_spi_mode0_loopback {
     }
 }
 
-/// Mode 1ループバックテスト
+/// Mode 1で1byteを送受信し、受信値と完了通知を検証
 #[test(test_spi_mode1_loopback)]
 module test_spi_mode1_loopback {
     // SPI共通型をimport
@@ -403,7 +403,7 @@ module test_spi_mode1_loopback {
     }
 }
 
-/// Mode 2ループバックテスト
+/// Mode 2で1byteを送受信し、受信値と完了通知を検証
 #[test(test_spi_mode2_loopback)]
 module test_spi_mode2_loopback {
     // SPI共通型をimport
@@ -457,7 +457,7 @@ module test_spi_mode2_loopback {
     }
 }
 
-/// Mode 3ループバックテスト
+/// Mode 3で1byteを送受信し、受信値と完了通知を検証
 #[test(test_spi_mode3_loopback)]
 module test_spi_mode3_loopback {
     // SPI共通型をimport
@@ -511,7 +511,7 @@ module test_spi_mode3_loopback {
     }
 }
 
-/// SCLKアイドル極性検証テスト
+/// CPOLに応じて待機中のSCLK極性が切り替わることを検証
 #[test(test_spi_idle_polarity)]
 module test_spi_idle_polarity {
     // SPI共通型をimport
@@ -582,7 +582,7 @@ module test_spi_idle_polarity {
     }
 }
 
-/// 連続送信テスト
+/// done後に次のtransactionを開始し、連続転送できることを検証
 #[test(test_spi_consecutive_transfer)]
 module test_spi_consecutive_transfer {
     // SPI共通型をimport

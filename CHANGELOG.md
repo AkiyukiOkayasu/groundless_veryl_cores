@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 全testへ検証目的を示すdoc commentを追加し、表記を統一
 - ADATの公開型packageをproject名と重複する`Adat`から`Types`へ改名
 - FixedPoint、SPI、IEC60958の公開型packageもproject名と重複しない`Types`へ改名
 

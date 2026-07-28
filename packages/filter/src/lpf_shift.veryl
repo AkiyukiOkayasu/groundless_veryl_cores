@@ -208,7 +208,7 @@ pub module LpfShiftVariableUnsigned #(
 // テスト
 //-----------------------------------------------------------------------------
 
-/// テスト: LpfShift の基本動作を検証
+/// LpfShift の基本動作を検証
 /// - リセット後の出力がゼロであることを確認
 /// - ステップ入力に対して徐々に目標値に近づくことを確認
 #[test(test_lpf_shift_basic)]
@@ -257,7 +257,7 @@ module test_lpf_shift_basic {
     }
 }
 
-/// テスト: 負の値への追従を検証
+/// 負の値への追従を検証
 #[test(test_lpf_shift_negative)]
 module test_lpf_shift_negative {
     inst clk: $tb::clock_gen;
@@ -295,7 +295,7 @@ module test_lpf_shift_negative {
     }
 }
 
-/// テスト: イネーブル信号の動作を検証
+/// イネーブル信号の動作を検証
 #[test(test_lpf_shift_enable)]
 module test_lpf_shift_enable {
     inst clk: $tb::clock_gen;
@@ -335,7 +335,7 @@ module test_lpf_shift_enable {
     }
 }
 
-/// テスト: 可変シフトLPFの動作を検証
+/// 可変シフトLPFの動作を検証
 #[test(test_lpf_shift_variable)]
 module test_lpf_shift_variable {
     inst clk: $tb::clock_gen;
@@ -381,7 +381,7 @@ module test_lpf_shift_variable {
     }
 }
 
-/// テスト: LpfShiftUnsigned の基本動作を検証
+/// LpfShiftUnsigned の基本動作を検証
 #[test(test_lpf_shift_unsigned_basic)]
 module test_lpf_shift_unsigned_basic {
     inst clk: $tb::clock_gen;
@@ -428,7 +428,7 @@ module test_lpf_shift_unsigned_basic {
     }
 }
 
-/// テスト: LpfShiftUnsigned で減少方向への追従を検証
+/// LpfShiftUnsigned で減少方向への追従を検証
 #[test(test_lpf_shift_unsigned_decrease)]
 module test_lpf_shift_unsigned_decrease {
     inst clk: $tb::clock_gen;

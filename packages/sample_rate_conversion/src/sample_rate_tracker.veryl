@@ -109,7 +109,7 @@ pub module SampleRateTracker #(
     }
 }
 
-/// サンプル周期の測定と平滑化を検証するNative test。
+/// サンプル周期の測定、平滑化、lock判定を検証
 #[test(test_sample_rate_tracker)]
 module test_sample_rate_tracker {
     inst clk: $tb::clock_gen;

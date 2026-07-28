@@ -67,7 +67,7 @@ pub module Smux2Unpacker #(
     }
 }
 
-/// S/MUX2のサンプル順序を検証するVeryl Native test。
+/// pack後のframeをunpackし、S/MUX2のsample順序が復元されることを検証
 #[test(test_smux2_pack_unpack)]
 module test_smux2_pack_unpack {
     inst clk: $tb::clock_gen;

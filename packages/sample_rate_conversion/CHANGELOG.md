@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 各testのdoc commentを検証目的が分かる表現へ統一
 ### Changed
 
 - package名を`asrc`から`sample_rate_conversion`へ変更し、同期型sample-rate converterも収容できる構成へ整理

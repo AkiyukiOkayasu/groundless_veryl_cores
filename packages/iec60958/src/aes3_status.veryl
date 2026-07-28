@@ -50,7 +50,7 @@ module Aes3ChannelStatusStream (
     }
 }
 
-/// AES3 status streamのCRC更新タイミングを確認する。
+/// AES3 status streamのCRC更新タイミングを検証
 #[test(test_aes3_channel_status_stream)]
 module test_aes3_channel_status_stream {
     inst clk: $tb::clock_gen;

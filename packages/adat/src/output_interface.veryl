@@ -151,6 +151,7 @@ module OutputInterface (
     }
 }
 
+/// 8channel受信後の一括更新、valid pulse、S/MUX flagを検証
 #[test(test_adat_output_interface)]
 module test_adat_output_interface {
     inst clk: $tb::clock_gen;

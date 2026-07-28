@@ -144,6 +144,7 @@ module FrameParser (
     }
 }
 
+/// 復号済みbit列からuser bitと8channelのPCMを伝送順に抽出できることを検証
 #[test(test_adat_frame_parser)]
 module test_adat_frame_parser {
     inst clk: $tb::clock_gen;

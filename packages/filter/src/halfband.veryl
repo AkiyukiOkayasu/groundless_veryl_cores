@@ -197,7 +197,7 @@ pub module HalfbandInterpolator2x #(
     }
 }
 
-/// 2倍補間器のburst、出力保持、入力受理を検証する。
+/// 2倍補間器のburst、出力保持、入力受理を検証
 #[test(test_halfband_interpolator2x_stream)]
 module test_halfband_interpolator2x_stream {
     inst clk: $tb::clock_gen;

@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- UART受信testのdoc commentへ検証対象を明記
 ### Changed
 
 - UART receiverを独立packageへ移動

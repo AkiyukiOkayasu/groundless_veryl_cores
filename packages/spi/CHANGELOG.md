@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 各testのdoc commentへmode別の検証対象を明記
+
 ### Changed
 
 - 公開型packageをproject名と重複する`Spi`から`Types`へ改名

@@ -283,7 +283,7 @@ pub module Aes3Receiver (
     );
 }
 
-/// S/PDIF/AES3の公開transceiverをそれぞれloopbackする。
+/// S/PDIF/AES3の公開transceiverをそれぞれloopback
 #[test(test_iec60958_link_transceivers)]
 module test_iec60958_link_transceivers {
     inst clk: $tb::clock_gen;

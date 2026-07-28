@@ -213,7 +213,7 @@ pub module CicInterpolator #(
     }
 }
 
-/// CIC間引きの基本動作を検証するNative test。
+/// 指定間引き比ごとの出力valid周期とDC gainを検証
 #[test(test_cic_decimator)]
 module test_cic_decimator {
     inst clk: $tb::clock_gen;
@@ -257,7 +257,7 @@ module test_cic_decimator {
     }
 }
 
-/// CIC補間の基本動作を検証するNative test。
+/// zero stuffingと積分処理による補間出力の周期と値を検証
 #[test(test_cic_interpolator)]
 module test_cic_interpolator {
     inst clk: $tb::clock_gen;

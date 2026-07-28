@@ -2,7 +2,7 @@
 ///
 /// 50MHzクロック上で48kHzの入力validを分数位相アキュムレータから生成し、
 /// 同じ入力正弦波を2経路へ与える。CSV生成は長時間のためignored testとし、
-/// 出力は4クロックに1回だけ記録して外部の標準Python解析へ渡す。
+/// 出力は4クロックに1回だけ記録して外部の標準Python解析へ渡す
 #[test(fixed_rate_asrc_benchmark)]
 #[ignore]
 module fixed_rate_asrc_benchmark {

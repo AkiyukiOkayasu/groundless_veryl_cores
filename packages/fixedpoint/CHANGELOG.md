@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- 各testのdoc commentを検証目的が分かる表現へ統一
+
 ### Changed
 
 - 公開policy packageをproject名と重複する`FixedPoint`から`Types`へ改名

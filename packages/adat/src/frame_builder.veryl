@@ -57,6 +57,7 @@ module FrameBuilder (
     }
 }
 
+/// SYNC、user bit、8channelのPCMがseparator付きフレームへ配置されることを検証
 #[test(test_adat_frame_builder)]
 module test_adat_frame_builder {
     inst clk: $tb::clock_gen;

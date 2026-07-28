@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 各testのdoc commentへ検証対象を明記
 ### Changed
 
 - CIC、halfband、LPF、HPFを独立packageへ移動

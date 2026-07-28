@@ -29,6 +29,7 @@ module NrziEncoder (
     }
 }
 
+/// 入力1で出力を反転し、入力0で出力を保持するNRZI符号化を検証
 #[test(test_adat_nrzi_encoder)]
 module test_adat_nrzi_encoder {
     inst clk: $tb::clock_gen;

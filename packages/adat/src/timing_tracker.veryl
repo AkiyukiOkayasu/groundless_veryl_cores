@@ -114,6 +114,7 @@ module TimingTracker (
     }
 }
 
+/// エッジ間隔からデータ期間とSYNC期間を識別し、frame時間を保持することを検証
 #[test(test_adat_timing_tracker)]
 module test_adat_timing_tracker {
     inst clk: $tb::clock_gen;

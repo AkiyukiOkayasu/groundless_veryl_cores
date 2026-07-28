@@ -160,7 +160,7 @@ module Iec60958SubframeRx (
     }
 }
 
-/// 新しいsubframe codecのTX/RX接続をNative loopbackする。
+/// 新しいsubframe codecのTX/RX接続をloopbackで検証
 #[test(test_iec60958_subframe_io_loopback)]
 module test_iec60958_subframe_io_loopback {
     inst clk: $tb::clock_gen;

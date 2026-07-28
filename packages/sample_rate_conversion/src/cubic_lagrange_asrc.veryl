@@ -151,7 +151,7 @@ pub module CubicLagrangeAsrc #(
     }
 }
 
-/// Cubic Lagrange ASRCの4点窓、分数advance、FIFO補充を検証するNative test。
+/// Cubic Lagrange ASRCの4点窓、分数advance、FIFO補充を検証
 #[test(test_cubic_lagrange_asrc)]
 module test_cubic_lagrange_asrc {
     var input_valid  : logic           ;
