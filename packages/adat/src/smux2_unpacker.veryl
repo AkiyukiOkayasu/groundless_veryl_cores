@@ -2,7 +2,20 @@
 ///
 /// 1つのADATフレームを受けたサイクルで先行サンプルを出力し、
 /// 次のシステムクロックで後続サンプルを出力する。したがって、
-/// `frame_valid` 1回に対して `sample_valid` は2回発生する。
+/// `frame_valid` 1回に対して `sample_valid` は2クロック連続でHighになる。
+/// `frame_valid`は、後続サンプルの出力が終わるまで再度アサートしないこと。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'clk',          wave: 'p.....' },
+///     { name: 'frame_valid',  wave: '010...' },
+///     { name: 'channels',     wave: 'x3....', data: ['A0,B0,A1,B1,A2,B2,A3,B3'] },
+///     { name: 'samples',      wave: 'x45...', data: ['A[0..3]', 'B[0..3]'] },
+///     { name: 'sample_valid', wave: '01.0..' }
+///   ]
+/// }
+/// ```
 pub module Smux2Unpacker #(
     param SAMPLE_WIDTH: u32 = 24,
 ) (

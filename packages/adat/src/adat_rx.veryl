@@ -14,8 +14,8 @@ import Adat::AdatFamily;
 /// - 96kHz: 4チャンネル (S/MUX2)
 /// - 192kHz: 2チャンネル (S/MUX4)
 ///
-/// # S/MUX時のチャンネルマッピング（利用側で実装）
-/// 本モジュールは `channels[8]` を物理スロットとして出力し、S/MUXの論理チャンネル再構成は行わない。
+/// # S/MUX時のチャンネルマッピング（別moduleまたは利用側で実装）
+/// 本モジュールは `channels[0..7]` を物理スロットとして出力し、S/MUXの論理チャンネル再構成は行わない。
 ///
 /// - S/MUX2 (96kHz / 88.2kHz, 4ch)
 ///   - Logical CH0 <= `channels[0]` + `channels[1]`
@@ -44,7 +44,8 @@ import Adat::AdatFamily;
 ///
 /// User bitはU3からU0、各channelの24bit PCMはD23からD0のMSB-firstで伝送される。
 /// 4bitごとにseparator=1が続き、NRZI信号に同期用の遷移を作る。
-/// `channels[8]` は物理スロットであり、S/MUXの論理channel再構成は利用側で行う。
+/// `channels[0..7]` は物理スロットであり、S/MUXの論理channel再構成は
+/// `Smux2Unpacker`などの別moduleまたは利用側の回路で行う。
 ///
 /// 伝送位置と内部ベクタ添字を含む詳細図はpackage READMEを参照。
 ///

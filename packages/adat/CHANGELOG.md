@@ -9,3 +9,4 @@
 - `adat_rx.veryl`に集中していたunit testを各helperの実装ファイルへ移動
 - `AdatRx`は50MHzでのみ実機確認済み、`AdatTx`は実機未確認であることをREADMEとmodule docへ明記
 - `AdatRx`のmodule docを公開信号の契約に絞り、NRZI復号後の詳細frame図をREADMEへ移動
+- `AdatTx`のWavedromを公開信号の契約へ整理し、S/MUX2 pack/unpackの時間順序図を追加

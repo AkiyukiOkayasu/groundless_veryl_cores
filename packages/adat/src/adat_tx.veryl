@@ -19,17 +19,21 @@ import Adat::AdatFamily;
 /// 3. `nrzi_encoder`
 ///    - シリアルビットをNRZIへ変換して`adat`へ出力
 ///
+/// # 公開インターフェースの概念タイミング
+///
+/// 次図は縮尺なし。`frame_clk`の立ち上がりで`channels`を取り込み、
+/// 256bitのNRZI送信が完了すると`frame_done`をシステムクロック1周期だけHighにする。
+/// `adat`の遷移パターンはPCM値によって変わる。
+///
 /// ```wavedrom
 /// {
 ///   signal: [
-///     { name: 'clk', wave: 'p................' },
-///     { name: 'frame_clk', wave: '0..10.............' },
-///     { name: 'frame_build_pulse', wave: '0...10............' },
-///     { name: 'frame_ready', wave: '0....10...........' },
-///     { name: 'serial_bit_valid', wave: '0........1.1.1.1.1' },
-///     { name: 'serial_frame_done', wave: '0................10' },
-///     { name: 'adat', wave: '0........x.1.x.0.x' }
-///   ]
+///     { name: 'frame_clk', wave: '0.10.........|0.10....' },
+///     { name: 'channels',  wave: '3............|4.......', data: ['frame N', 'frame N+1'] },
+///     { name: 'adat',      wave: 'x..5........x|..6.....', data: ['NRZI frame N', 'NRZI frame N+1'] },
+///     { name: 'frame_done', wave: '0..........10|........' }
+///   ],
+///   head: { text: 'Conceptual TX timing (not to scale)' }
 /// }
 /// ```
 pub module AdatTx #(
