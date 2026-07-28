@@ -7,7 +7,7 @@
 - 固定小数点共通演算を追加
   - `FixedPoint::RoundingMode` enumによる負方向、零方向、正方向、最近傍各種の丸め
   - `FixedPoint::OverflowMode` enumによるwrap/saturate
-  - signed固定小数点の右シフト、飽和、clamp、resize、multiply helper
+  - signed固定小数点の右シフト、飽和、resize、multiply helper
 - `SignedFixedPointFormat` protoと`SignedFixedPointFormatOf::<W, F>`によるformat generic APIを追加
 - Q1.31/Q2.16/Q3.24/Q8.19/Q8.24を`SignedFixedPointFormat`実装の名前付きpresetへ移行
 - project-scopeのgeneric演算を追加し、任意幅とformat-awareの固定小数点処理を提供
@@ -59,6 +59,7 @@
 - `FarrowInterpolator`/`FarrowAsrc`をそれぞれ`CubicLagrangeInterpolator`/`CubicLagrangeAsrc`へ移行し、`spi_pkg`を`Spi`へ改名
 - fixedpointのraw generic演算をproject-scopeへ統一し、parameterized moduleから直接利用する構成へ変更
 - `SignedFixedPoint` packageを廃止し、`convert`を含む固定小数点演算をflatなproject-scope APIへ統一
+- 固定小数点固有でない`clamp`を公開APIから削除し、`round_shift`と`saturate`の実装を`resize`へ統合
 - halfband固有の幅変換adapterを削除し、fixedpointのproject-scope `resize`を使用
 - 固定小数点実装を`packages/fixedpoint/`の独立Veryl project `gndless_fixedpoint`へ分離し、親projectからlocal path dependencyとして参照
 - 固定小数点の丸めモード指定を数値定数から `FixedPoint::RoundingMode` enumへ変更

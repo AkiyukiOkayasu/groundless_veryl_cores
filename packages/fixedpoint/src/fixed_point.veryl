@@ -353,67 +353,7 @@ pub function resize::<
 pub function round_shift::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::RoundingMode> (
     value: input signed logic<WIDTH>,
 ) -> signed logic<WIDTH> {
-    // SHIFTが入力幅を超えてもhalf値を保持できるよう、作業幅をシフト量からも導出する。
-    const WORK_WIDTH: u32 = if WIDTH + 2 >= SHIFT + 2 ? WIDTH + 2 : SHIFT + 2;
-
-    let value_ext          : signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - WIDTH, value});
-    let half_value         : signed logic<WORK_WIDTH> = if SHIFT == 0 ?
-        '0
-    :
-        $signed({1'b0 repeat WORK_WIDTH - 1, 1'b1} << (SHIFT - 1))
-    ;
-    let magnitude          : signed logic<WORK_WIDTH> = if value_ext[msb] == 1'b0 ? value_ext : -value_ext;
-    let truncated_magnitude: signed logic<WORK_WIDTH> = if SHIFT == 0 ? magnitude : magnitude >>> SHIFT;
-    let remainder          : signed logic<WORK_WIDTH> = if SHIFT == 0 ?
-        '0
-    :
-        magnitude - (truncated_magnitude <<< SHIFT)
-    ;
-    var rounded_magnitude  : signed logic<WORK_WIDTH>;
-    var result             : signed logic<WORK_WIDTH>;
-
-    rounded_magnitude = truncated_magnitude;
-
-    if SHIFT == 0 {
-        result = value_ext;
-    } else if MODE == FixedPoint::RoundingMode::TOWARD_NEGATIVE {
-        result = value_ext >>> SHIFT;
-    } else if MODE == FixedPoint::RoundingMode::TOWARD_ZERO {
-        if value_ext[msb] == 1'b0 {
-            result = truncated_magnitude;
-        } else {
-            result = -truncated_magnitude;
-        }
-    } else if MODE == FixedPoint::RoundingMode::TOWARD_POSITIVE {
-        if value_ext[msb] == 1'b0 {
-            if remainder != '0 {
-                result = truncated_magnitude + 1'b1;
-            } else {
-                result = truncated_magnitude;
-            }
-        } else {
-            result = -truncated_magnitude;
-        }
-    } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE {
-        result = (value_ext + half_value) >>> SHIFT;
-    } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO && value_ext[msb] == 1'b0 {
-        result = (value_ext + half_value) >>> SHIFT;
-    } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO {
-        result = -((-value_ext + half_value) >>> SHIFT);
-    } else if MODE == FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN {
-        if remainder >: half_value || (remainder == half_value && truncated_magnitude[0] == 1'b1) {
-            rounded_magnitude = truncated_magnitude + 1'b1;
-        }
-        if value_ext[msb] == 1'b0 {
-            result = rounded_magnitude;
-        } else {
-            result = -rounded_magnitude;
-        }
-    } else {
-        result = value_ext >>> SHIFT;
-    }
-
-    return $signed(result[WIDTH - 1:0]);
+    return resize::<WIDTH, SHIFT, WIDTH, 0, MODE, FixedPoint::OverflowMode::WRAP>(value);
 }
 
 /// signed値を指定幅へ飽和させる。
@@ -440,57 +380,14 @@ pub function round_shift::<WIDTH: u32, SHIFT: u32, MODE: FixedPoint::RoundingMod
 pub function saturate::<IN_WIDTH: u32, OUT_WIDTH: u32> (
     value: input signed logic<IN_WIDTH>,
 ) -> signed logic<OUT_WIDTH> {
-    const WORK_WIDTH  : u32 = if IN_WIDTH >= OUT_WIDTH ? IN_WIDTH + 1 : OUT_WIDTH + 1;
-    const BODY_WIDTH  : u32 = OUT_WIDTH - 1;
-    const EXTEND_WIDTH: u32 = WORK_WIDTH - OUT_WIDTH;
-
-    let value_ext: signed logic<WORK_WIDTH> = $signed({value[msb] repeat WORK_WIDTH - IN_WIDTH, value});
-    let max_value: signed logic<WORK_WIDTH> = {1'b0 repeat EXTEND_WIDTH, 1'b0, 1'b1 repeat BODY_WIDTH};
-    let min_value: signed logic<WORK_WIDTH> = {1'b1 repeat EXTEND_WIDTH, 1'b1, 1'b0 repeat BODY_WIDTH};
-
-    if value_ext >: max_value {
-        return $signed(max_value[OUT_WIDTH - 1:0]);
-    } else if value_ext <: min_value {
-        return $signed(min_value[OUT_WIDTH - 1:0]);
-    } else {
-        return $signed(value_ext[OUT_WIDTH - 1:0]);
-    }
-}
-
-/// signed値を任意の上下限へ制限する。
-///
-/// `lower <= upper`となる範囲で使用する。`value`が範囲内ならそのまま、
-/// 下限未満なら`lower`、上限超過なら`upper`を返す。
-///
-/// # 引数
-///
-/// - `value`: 制限対象のsigned値。
-/// - `lower`: 許可する下限。
-/// - `upper`: 許可する上限。
-/// - `WIDTH`: 3つの引数と戻り値のビット幅。
-///
-/// # 戻り値
-///
-/// `[lower, upper]`へ制限された値。
-///
-/// # 使用例
-///
-/// ```
-/// let result: signed logic<8> = clamp::<8>(8'sd100, -8'sd8, 8'sd8);
-/// // result == 8。
-/// ```
-pub function clamp::<WIDTH: u32> (
-    value: input signed logic<WIDTH>,
-    lower: input signed logic<WIDTH>,
-    upper: input signed logic<WIDTH>,
-) -> signed logic<WIDTH> {
-    if value <: lower {
-        return lower;
-    } else if value >: upper {
-        return upper;
-    } else {
-        return value;
-    }
+    return resize::<
+        IN_WIDTH                                 ,
+        0                                        ,
+        OUT_WIDTH                                ,
+        0                                        ,
+        FixedPoint::RoundingMode::TOWARD_NEGATIVE,
+        FixedPoint::OverflowMode::SATURATE       ,
+    >(value);
 }
 
 /// signed整数同士を、入力幅の合計幅で乗算する。
@@ -769,43 +666,6 @@ module test_fixed_point_saturation {
         test_input = -128;
         clk.next();
         $assert(saturated_small == -4'sd8, "negative minimum saturation mismatch");
-
-        $finish();
-    }
-}
-
-/// signed clampの動作を検証する。
-#[test(test_fixed_point_clamp)]
-module test_fixed_point_clamp {
-    inst clk: $tb::clock_gen;
-
-    var value  : signed logic<8>;
-    var clamped: signed logic<8>;
-
-    always_comb {
-        clamped = clamp::<8>(value, -8'sd3, 8'sd5);
-    }
-
-    initial {
-        value = -10;
-        clk.next();
-        $assert(clamped == -8'sd3, "lower clamp mismatch");
-
-        value = 2;
-        clk.next();
-        $assert(clamped == 8'sd2, "in-range clamp mismatch");
-
-        value = 10;
-        clk.next();
-        $assert(clamped == 8'sd5, "upper clamp mismatch");
-
-        value = -3;
-        clk.next();
-        $assert(clamped == -8'sd3, "exact lower clamp mismatch");
-
-        value = 5;
-        clk.next();
-        $assert(clamped == 8'sd5, "exact upper clamp mismatch");
 
         $finish();
     }
