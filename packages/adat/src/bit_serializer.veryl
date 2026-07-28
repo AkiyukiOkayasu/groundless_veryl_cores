@@ -1,4 +1,4 @@
-import Adat::AdatFamily;
+import Types::AdatFamily;
 
 /// TXビットシリアライザ
 ///

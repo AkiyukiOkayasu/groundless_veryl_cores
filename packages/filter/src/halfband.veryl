@@ -171,12 +171,12 @@ pub module HalfbandInterpolator2x #(
             } else if state == STATE_MAC {
                 if pair_index == PAIR_COUNT - 1 {
                     even_sample = fixedpoint::resize::<
-                        ACCUMULATOR_WIDTH                                                ,
-                        INPUT_FRAC                                                       ,
-                        SAMPLE_WIDTH                                                     ,
-                        OUTPUT_FRAC                                                      ,
-                        fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
-                        fixedpoint::FixedPoint::OverflowMode::SATURATE                   ,
+                        ACCUMULATOR_WIDTH                                           ,
+                        INPUT_FRAC                                                  ,
+                        SAMPLE_WIDTH                                                ,
+                        OUTPUT_FRAC                                                 ,
+                        fixedpoint::Types::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
+                        fixedpoint::Types::OverflowMode::SATURATE                   ,
                     >(next_accumulator);
                     accumulator = next_accumulator;
                     state       = STATE_OUTPUT_EVEN;

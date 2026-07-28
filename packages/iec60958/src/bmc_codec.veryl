@@ -3,8 +3,8 @@
 /// 1 subframeは8cellのpreambleと28bit payloadの56cellで構成する。
 /// `cell_tick`が到来したときだけ次のcellへ進み、入力は1エントリpending
 /// bufferへ先行受理できる。
-import Iec60958::PreambleLineCode;
-import Iec60958::Payload;
+import Types::PreambleLineCode;
+import Types::Payload;
 
 module Iec60958BmcSerializer (
     clk           : input  clock           ,
@@ -240,24 +240,24 @@ module test_iec60958_bmc_codec {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
 
-    var cell_tick        : logic                        ;
-    var subframe_valid   : logic                        ;
-    var subframe_ready   : logic                        ;
-    var preamble_in      : Iec60958::PreambleLineCode   ;
-    var payload_in       : Iec60958::Payload            ;
-    var line_bit         : logic                        ;
-    var line_valid       : logic                        ;
-    var busy             : logic                        ;
-    var preamble_out     : Iec60958::PreambleLineCode   ;
-    var preamble_seen    : logic                        ;
-    var payload_out      : Iec60958::Payload            ;
-    var payload_seen     : logic                        ;
-    var bmc_locked       : bbool                        ;
-    var preamble_error   : bbool                        ;
-    var bmc_error        : bbool                        ;
-    var cell_count       : logic                     <7>;
-    var preamble_detected: logic                        ;
-    var payload_detected : logic                        ;
+    var cell_tick        : logic                     ;
+    var subframe_valid   : logic                     ;
+    var subframe_ready   : logic                     ;
+    var preamble_in      : Types::PreambleLineCode   ;
+    var payload_in       : Types::Payload            ;
+    var line_bit         : logic                     ;
+    var line_valid       : logic                     ;
+    var busy             : logic                     ;
+    var preamble_out     : Types::PreambleLineCode   ;
+    var preamble_seen    : logic                     ;
+    var payload_out      : Types::Payload            ;
+    var payload_seen     : logic                     ;
+    var bmc_locked       : bbool                     ;
+    var preamble_error   : bbool                     ;
+    var bmc_error        : bbool                     ;
+    var cell_count       : logic                  <7>;
+    var preamble_detected: logic                     ;
+    var payload_detected : logic                     ;
 
     inst tx: Iec60958BmcSerializer (
         clk           : clk           ,
@@ -307,7 +307,7 @@ module test_iec60958_bmc_codec {
     initial {
         cell_tick      = 1'b1;
         subframe_valid = 1'b0;
-        preamble_in    = Iec60958::PreambleLineCode::X;
+        preamble_in    = Types::PreambleLineCode::X;
         payload_in     = 28'h0A5A5A5;
         rst.assert();
 
@@ -319,7 +319,7 @@ module test_iec60958_bmc_codec {
         $assert(cell_count == 7'd64, "BMC serializer must emit 64 cells");
         $assert(preamble_detected, "BMC deserializer did not find preamble");
         $assert(payload_detected, "BMC deserializer did not emit payload");
-        $assert(preamble_out == Iec60958::PreambleLineCode::X, "BMC preamble mismatch");
+        $assert(preamble_out == Types::PreambleLineCode::X, "BMC preamble mismatch");
         $assert(payload_out == payload_in, "BMC payload loopback mismatch");
         $assert(!preamble_error && !bmc_error, "BMC codec reported an unexpected error");
         $finish();
@@ -342,16 +342,16 @@ module test_iec60958_bmc_preamble_golden {
     var slot_count    : logic<4>;
 
     inst dut: Iec60958BmcSerializer (
-        clk           : clk                          ,
-        rst           : rst                          ,
-        cell_tick     : cell_tick                    ,
-        subframe_valid: subframe_valid               ,
-        subframe_ready: subframe_ready               ,
-        preamble      : Iec60958::PreambleLineCode::X,
-        payload       : 28'h0                        ,
-        line_bit      : line_bit                     ,
-        line_valid    : line_valid                   ,
-        busy          : busy                         ,
+        clk           : clk                       ,
+        rst           : rst                       ,
+        cell_tick     : cell_tick                 ,
+        subframe_valid: subframe_valid            ,
+        subframe_ready: subframe_ready            ,
+        preamble      : Types::PreambleLineCode::X,
+        payload       : 28'h0                     ,
+        line_bit      : line_bit                  ,
+        line_valid    : line_valid                ,
+        busy          : busy                      ,
     );
 
     always_ff (clk, rst) {
@@ -375,7 +375,7 @@ module test_iec60958_bmc_preamble_golden {
         clk.next(8);
 
         $assert(slot_count == 4'd8, "BMC preamble slot count mismatch");
-        $assert(captured == Iec60958::PreambleLineCode::X, "BMC preamble line code mismatch");
+        $assert(captured == Types::PreambleLineCode::X, "BMC preamble line code mismatch");
         $assert(busy, "BMC serializer must remain active after the golden preamble");
         $finish();
     }

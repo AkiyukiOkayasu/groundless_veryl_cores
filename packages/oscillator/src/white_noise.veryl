@@ -44,10 +44,10 @@ pub module WhiteNoise #(
     always_comb {
         audio_q1 = $signed(rng_state);
         audio_q8 = fixedpoint::convert::<
-            fixedpoint::Q1_31                                    ,
-            fixedpoint::Q8_24                                    ,
-            fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,
-            fixedpoint::FixedPoint::OverflowMode::SATURATE       ,
+            fixedpoint::Q1_31                               ,
+            fixedpoint::Q8_24                               ,
+            fixedpoint::Types::RoundingMode::TOWARD_NEGATIVE,
+            fixedpoint::Types::OverflowMode::SATURATE       ,
         >(audio_q1); // Q1.31 -> Q8.24
         audio    = audio_q8;
     }

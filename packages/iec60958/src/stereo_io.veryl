@@ -1,7 +1,7 @@
 /// IEC60958のstereo sampleをA/B subframeへ分解する共通TX。
-import Iec60958::AudioSample;
-import Iec60958::LinkType;
-import Iec60958::PreambleKind;
+import Types::AudioSample;
+import Types::LinkType;
+import Types::PreambleKind;
 
 module Iec60958StereoTx #(
     param LINK_TYPE: LinkType = LinkType::Spdif,
@@ -146,22 +146,22 @@ module Iec60958StereoRx (
     block_start  : output logic      ,
     error        : output bbool      ,
 ) {
-    var subframe_valid  : logic                 ;
-    var subframe_ready  : logic                 ;
-    var preamble_kind   : Iec60958::PreambleKind;
-    var audio           : AudioSample           ;
-    var invalid         : bbool                 ;
-    var user            : logic                 ;
-    var status          : logic                 ;
-    var parity_error    : bbool                 ;
-    var preamble_error  : bbool                 ;
-    var bmc_error       : bbool                 ;
-    var left_pending    : logic                 ;
-    var left_audio_reg  : AudioSample           ;
-    var left_invalid_reg: bbool                 ;
-    var left_user_reg   : logic                 ;
-    var left_status_reg : logic                 ;
-    var left_block_start: logic                 ;
+    var subframe_valid  : logic              ;
+    var subframe_ready  : logic              ;
+    var preamble_kind   : Types::PreambleKind;
+    var audio           : AudioSample        ;
+    var invalid         : bbool              ;
+    var user            : logic              ;
+    var status          : logic              ;
+    var parity_error    : bbool              ;
+    var preamble_error  : bbool              ;
+    var bmc_error       : bbool              ;
+    var left_pending    : logic              ;
+    var left_audio_reg  : AudioSample        ;
+    var left_invalid_reg: bbool              ;
+    var left_user_reg   : logic              ;
+    var left_status_reg : logic              ;
+    var left_block_start: logic              ;
 
     assign subframe_ready = !sample_valid || sample_ready;
 
@@ -214,7 +214,7 @@ module Iec60958StereoRx (
             }
 
             if subframe_valid && subframe_ready {
-                if preamble_kind == Iec60958::PreambleKind::ChannelB {
+                if preamble_kind == Types::PreambleKind::ChannelB {
                     if left_pending {
                         left_audio    = left_audio_reg;
                         right_audio   = audio;
@@ -238,7 +238,7 @@ module Iec60958StereoRx (
                     left_invalid_reg = invalid;
                     left_user_reg    = user;
                     left_status_reg  = status;
-                    left_block_start = preamble_kind == Iec60958::PreambleKind::BlockStartA;
+                    left_block_start = preamble_kind == Types::PreambleKind::BlockStartA;
                     left_pending     = 1;
                 }
             }
@@ -252,37 +252,37 @@ module test_iec60958_stereo_io_loopback {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
 
-    var cell_tick        : logic                   ;
-    var sample_valid     : logic                   ;
-    var sample_ready     : logic                   ;
-    var left_audio_in    : Iec60958::AudioSample   ;
-    var right_audio_in   : Iec60958::AudioSample   ;
-    var left_invalid_in  : bbool                   ;
-    var right_invalid_in : bbool                   ;
-    var left_user_in     : logic                   ;
-    var right_user_in    : logic                   ;
-    var left_status_in   : logic                   ;
-    var right_status_in  : logic                   ;
-    var line_bit         : logic                   ;
-    var line_valid       : logic                   ;
-    var busy             : logic                   ;
-    var frame_index      : logic                <8>;
-    var channel_b        : logic                   ;
-    var subframe_accepted: logic                   ;
-    var sample_valid_out : logic                   ;
-    var sample_ready_out : logic                   ;
-    var left_audio_out   : Iec60958::AudioSample   ;
-    var right_audio_out  : Iec60958::AudioSample   ;
-    var left_invalid_out : bbool                   ;
-    var right_invalid_out: bbool                   ;
-    var left_user_out    : logic                   ;
-    var right_user_out   : logic                   ;
-    var left_status_out  : logic                   ;
-    var right_status_out : logic                   ;
-    var block_start_out  : logic                   ;
-    var error            : bbool                   ;
-    var seen             : logic                   ;
-    var block_start_seen : logic                   ;
+    var cell_tick        : logic                ;
+    var sample_valid     : logic                ;
+    var sample_ready     : logic                ;
+    var left_audio_in    : Types::AudioSample   ;
+    var right_audio_in   : Types::AudioSample   ;
+    var left_invalid_in  : bbool                ;
+    var right_invalid_in : bbool                ;
+    var left_user_in     : logic                ;
+    var right_user_in    : logic                ;
+    var left_status_in   : logic                ;
+    var right_status_in  : logic                ;
+    var line_bit         : logic                ;
+    var line_valid       : logic                ;
+    var busy             : logic                ;
+    var frame_index      : logic             <8>;
+    var channel_b        : logic                ;
+    var subframe_accepted: logic                ;
+    var sample_valid_out : logic                ;
+    var sample_ready_out : logic                ;
+    var left_audio_out   : Types::AudioSample   ;
+    var right_audio_out  : Types::AudioSample   ;
+    var left_invalid_out : bbool                ;
+    var right_invalid_out: bbool                ;
+    var left_user_out    : logic                ;
+    var right_user_out   : logic                ;
+    var left_status_out  : logic                ;
+    var right_status_out : logic                ;
+    var block_start_out  : logic                ;
+    var error            : bbool                ;
+    var seen             : logic                ;
+    var block_start_seen : logic                ;
 
     inst tx: Iec60958StereoTx (
         clk              : clk              ,

@@ -2,7 +2,7 @@
 ///
 /// `advance`を1回受けるたびに、A/Bのsubframeを1つ進める。
 /// 出力は常に次に送出すべきsubframeを指し、reset直後はblock先頭のAとなる。
-import Iec60958::PreambleKind;
+import Types::PreambleKind;
 
 module Iec60958BlockScheduler #(
     param FRAME_COUNT: u32 = 192,
@@ -56,11 +56,11 @@ module test_iec60958_block_scheduler {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
 
-    var advance      : logic                    ;
-    var frame_index  : logic                 <8>;
-    var channel_b    : logic                    ;
-    var block_start  : logic                    ;
-    var preamble_kind: Iec60958::PreambleKind   ;
+    var advance      : logic                 ;
+    var frame_index  : logic              <8>;
+    var channel_b    : logic                 ;
+    var block_start  : logic                 ;
+    var preamble_kind: Types::PreambleKind   ;
 
     inst dut: Iec60958BlockScheduler (
         clk          : clk          ,
@@ -78,16 +78,16 @@ module test_iec60958_block_scheduler {
 
         $assert(frame_index == 8'd0, "scheduler must start at frame zero");
         $assert(!channel_b && block_start, "scheduler must start with block A");
-        $assert(preamble_kind == Iec60958::PreambleKind::BlockStartA, "block A preamble mismatch");
+        $assert(preamble_kind == Types::PreambleKind::BlockStartA, "block A preamble mismatch");
 
         advance = 1;
         clk.next(1);
         $assert(channel_b && frame_index == 8'd0, "scheduler A to B transition mismatch");
-        $assert(preamble_kind == Iec60958::PreambleKind::ChannelB, "channel B preamble mismatch");
+        $assert(preamble_kind == Types::PreambleKind::ChannelB, "channel B preamble mismatch");
 
         clk.next(1);
         $assert(!channel_b && frame_index == 8'd1 && !block_start, "scheduler frame increment mismatch");
-        $assert(preamble_kind == Iec60958::PreambleKind::ChannelA, "channel A preamble mismatch");
+        $assert(preamble_kind == Types::PreambleKind::ChannelA, "channel A preamble mismatch");
 
         clk.next(380);
         $assert(!channel_b && frame_index == 8'd191, "scheduler frame count must reach final frame");

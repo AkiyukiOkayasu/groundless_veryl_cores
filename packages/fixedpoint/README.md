@@ -37,8 +37,8 @@ let output: Q8_24::Raw;
 assign output = convert::<
     Q1_31,
     Q8_24,
-    FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
-    FixedPoint::OverflowMode::SATURATE,
+    Types::RoundingMode::NEAREST_TIES_TO_EVEN,
+    Types::OverflowMode::SATURATE,
 >(input);
 ```
 

@@ -3,14 +3,12 @@
 /// `sample_m1`、`sample0`、`sample1`、`sample2`の4点を3次Horner形式で
 /// 評価する。係数はQ2.16へ量子化し、組み合わせlatencyは0です。
 pub module CubicLagrangeInterpolator #(
-    param SAMPLE_WIDTH : u32                                  = 32                                                        ,
-    param PHASE_WIDTH  : u32                                  = 32                                                        ,
-    param ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode = fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
-    param OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode = fixedpoint::FixedPoint::OverflowMode::SATURATE            ,
-    const NUM_WIDTH    : u32                                  = SAMPLE_WIDTH + 2 + 18 + PHASE_WIDTH * 3
-        + 3               ,
-    const OUTPUT_SHIFT : u32                                  = 16 + PHASE_WIDTH
-        * 3                                      ,
+    param SAMPLE_WIDTH : u32                             = 32                                                   ,
+    param PHASE_WIDTH  : u32                             = 32                                                   ,
+    param ROUNDING_MODE: fixedpoint::Types::RoundingMode = fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN,
+    param OVERFLOW_MODE: fixedpoint::Types::OverflowMode = fixedpoint::Types::OverflowMode::SATURATE            ,
+    const NUM_WIDTH    : u32                             = SAMPLE_WIDTH + 2 + 18 + PHASE_WIDTH * 3 + 3,
+    const OUTPUT_SHIFT : u32                             = 16 + PHASE_WIDTH * 3,
 ) (
     sample_m1: input  signed logic<SAMPLE_WIDTH>,
     sample0  : input  signed logic<SAMPLE_WIDTH>,
@@ -113,9 +111,9 @@ module test_cubic_lagrange_interpolator_overflow {
     var wrapped  : signed logic<4>;
 
     inst dut_saturated: CubicLagrangeInterpolator #(
-        SAMPLE_WIDTH : 4                                             ,
-        PHASE_WIDTH  : 3                                             ,
-        OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode::SATURATE,
+        SAMPLE_WIDTH : 4                                        ,
+        PHASE_WIDTH  : 3                                        ,
+        OVERFLOW_MODE: fixedpoint::Types::OverflowMode::SATURATE,
     ) (
         sample_m1           ,
         sample0             ,
@@ -125,9 +123,9 @@ module test_cubic_lagrange_interpolator_overflow {
         sample   : saturated,
     );
     inst dut_wrapped: CubicLagrangeInterpolator #(
-        SAMPLE_WIDTH : 4                                         ,
-        PHASE_WIDTH  : 3                                         ,
-        OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode::WRAP,
+        SAMPLE_WIDTH : 4                                    ,
+        PHASE_WIDTH  : 3                                    ,
+        OVERFLOW_MODE: fixedpoint::Types::OverflowMode::WRAP,
     ) (
         sample_m1         ,
         sample0           ,

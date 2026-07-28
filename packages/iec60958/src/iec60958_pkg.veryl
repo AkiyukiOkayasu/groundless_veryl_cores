@@ -1,5 +1,5 @@
 /// IEC 60958共通の型とpreamble変換。
-pub package Iec60958 {
+pub package Types {
     /// 伝送規格種別。
     enum LinkType {
         Spdif,

@@ -1,5 +1,5 @@
 /// SPI共通型をimport
-import Spi::SpiMode;
+import Types::SpiMode;
 /// SPI Master モジュール
 ///
 /// `start`はidle中に1クロックだけHighにし、同じcycleの`tx_data`を保持する。
@@ -299,7 +299,7 @@ pub module SpiMaster::<MODE: SpiMode = SpiMode::Mode0> #(
 #[test(test_spi_mode0_loopback)]
 module test_spi_mode0_loopback {
     // SPI共通型をimport
-    import Spi::SpiMode;
+    import Types::SpiMode;
 
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
@@ -353,7 +353,7 @@ module test_spi_mode0_loopback {
 #[test(test_spi_mode1_loopback)]
 module test_spi_mode1_loopback {
     // SPI共通型をimport
-    import Spi::SpiMode;
+    import Types::SpiMode;
 
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
@@ -407,7 +407,7 @@ module test_spi_mode1_loopback {
 #[test(test_spi_mode2_loopback)]
 module test_spi_mode2_loopback {
     // SPI共通型をimport
-    import Spi::SpiMode;
+    import Types::SpiMode;
 
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
@@ -461,7 +461,7 @@ module test_spi_mode2_loopback {
 #[test(test_spi_mode3_loopback)]
 module test_spi_mode3_loopback {
     // SPI共通型をimport
-    import Spi::SpiMode;
+    import Types::SpiMode;
 
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
@@ -515,7 +515,7 @@ module test_spi_mode3_loopback {
 #[test(test_spi_idle_polarity)]
 module test_spi_idle_polarity {
     // SPI共通型をimport
-    import Spi::SpiMode;
+    import Types::SpiMode;
 
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
@@ -586,7 +586,7 @@ module test_spi_idle_polarity {
 #[test(test_spi_consecutive_transfer)]
 module test_spi_consecutive_transfer {
     // SPI共通型をimport
-    import Spi::SpiMode;
+    import Types::SpiMode;
 
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );

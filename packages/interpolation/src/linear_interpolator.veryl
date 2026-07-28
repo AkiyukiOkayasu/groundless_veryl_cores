@@ -3,12 +3,11 @@
 /// `phase`は0以上1未満のunsigned Q0.`PHASE_WIDTH`値で、sample0から
 /// sample1へ移動する割合を表す。入力窓からの組み合わせlatencyは0です。
 pub module LinearInterpolator #(
-    param SAMPLE_WIDTH : u32                                  = 32                                                        ,
-    param PHASE_WIDTH  : u32                                  = 32                                                        ,
-    param ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode = fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
-    param OVERFLOW_MODE: fixedpoint::FixedPoint::OverflowMode = fixedpoint::FixedPoint::OverflowMode::SATURATE            ,
-    const NUM_WIDTH    : u32                                  = SAMPLE_WIDTH + PHASE_WIDTH
-        + 3                            ,
+    param SAMPLE_WIDTH : u32                             = 32                                                   ,
+    param PHASE_WIDTH  : u32                             = 32                                                   ,
+    param ROUNDING_MODE: fixedpoint::Types::RoundingMode = fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN,
+    param OVERFLOW_MODE: fixedpoint::Types::OverflowMode = fixedpoint::Types::OverflowMode::SATURATE            ,
+    const NUM_WIDTH    : u32                             = SAMPLE_WIDTH + PHASE_WIDTH + 3,
 ) (
     sample0: input  signed logic<SAMPLE_WIDTH>,
     sample1: input  signed logic<SAMPLE_WIDTH>,
@@ -71,12 +70,12 @@ module test_linear_interpolator_exhaustive_small_width {
         let phase_ext  : signed logic<4>  = $signed({1'b0, phase});
         let numerator  : signed logic<10> = (sample0_ext <<< 3) + delta_ext * phase_ext;
         expected    = fixedpoint::resize::<
-            10                                                        ,
-            3                                                         ,
-            4                                                         ,
-            0                                                         ,
-            fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
-            fixedpoint::FixedPoint::OverflowMode::SATURATE            ,
+            10                                                   ,
+            3                                                    ,
+            4                                                    ,
+            0                                                    ,
+            fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN,
+            fixedpoint::Types::OverflowMode::SATURATE            ,
         >(numerator);
     }
 
@@ -112,9 +111,9 @@ module test_linear_interpolator_rounding_modes {
     var ties_even      : signed logic<8>;
 
     inst dut_toward_negative: LinearInterpolator #(
-        SAMPLE_WIDTH : 8                                                    ,
-        PHASE_WIDTH  : 3                                                    ,
-        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,
+        SAMPLE_WIDTH : 8                                               ,
+        PHASE_WIDTH  : 3                                               ,
+        ROUNDING_MODE: fixedpoint::Types::RoundingMode::TOWARD_NEGATIVE,
     ) (
         sample0                 ,
         sample1                 ,
@@ -122,9 +121,9 @@ module test_linear_interpolator_rounding_modes {
         sample : toward_negative,
     );
     inst dut_toward_zero: LinearInterpolator #(
-        SAMPLE_WIDTH : 8                                                ,
-        PHASE_WIDTH  : 3                                                ,
-        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::TOWARD_ZERO,
+        SAMPLE_WIDTH : 8                                           ,
+        PHASE_WIDTH  : 3                                           ,
+        ROUNDING_MODE: fixedpoint::Types::RoundingMode::TOWARD_ZERO,
     ) (
         sample0             ,
         sample1             ,
@@ -132,9 +131,9 @@ module test_linear_interpolator_rounding_modes {
         sample : toward_zero,
     );
     inst dut_toward_positive: LinearInterpolator #(
-        SAMPLE_WIDTH : 8                                                    ,
-        PHASE_WIDTH  : 3                                                    ,
-        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::TOWARD_POSITIVE,
+        SAMPLE_WIDTH : 8                                               ,
+        PHASE_WIDTH  : 3                                               ,
+        ROUNDING_MODE: fixedpoint::Types::RoundingMode::TOWARD_POSITIVE,
     ) (
         sample0                 ,
         sample1                 ,
@@ -142,9 +141,9 @@ module test_linear_interpolator_rounding_modes {
         sample : toward_positive,
     );
     inst dut_ties_positive: LinearInterpolator #(
-        SAMPLE_WIDTH : 8                                                                 ,
-        PHASE_WIDTH  : 3                                                                 ,
-        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE,
+        SAMPLE_WIDTH : 8                                                            ,
+        PHASE_WIDTH  : 3                                                            ,
+        ROUNDING_MODE: fixedpoint::Types::RoundingMode::NEAREST_TIES_TOWARD_POSITIVE,
     ) (
         sample0               ,
         sample1               ,
@@ -152,9 +151,9 @@ module test_linear_interpolator_rounding_modes {
         sample : ties_positive,
     );
     inst dut_ties_away: LinearInterpolator #(
-        SAMPLE_WIDTH : 8                                                                ,
-        PHASE_WIDTH  : 3                                                                ,
-        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
+        SAMPLE_WIDTH : 8                                                           ,
+        PHASE_WIDTH  : 3                                                           ,
+        ROUNDING_MODE: fixedpoint::Types::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
     ) (
         sample0           ,
         sample1           ,
@@ -162,9 +161,9 @@ module test_linear_interpolator_rounding_modes {
         sample : ties_away,
     );
     inst dut_ties_even: LinearInterpolator #(
-        SAMPLE_WIDTH : 8                                                         ,
-        PHASE_WIDTH  : 3                                                         ,
-        ROUNDING_MODE: fixedpoint::FixedPoint::RoundingMode::NEAREST_TIES_TO_EVEN,
+        SAMPLE_WIDTH : 8                                                    ,
+        PHASE_WIDTH  : 3                                                    ,
+        ROUNDING_MODE: fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN,
     ) (
         sample0           ,
         sample1           ,

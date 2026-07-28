@@ -16,10 +16,10 @@ pub module SawWaveCore (
     always_comb {
         q1_value = $signed({~phase[msb], phase[msb - 1:0]});
         q8_value = fixedpoint::convert::<
-            fixedpoint::Q1_31                                    ,
-            fixedpoint::Q8_24                                    ,
-            fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,
-            fixedpoint::FixedPoint::OverflowMode::SATURATE       ,
+            fixedpoint::Q1_31                               ,
+            fixedpoint::Q8_24                               ,
+            fixedpoint::Types::RoundingMode::TOWARD_NEGATIVE,
+            fixedpoint::Types::OverflowMode::SATURATE       ,
         >(q1_value);
         audio    = q8_value;
     }

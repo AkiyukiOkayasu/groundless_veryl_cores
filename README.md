@@ -17,7 +17,7 @@ Verylで記述した、オーディオ信号処理・デジタルオーディオ
 | `sample_rate_conversion` | `LinearAsrc`, `CubicLagrangeAsrc`, `FourXHalfbandAsrc` | 同期・非同期のsample-rate conversion |
 | `delta_sigma` | `DeltaSigma1st`, `DeltaSigma2nd` | Q1.31 PCMからPDM生成 |
 | `uart` / `midi` | `UartRx`, `MidiRx` | UARTとMIDI速度byte受信 |
-| `spi` | `Spi::SpiMode`, `SpiMaster` | SPI master |
+| `spi` | `Types::SpiMode`, `SpiMaster` | SPI master |
 | `adat` | `AdatRx`, `AdatTx`, `Smux2*` | 8ch ADATとS/MUX2 |
 | `iec60958` | S/PDIF/AES3 transceiver | IEC 60958 link |
 

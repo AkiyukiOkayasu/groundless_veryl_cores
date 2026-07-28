@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 公開型packageをproject名と重複する`Adat`から`Types`へ改名
 ### Changed
 
 - ADAT RX/TXとS/MUX2を独立packageへ移動

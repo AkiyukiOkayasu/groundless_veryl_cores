@@ -55,10 +55,10 @@ pub module SineWaveCore (
     always_comb {
         s        = $signed({1'b0, rom_data}); // Q1.31形式に変換
         audio_q8 = fixedpoint::convert::<
-            fixedpoint::Q1_31                                    ,
-            fixedpoint::Q8_24                                    ,
-            fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,
-            fixedpoint::FixedPoint::OverflowMode::SATURATE       ,
+            fixedpoint::Q1_31                               ,
+            fixedpoint::Q8_24                               ,
+            fixedpoint::Types::RoundingMode::TOWARD_NEGATIVE,
+            fixedpoint::Types::OverflowMode::SATURATE       ,
         >(s); // Q8.24形式にスケール
 
         // 第3・第4象限はマイナス側
@@ -169,10 +169,10 @@ pub module SineWaveLerpCore (
     always_comb {
         s        = $signed({1'b0, interp_res}); // Q1.31形式に変換
         audio_q8 = fixedpoint::convert::<
-            fixedpoint::Q1_31                                    ,
-            fixedpoint::Q8_24                                    ,
-            fixedpoint::FixedPoint::RoundingMode::TOWARD_NEGATIVE,
-            fixedpoint::FixedPoint::OverflowMode::SATURATE       ,
+            fixedpoint::Q1_31                               ,
+            fixedpoint::Q8_24                               ,
+            fixedpoint::Types::RoundingMode::TOWARD_NEGATIVE,
+            fixedpoint::Types::OverflowMode::SATURATE       ,
         >(s); // Q8.24形式にスケール
 
         // 第3・第4象限はマイナス側

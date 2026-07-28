@@ -1,5 +1,5 @@
-import Iec60958::AudioSample;
-import Iec60958::SampleRate;
+import Types::AudioSample;
+import Types::SampleRate;
 
 /// S/PDIF consumer transmitter。
 ///
@@ -90,7 +90,7 @@ pub module SpdifTransmitter (
         status_bit          : right_status        ,
     );
     inst core: Iec60958StereoTx #(
-        LINK_TYPE: Iec60958::LinkType::Spdif,
+        LINK_TYPE: Types::LinkType::Spdif,
     ) (
         clk              : clk              ,
         rst              : rst              ,
@@ -181,20 +181,20 @@ pub module SpdifReceiver (
 /// stereo sampleの受理、A/B subframe送信、`busy`の契約は
 /// `SpdifTransmitter`のIEC60958 stereo TX timingと同じ。
 pub module Aes3Transmitter (
-    clk          : input  clock               ,
-    rst          : input  reset               ,
-    cell_tick    : input  logic               ,
-    sample_valid : input  logic               ,
-    sample_ready : output logic               ,
-    left_audio   : input  AudioSample         ,
-    right_audio  : input  AudioSample         ,
-    left_invalid : input  bbool               ,
-    right_invalid: input  bbool               ,
-    sample_rate  : input  Iec60958::SampleRate,
-    channel_mode : input  Aes3::ChannelMode   ,
-    line_bit     : output logic               ,
-    line_valid   : output logic               ,
-    busy         : output logic               ,
+    clk          : input  clock            ,
+    rst          : input  reset            ,
+    cell_tick    : input  logic            ,
+    sample_valid : input  logic            ,
+    sample_ready : output logic            ,
+    left_audio   : input  AudioSample      ,
+    right_audio  : input  AudioSample      ,
+    left_invalid : input  bbool            ,
+    right_invalid: input  bbool            ,
+    sample_rate  : input  Types::SampleRate,
+    channel_mode : input  Aes3::ChannelMode,
+    line_bit     : output logic            ,
+    line_valid   : output logic            ,
+    busy         : output logic            ,
 ) {
     var frame_index      : logic<8>;
     var channel_b        : logic   ;
@@ -214,7 +214,7 @@ pub module Aes3Transmitter (
         crc         : crc              ,
     );
     inst core: Iec60958StereoTx #(
-        LINK_TYPE: Iec60958::LinkType::Aes3,
+        LINK_TYPE: Types::LinkType::Aes3,
     ) (
         clk              : clk              ,
         rst              : rst              ,
@@ -289,78 +289,78 @@ module test_iec60958_link_transceivers {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
 
-    var cell_tick             : logic                ;
-    var sample_valid          : logic                ;
-    var sample_ready_spdif    : logic                ;
-    var sample_ready_aes3     : logic                ;
-    var left_audio            : Iec60958::AudioSample;
-    var right_audio           : Iec60958::AudioSample;
-    var left_invalid          : bbool                ;
-    var right_invalid         : bbool                ;
-    var left_user             : logic                ;
-    var right_user            : logic                ;
-    var line_spdif            : logic                ;
-    var valid_spdif           : logic                ;
-    var busy_spdif            : logic                ;
-    var line_aes3             : logic                ;
-    var valid_aes3            : logic                ;
-    var busy_aes3             : logic                ;
-    var spdif_valid           : logic                ;
-    var spdif_ready           : logic                ;
-    var spdif_left            : Iec60958::AudioSample;
-    var spdif_right           : Iec60958::AudioSample;
-    var spdif_li              : bbool                ;
-    var spdif_ri              : bbool                ;
-    var spdif_lu              : logic                ;
-    var spdif_ru              : logic                ;
-    var spdif_ls              : logic                ;
-    var spdif_rs              : logic                ;
-    var spdif_block_start     : logic                ;
-    var spdif_error           : bbool                ;
-    var aes3_valid            : logic                ;
-    var aes3_ready            : logic                ;
-    var aes3_left             : Iec60958::AudioSample;
-    var aes3_right            : Iec60958::AudioSample;
-    var aes3_li               : bbool                ;
-    var aes3_ri               : bbool                ;
-    var aes3_lu               : logic                ;
-    var aes3_ru               : logic                ;
-    var aes3_ls               : logic                ;
-    var aes3_rs               : logic                ;
-    var aes3_block_start      : logic                ;
-    var aes3_error            : bbool                ;
-    var spdif_seen            : logic                ;
-    var aes3_seen             : logic                ;
-    var spdif_block_start_seen: logic                ;
-    var aes3_block_start_seen : logic                ;
+    var cell_tick             : logic             ;
+    var sample_valid          : logic             ;
+    var sample_ready_spdif    : logic             ;
+    var sample_ready_aes3     : logic             ;
+    var left_audio            : Types::AudioSample;
+    var right_audio           : Types::AudioSample;
+    var left_invalid          : bbool             ;
+    var right_invalid         : bbool             ;
+    var left_user             : logic             ;
+    var right_user            : logic             ;
+    var line_spdif            : logic             ;
+    var valid_spdif           : logic             ;
+    var busy_spdif            : logic             ;
+    var line_aes3             : logic             ;
+    var valid_aes3            : logic             ;
+    var busy_aes3             : logic             ;
+    var spdif_valid           : logic             ;
+    var spdif_ready           : logic             ;
+    var spdif_left            : Types::AudioSample;
+    var spdif_right           : Types::AudioSample;
+    var spdif_li              : bbool             ;
+    var spdif_ri              : bbool             ;
+    var spdif_lu              : logic             ;
+    var spdif_ru              : logic             ;
+    var spdif_ls              : logic             ;
+    var spdif_rs              : logic             ;
+    var spdif_block_start     : logic             ;
+    var spdif_error           : bbool             ;
+    var aes3_valid            : logic             ;
+    var aes3_ready            : logic             ;
+    var aes3_left             : Types::AudioSample;
+    var aes3_right            : Types::AudioSample;
+    var aes3_li               : bbool             ;
+    var aes3_ri               : bbool             ;
+    var aes3_lu               : logic             ;
+    var aes3_ru               : logic             ;
+    var aes3_ls               : logic             ;
+    var aes3_rs               : logic             ;
+    var aes3_block_start      : logic             ;
+    var aes3_error            : bbool             ;
+    var spdif_seen            : logic             ;
+    var aes3_seen             : logic             ;
+    var spdif_block_start_seen: logic             ;
+    var aes3_block_start_seen : logic             ;
 
     inst spdif_tx: SpdifTransmitter (
-        clk                 : clk                          ,
-        rst                 : rst                          ,
-        cell_tick           : cell_tick                    ,
-        sample_valid        : sample_valid                 ,
-        sample_ready        : sample_ready_spdif           ,
-        left_audio          : left_audio                   ,
-        right_audio         : right_audio                  ,
-        left_invalid        : left_invalid                 ,
-        right_invalid       : right_invalid                ,
-        left_user           : left_user                    ,
-        right_user          : right_user                   ,
-        sample_rate         : Iec60958::SampleRate::Fs48000,
-        original_sample_rate: Iec60958::SampleRate::Fs48000,
-        category_code       : 7'h12                        ,
-        source_number       : 4'h1                         ,
-        left_channel_number : 4'h0                         ,
-        right_channel_number: 4'h1                         ,
-        copy_permitted      : 1'b1                         ,
-        non_audio           : 1'b0                         ,
-        emphasis            : 2'b00                        ,
-        mode                : 2'b00                        ,
-        clock_accuracy      : 2'b00                        ,
-        original            : 1'b1                         ,
-        line_bit            : line_spdif                   ,
-        line_valid          : valid_spdif                  ,
-        busy                : busy_spdif                   ,
+        clk                 : clk                       ,
+        rst                 : rst                       ,
+        cell_tick           : cell_tick                 ,
+        sample_valid        : sample_valid              ,
+        sample_ready        : sample_ready_spdif        ,
+        left_audio          : left_audio                ,
+        right_audio         : right_audio               ,
+        left_invalid        : left_invalid              ,
+        right_invalid       : right_invalid             ,
+        left_user           : left_user                 ,
+        right_user          : right_user                ,
+        sample_rate         : Types::SampleRate::Fs48000,
+        original_sample_rate: Types::SampleRate::Fs48000,
+        category_code       : 7'h12                     ,
+        source_number       : 4'h1                      ,
+        left_channel_number : 4'h0                      ,
+        right_channel_number: 4'h1                      ,
+        copy_permitted      : 1'b1                      ,
+        non_audio           : 1'b0                      ,
+        emphasis            : 2'b00                     ,
+        mode                : 2'b00                     ,
+        clock_accuracy      : 2'b00                     ,
+        original            : 1'b1                      ,
+        line_bit            : line_spdif                ,
+        line_valid          : valid_spdif               ,
+        busy                : busy_spdif                ,
     );
     inst spdif_rx: SpdifReceiver (
         clk          : clk              ,
@@ -391,7 +391,7 @@ module test_iec60958_link_transceivers {
         right_audio  : right_audio                  ,
         left_invalid : left_invalid                 ,
         right_invalid: right_invalid                ,
-        sample_rate  : Iec60958::SampleRate::Fs48000,
+        sample_rate  : Types::SampleRate::Fs48000   ,
         channel_mode : Aes3::ChannelMode::TwoChannel,
         line_bit     : line_aes3                    ,
         line_valid   : valid_aes3                   ,

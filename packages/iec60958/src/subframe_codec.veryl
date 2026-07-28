@@ -1,5 +1,5 @@
 /// IEC60958のpreableを除いた28bit payloadを生成する。
-import Iec60958::AudioSample;
+import Types::AudioSample;
 
 module Iec60958SubframePacker (
     audio         : input  AudioSample    ,
@@ -9,9 +9,7 @@ module Iec60958SubframePacker (
     payload       : output logic      <28>,
 ) {
     always_comb {
-        payload = {
-            audio, invalid, user, channel_status, Iec60958::payload_parity(audio, invalid, user, channel_status),
-        };
+        payload = {audio, invalid, user, channel_status, Types::payload_parity(audio, invalid, user, channel_status),};
     }
 }
 
@@ -38,18 +36,18 @@ module Iec60958SubframeUnpacker (
 module test_iec60958_subframe_codec {
     inst clk: $tb::clock_gen;
 
-    var audio                  : Iec60958::AudioSample    ;
-    var invalid                : bbool                    ;
-    var user                   : logic                    ;
-    var channel_status         : logic                    ;
-    var payload                : logic                <28>;
-    var payload_for_unpacker   : logic                <28>;
-    var corrupt                : logic                    ;
-    var unpacked_audio         : Iec60958::AudioSample    ;
-    var unpacked_invalid       : bbool                    ;
-    var unpacked_user          : logic                    ;
-    var unpacked_channel_status: logic                    ;
-    var parity_error           : bbool                    ;
+    var audio                  : Types::AudioSample    ;
+    var invalid                : bbool                 ;
+    var user                   : logic                 ;
+    var channel_status         : logic                 ;
+    var payload                : logic             <28>;
+    var payload_for_unpacker   : logic             <28>;
+    var corrupt                : logic                 ;
+    var unpacked_audio         : Types::AudioSample    ;
+    var unpacked_invalid       : bbool                 ;
+    var unpacked_user          : logic                 ;
+    var unpacked_channel_status: logic                 ;
+    var parity_error           : bbool                 ;
 
     inst packer: Iec60958SubframePacker (
         audio         : audio         ,

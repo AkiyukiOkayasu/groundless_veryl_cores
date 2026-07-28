@@ -1,5 +1,5 @@
-import Iec60958::Preamble;
-import Iec60958::SampleRate;
+import Types::Preamble;
+import Types::SampleRate;
 
 /// AES3固有のpreambleとchannel status生成。
 pub package Aes3 {

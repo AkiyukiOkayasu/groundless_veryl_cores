@@ -1,7 +1,7 @@
-/// ADAT共通パッケージ
+/// ADAT公開型
 ///
-/// ADAT RX/TX間で共有する型定義と定数を提供する。
-pub package Adat {
+/// ADAT RX/TX間で共有する型定義を提供する。
+pub package Types {
     /// ADATビットレートファミリー
     ///
     /// 物理ビットレートは2種類のみ:

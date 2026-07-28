@@ -1,9 +1,9 @@
 /// IEC60958 subframeを共通payload/BMC codecへ接続する送信器。
-import Iec60958::AudioSample;
-import Iec60958::LinkType;
-import Iec60958::PreambleKind;
-import Iec60958::PreambleLineCode;
-import Iec60958::Payload;
+import Types::AudioSample;
+import Types::LinkType;
+import Types::PreambleKind;
+import Types::PreambleLineCode;
+import Types::Payload;
 
 module Iec60958SubframeTx #(
     param LINK_TYPE: LinkType = LinkType::Spdif,
@@ -25,7 +25,7 @@ module Iec60958SubframeTx #(
     var payload      : Payload         ;
     var preamble_line: PreambleLineCode;
 
-    assign preamble_line = Iec60958::preamble_kind_to_line_code(LINK_TYPE, preamble_kind);
+    assign preamble_line = Types::preamble_kind_to_line_code(LINK_TYPE, preamble_kind);
 
     inst packer: Iec60958SubframePacker (
         audio         : audio         ,
@@ -130,7 +130,7 @@ module Iec60958SubframeRx (
                 preamble_error = 1;
                 preamble_seen  = 0;
             } else if bmc_preamble_valid {
-                preamble_kind_reg = Iec60958::line_code_to_preamble_kind(bmc_preamble);
+                preamble_kind_reg = Types::line_code_to_preamble_kind(bmc_preamble);
                 preamble_seen     = 1;
             }
 
@@ -166,27 +166,27 @@ module test_iec60958_subframe_io_loopback {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
 
-    var cell_tick     : logic                 ;
-    var subframe_valid: logic                 ;
-    var subframe_ready: logic                 ;
-    var preamble_kind : Iec60958::PreambleKind;
-    var audio_in      : Iec60958::AudioSample ;
-    var invalid_in    : bbool                 ;
-    var user_in       : logic                 ;
-    var status_in     : logic                 ;
-    var line_bit      : logic                 ;
-    var line_valid    : logic                 ;
-    var busy          : logic                 ;
-    var valid_out     : logic                 ;
-    var audio_out     : Iec60958::AudioSample ;
-    var invalid_out   : bbool                 ;
-    var user_out      : logic                 ;
-    var status_out    : logic                 ;
-    var preamble_out  : Iec60958::PreambleKind;
-    var parity_error  : bbool                 ;
-    var preamble_error: bbool                 ;
-    var bmc_error     : bbool                 ;
-    var seen          : logic                 ;
+    var cell_tick     : logic              ;
+    var subframe_valid: logic              ;
+    var subframe_ready: logic              ;
+    var preamble_kind : Types::PreambleKind;
+    var audio_in      : Types::AudioSample ;
+    var invalid_in    : bbool              ;
+    var user_in       : logic              ;
+    var status_in     : logic              ;
+    var line_bit      : logic              ;
+    var line_valid    : logic              ;
+    var busy          : logic              ;
+    var valid_out     : logic              ;
+    var audio_out     : Types::AudioSample ;
+    var invalid_out   : bbool              ;
+    var user_out      : logic              ;
+    var status_out    : logic              ;
+    var preamble_out  : Types::PreambleKind;
+    var parity_error  : bbool              ;
+    var preamble_error: bbool              ;
+    var bmc_error     : bbool              ;
+    var seen          : logic              ;
 
     inst tx: Iec60958SubframeTx (
         clk           : clk           ,
@@ -232,7 +232,7 @@ module test_iec60958_subframe_io_loopback {
     initial {
         cell_tick      = 1;
         subframe_valid = 0;
-        preamble_kind  = Iec60958::PreambleKind::BlockStartA;
+        preamble_kind  = Types::PreambleKind::BlockStartA;
         audio_in       = 24'sh654321;
         invalid_in     = 1;
         user_in        = 0;

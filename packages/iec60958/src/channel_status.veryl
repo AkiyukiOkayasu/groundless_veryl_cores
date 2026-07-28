@@ -2,7 +2,7 @@
 ///
 /// IEC 60958-3の代表的なPCMプロファイルを扱う。未使用byteは0とし、
 /// 呼び出し側がbit_indexを0..191で走査してsubframeのC bitへ供給する。
-import Iec60958::SampleRate;
+import Types::SampleRate;
 import Spdif::SampleRateCode;
 import Aes3::ChannelMode;
 
@@ -53,10 +53,10 @@ module SpdifChannelStatusBit (
 /// CRC byte（bit 184..191）は`Aes3ChannelStatusCrc`で別途生成する。
 
 module Aes3ChannelStatusBit (
-    bit_index   : input  logic               <8>,
-    sample_rate : input  Iec60958::SampleRate   ,
-    channel_mode: input  ChannelMode            ,
-    status_bit  : output logic                  ,
+    bit_index   : input  logic            <8>,
+    sample_rate : input  Types::SampleRate   ,
+    channel_mode: input  ChannelMode         ,
+    status_bit  : output logic               ,
 ) {
     always_comb {
         status_bit = Aes3::channel_status_bit(bit_index, sample_rate, channel_mode);
@@ -69,20 +69,20 @@ module test_iec60958_channel_status_bit {
     inst clk: $tb::clock_gen;
     inst rst: $tb::reset_gen ( clk );
 
-    var bit_index           : logic               <8>;
-    var sample_rate         : Iec60958::SampleRate   ;
-    var original_sample_rate: Iec60958::SampleRate   ;
-    var category_code       : logic               <7>;
-    var source_number       : logic               <4>;
-    var channel_number      : logic               <4>;
-    var copy_permitted      : bbool                  ;
-    var non_audio           : bbool                  ;
-    var emphasis            : logic               <2>;
-    var mode                : logic               <2>;
-    var clock_accuracy      : logic               <2>;
-    var original            : bbool                  ;
-    var spdif_bit           : logic                  ;
-    var aes3_bit            : logic                  ;
+    var bit_index           : logic            <8>;
+    var sample_rate         : Types::SampleRate   ;
+    var original_sample_rate: Types::SampleRate   ;
+    var category_code       : logic            <7>;
+    var source_number       : logic            <4>;
+    var channel_number      : logic            <4>;
+    var copy_permitted      : bbool               ;
+    var non_audio           : bbool               ;
+    var emphasis            : logic            <2>;
+    var mode                : logic            <2>;
+    var clock_accuracy      : logic            <2>;
+    var original            : bbool               ;
+    var spdif_bit           : logic               ;
+    var aes3_bit            : logic               ;
 
     inst spdif: SpdifChannelStatusBit (
         bit_index           : bit_index           ,
@@ -108,8 +108,8 @@ module test_iec60958_channel_status_bit {
 
     initial {
         bit_index            = 0;
-        sample_rate          = Iec60958::SampleRate::Fs48000;
-        original_sample_rate = Iec60958::SampleRate::Fs48000;
+        sample_rate          = Types::SampleRate::Fs48000;
+        original_sample_rate = Types::SampleRate::Fs48000;
         category_code        = 7'h7F;
         source_number        = 4'hA;
         channel_number       = 4'h5;

@@ -3,7 +3,7 @@
 /// 0..183ではstatus mapperのbitを出しながらCRCを更新し、184..191では
 /// 完了したCRCをLSB firstで出力する。channel A/Bのstatusが同一の構成を
 /// 前提に、CRC更新は各frameのB subframe受理時に一度だけ行う。
-import Iec60958::SampleRate;
+import Types::SampleRate;
 import Aes3::ChannelMode;
 
 module Aes3ChannelStatusStream (
@@ -68,7 +68,7 @@ module test_aes3_channel_status_stream {
         advance     : advance                      ,
         frame_index : frame_index                  ,
         channel_b   : channel_b                    ,
-        sample_rate : Iec60958::SampleRate::Fs48000,
+        sample_rate : Types::SampleRate::Fs48000   ,
         channel_mode: Aes3::ChannelMode::TwoChannel,
         status_bit  : status_bit                   ,
         crc         : crc                          ,

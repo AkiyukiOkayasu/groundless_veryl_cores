@@ -2,11 +2,14 @@
 
 ## [Unreleased]
 
+- ADATの公開型packageをproject名と重複する`Adat`から`Types`へ改名
+- FixedPoint、SPI、IEC60958の公開型packageもproject名と重複しない`Types`へ改名
+
 ### Added
 
 - 固定小数点共通演算を追加
-  - `FixedPoint::RoundingMode` enumによる負方向、零方向、正方向、最近傍各種の丸め
-  - `FixedPoint::OverflowMode` enumによるwrap/saturate
+  - `Types::RoundingMode` enumによる負方向、零方向、正方向、最近傍各種の丸め
+  - `Types::OverflowMode` enumによるwrap/saturate
   - signed固定小数点の右シフト、飽和、resize、multiply helper
 - `SignedFixedPointFormat` protoと`SignedFixedPointFormatOf::<W, F>`によるformat generic APIを追加
 - Q1.31/Q2.16/Q3.24/Q8.19/Q8.24を`SignedFixedPointFormat`実装の名前付きpresetへ移行
@@ -70,7 +73,7 @@
 - 固定小数点固有でない`clamp`を公開APIから削除し、`round_shift`と`saturate`の実装を`resize`へ統合
 - halfband固有の幅変換adapterを削除し、fixedpointのproject-scope `resize`を使用
 - 固定小数点実装を`packages/fixedpoint/`の独立Veryl project `gndless_fixedpoint`へ分離し、親projectからlocal path dependencyとして参照
-- 固定小数点の丸めモード指定を数値定数から `FixedPoint::RoundingMode` enumへ変更
+- 固定小数点の丸めモード指定を数値定数から `Types::RoundingMode` enumへ変更
 - 固定小数点formatのassociated typeを`Q1_31::Value`などから`Q1_31::Raw`へ変更
 - 固定小数点formatの`WIDTH`/`FRACTION_BITS`/`Raw`および丸め・overflow policyのdocumentation commentを拡充
 - ADAT→50MHz差動PDMの高音質化計画を、帯域制限付き4倍オーバーサンプリング、Farrow分数遅延、レート追従、ΔΣ評価の段階構成へ更新
