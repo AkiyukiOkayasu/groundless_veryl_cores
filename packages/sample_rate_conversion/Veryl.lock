@@ -35,17 +35,3 @@ source = "../nco"
 dependencies = []
 
 [projects.properties]
-
-[[projects]]
-name = "oscillator"
-source = "../oscillator"
-
-[projects.properties]
-
-[[projects.dependencies]]
-name = "fixedpoint"
-source = "../fixedpoint"
-
-[[projects.dependencies]]
-name = "nco"
-source = "../nco"

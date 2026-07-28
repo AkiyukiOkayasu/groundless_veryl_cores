@@ -17,4 +17,3 @@ fixedpoint = { path = "../fixedpoint" }
 interpolation = { path = "../interpolation" }
 nco = { path = "../nco" }
 filter = { path = "../filter" }
-oscillator = { path = "../oscillator" }

@@ -8,6 +8,7 @@
 - 各testのdoc commentを検証目的が分かる表現へ統一
 ### Changed
 
+- 固定レートASRC benchmarkの入力を48点の固定正弦波vectorへ変更し、`oscillator`依存を削除
 - 固定レートASRC benchmarkと解析スクリプトをpackageへ移動
 - package名を`asrc`から`sample_rate_conversion`へ変更し、同期型sample-rate converterも収容できる構成へ整理
 - ASRC本体を独立packageへ移動

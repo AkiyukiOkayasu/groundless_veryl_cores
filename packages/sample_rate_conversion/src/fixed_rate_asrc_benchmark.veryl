@@ -1,6 +1,6 @@
 /// sample_rate_conversion packageの固定レートASRC経路を比較するベンチマーク
 ///
-/// 50MHzクロック上で48kHzの入力validを分数位相アキュムレータから生成し、同じ入力正弦波を2経路へ与える。CSV生成は長時間のためignored testとし、出力は4クロックに1回だけ記録して外部の標準Python解析へ渡す
+/// 50MHzクロック上で48kHzの入力validを分数位相アキュムレータから生成し、48点の固定正弦波vectorを2経路へ与える。CSV生成は長時間のためignored testとし、出力は4クロックに1回だけ記録して外部の標準Python解析へ渡す
 #[test(fixed_rate_asrc_benchmark)]
 #[ignore]
 module fixed_rate_asrc_benchmark {
@@ -22,6 +22,7 @@ module fixed_rate_asrc_benchmark {
     var source_phase          : logic<PHASE_WIDTH>;
     var source_advance        : bbool             ;
     var source_index          : logic<16>         ;
+    var source_table_index    : logic<7>          ;
 
     var direct_input_ready    : bbool                     ;
     var direct_input_level    : logic       <4>           ;
@@ -39,10 +40,7 @@ module fixed_rate_asrc_benchmark {
     var four_input_level    : logic       <4>           ;
     var four_underflow      : bbool                     ;
 
-    var sine_phase : logic       <32>;
-    var sine_audio : signed logic<32>;
-    var sine_sample: signed logic<32>;
-    var file       : $tb::file       ;
+    var file: $tb::file;
 
     inst source_phase_accumulator: nco::FractionalPhaseAccumulator #(
         WIDTH: PHASE_WIDTH,
@@ -53,12 +51,6 @@ module fixed_rate_asrc_benchmark {
         phase_increment: source_phase_increment,
         phase          : source_phase          ,
         advance        : source_advance        ,
-    );
-
-    inst sine: oscillator::SineWaveCore (
-        clk  : clk       ,
-        phase: sine_phase,
-        audio: sine_audio,
     );
 
     inst direct_phase_accumulator: nco::FractionalPhaseAccumulator #(
@@ -107,13 +99,65 @@ module fixed_rate_asrc_benchmark {
         underflow      : four_underflow      ,
     );
 
-    always_comb {
-        sine_sample = sine_audio <<< 7;
+    function benchmark_sine (
+        index: input logic<7>,
+    ) -> signed logic<32> {
+        return case index {
+            7'd0   : 32'sd0,
+            7'd1   : 32'sd280_302_863,
+            7'd2   : 32'sd555_809_667,
+            7'd3   : 32'sd821_806_413,
+            7'd4   : 32'sd1_073_741_823,
+            7'd5   : 32'sd1_307_305_214,
+            7'd6   : 32'sd1_518_500_249,
+            7'd7   : 32'sd1_703_713_325,
+            7'd8   : 32'sd1_859_775_393,
+            7'd9   : 32'sd1_984_016_188,
+            7'd10  : 32'sd2_074_309_916,
+            7'd11  : 32'sd2_129_111_627,
+            7'd12  : 32'sd2_147_483_647,
+            7'd13  : 32'sd2_129_111_627,
+            7'd14  : 32'sd2_074_309_916,
+            7'd15  : 32'sd1_984_016_188,
+            7'd16  : 32'sd1_859_775_393,
+            7'd17  : 32'sd1_703_713_325,
+            7'd18  : 32'sd1_518_500_249,
+            7'd19  : 32'sd1_307_305_214,
+            7'd20  : 32'sd1_073_741_823,
+            7'd21  : 32'sd821_806_413,
+            7'd22  : 32'sd555_809_667,
+            7'd23  : 32'sd280_302_863,
+            7'd24  : 32'sd0,
+            7'd25  : -32'sd280_302_863,
+            7'd26  : -32'sd555_809_667,
+            7'd27  : -32'sd821_806_413,
+            7'd28  : -32'sd1_073_741_823,
+            7'd29  : -32'sd1_307_305_214,
+            7'd30  : -32'sd1_518_500_249,
+            7'd31  : -32'sd1_703_713_325,
+            7'd32  : -32'sd1_859_775_393,
+            7'd33  : -32'sd1_984_016_188,
+            7'd34  : -32'sd2_074_309_916,
+            7'd35  : -32'sd2_129_111_627,
+            7'd36  : -32'sd2_147_483_647,
+            7'd37  : -32'sd2_129_111_627,
+            7'd38  : -32'sd2_074_309_916,
+            7'd39  : -32'sd1_984_016_188,
+            7'd40  : -32'sd1_859_775_393,
+            7'd41  : -32'sd1_703_713_325,
+            7'd42  : -32'sd1_518_500_249,
+            7'd43  : -32'sd1_307_305_214,
+            7'd44  : -32'sd1_073_741_823,
+            7'd45  : -32'sd821_806_413,
+            7'd46  : -32'sd555_809_667,
+            7'd47  : -32'sd280_302_863,
+            default: 32'sd0,
+        };
     }
 
     function write_case (
-        case_id   : input logic<8> ,
-        phase_step: input logic<32>,
+        case_id   : input logic<8>,
+        table_step: input logic<7>,
     ) {
         rst.assert();
         input_valid            = false;
@@ -121,8 +165,8 @@ module fixed_rate_asrc_benchmark {
         source_phase_increment = INPUT_PHASE_INCREMENT;
         direct_phase_increment = DIRECT_PHASE_INCREMENT;
         four_phase_increment   = FOUR_PHASE_INCREMENT;
-        sine_phase             = 0;
         source_index           = 0;
+        source_table_index     = 0;
         clk.next(4);
 
         for cycle in 0..CASE_CYCLES {
@@ -130,10 +174,10 @@ module fixed_rate_asrc_benchmark {
             if source_advance {
                 $assert(direct_input_ready, "direct ASRC input FIFO must keep up with 48kHz");
                 $assert(four_input_ready, "4x HBF path must keep up with 48kHz");
-                input_valid  =  true;
-                input_sample =  sine_sample;
-                source_index += 1;
-                sine_phase   += phase_step;
+                input_valid        =  true;
+                input_sample       =  benchmark_sine(source_table_index);
+                source_table_index =  (source_table_index + table_step) % 7'd48;
+                source_index       += 1;
             }
 
             if cycle[1:0] == 2'b00 {
@@ -163,10 +207,10 @@ module fixed_rate_asrc_benchmark {
         );
 
         // 1kHz、10kHz、18kHz、20kHzを48kHz入力の正弦波として比較する
-        write_case(8'd0, 32'd89_478_485);
-        write_case(8'd1, 32'd894_784_853);
-        write_case(8'd2, 32'd1_610_612_736);
-        write_case(8'd3, 32'd1_789_569_707);
+        write_case(8'd0, 7'd1);
+        write_case(8'd1, 7'd10);
+        write_case(8'd2, 7'd18);
+        write_case(8'd3, 7'd20);
 
         file.flush();
         file.close();
