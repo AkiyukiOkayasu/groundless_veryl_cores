@@ -1,4 +1,4 @@
-/// IEC60958のstereo sampleをA/B subframeへ分解する共通TX。
+/// IEC60958のstereo sampleをA/B subframeへ分解する共通TX
 import Types::AudioSample;
 import Types::LinkType;
 import Types::PreambleKind;
@@ -126,7 +126,7 @@ module Iec60958StereoTx #(
     }
 }
 
-/// IEC60958のA/B subframeをstereo sampleへ組み立てる共通RX。
+/// IEC60958のA/B subframeをstereo sampleへ組み立てる共通RX
 module Iec60958StereoRx (
     clk          : input  clock      ,
     rst          : input  reset      ,

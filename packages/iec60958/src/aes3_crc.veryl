@@ -1,4 +1,4 @@
-/// AES3 professional channel statusのCRC-8を計算する。
+/// AES3 professional channel statusのCRC-8を計算する
 ///
 /// CRC対象はblock先頭からの184bitで、LSB first・初期値FFh・
 /// 生成多項式x^8+x^4+x^3+x^2+1（反転表現B8h）を用いる。

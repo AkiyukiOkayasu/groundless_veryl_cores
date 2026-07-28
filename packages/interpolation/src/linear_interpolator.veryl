@@ -1,4 +1,4 @@
-/// 2点間の線形補間器。
+/// 2点間の線形補間器
 ///
 /// `phase`は0以上1未満のunsigned Q0.`PHASE_WIDTH`値で、sample0から
 /// sample1へ移動する割合を表す。入力窓からの組み合わせlatencyは0です。

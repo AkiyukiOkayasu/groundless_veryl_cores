@@ -1,15 +1,15 @@
-/// IEC 60958共通の型とpreamble変換。
+/// IEC 60958共通の型とpreamble変換
 pub package Types {
-    /// 伝送規格種別。
+    /// 伝送規格種別
     enum LinkType {
         Spdif,
         Aes3,
     }
 
-    /// サブフレームpreambleの4bit表現。
+    /// サブフレームpreambleの4bit表現
     type Preamble = logic<4>;
 
-    /// BMC違反パターンとして送出する8bitラインコード。
+    /// BMC違反パターンとして送出する8bitラインコード
     /// bit[7]が最初に送出される。
     enum PreambleLineCode: logic<8> {
         X = 8'b1110_0010,
@@ -17,25 +17,25 @@ pub package Types {
         Z = 8'b1110_1000,
     }
 
-    /// 24bitオーディオサンプル。
+    /// 24bitオーディオサンプル
     type AudioSample = signed logic<24>;
 
     type BmcBit      = logic;
     type BmcBitValid = logic;
     type BmcSync     = logic;
 
-    /// 規格に依存しないサブフレームの意味。
+    /// 規格に依存しないサブフレームの意味
     enum PreambleKind {
         BlockStartA,
         ChannelA,
         ChannelB,
     }
 
-    /// preambleを除いた28bit payload。
+    /// preambleを除いた28bit payload
     /// bit[27:4]がaudio、bit[3:1]がV/U/C、bit[0]が偶数パリティ。
     type Payload = logic<28>;
 
-    /// 規格共通のサブフレーム表現。
+    /// 規格共通のサブフレーム表現
     struct Subframe {
         preamble_kind: PreambleKind,
         audio        : AudioSample ,
@@ -45,7 +45,7 @@ pub package Types {
         channel_status: logic,
     }
 
-    /// 高位TX/RXで扱うstereo audio frame。
+    /// 高位TX/RXで扱うstereo audio frame
     struct StereoSample {
         left_audio   : AudioSample,
         right_audio  : AudioSample,
@@ -55,7 +55,7 @@ pub package Types {
         right_user   : logic      ,
     }
 
-    /// V/U/Cを含む28bit payloadの偶数パリティ。
+    /// V/U/Cを含む28bit payloadの偶数パリティ
     function payload_parity (
         audio         : input AudioSample,
         invalid       : input logic      ,
@@ -65,7 +65,7 @@ pub package Types {
         return if ^{audio, invalid, user, channel_status} ? 1'b1 : 1'b0;
     }
 
-    /// 規格共通preambleを規格ごとの8cellラインコードへ変換する。
+    /// 規格共通preambleを規格ごとの8cellラインコードへ変換する
     function preamble_kind_to_line_code (
         link: input LinkType    ,
         kind: input PreambleKind,
@@ -87,7 +87,7 @@ pub package Types {
         }
     }
 
-    /// BMCラインコードを共通のsubframe種別へ戻す。
+    /// BMCラインコードを共通のsubframe種別へ戻す
     function line_code_to_preamble_kind (
         line_code: input PreambleLineCode,
     ) -> PreambleKind {
@@ -99,7 +99,7 @@ pub package Types {
         };
     }
 
-    /// 規格差を吸収したサンプルレート種別。
+    /// 規格差を吸収したサンプルレート種別
     enum SampleRate: logic<4> {
         Unknown = 4'b0000,
         Fs22050 = 4'b0001,
@@ -116,7 +116,7 @@ pub package Types {
         Reserved = 4'b1111,
     }
 
-    /// preambleが指定リンクで妥当か判定する。
+    /// preambleが指定リンクで妥当か判定する
     function preamble_is_valid (
         link    : input LinkType,
         preamble: input Preamble,
@@ -128,7 +128,7 @@ pub package Types {
         }
     }
 
-    /// preambleを共通のラインコードへ変換する。
+    /// preambleを共通のラインコードへ変換する
     function preamble_to_line_code (
         link    : input LinkType,
         preamble: input Preamble,

@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- doc commentのsummary表記を統一
 - 各testのdoc commentへ検証対象を明記
 ### Changed
 

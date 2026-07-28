@@ -1,4 +1,4 @@
-/// 分数比から1クロック幅のtickを生成するNCO。
+/// 分数比から1クロック幅のtickを生成するNCO
 ///
 /// phaseはDDSの位相ではなく、modulus未満の剰余を保持する。
 /// そのため、tickの平均周波数はincrement / modulus * clkになる。
@@ -86,7 +86,7 @@ pub module NcoTick #(
     }
 }
 
-/// 固定クロック比のclock-enable NCO。
+/// 固定クロック比のclock-enable NCO
 ///
 /// 固定値はreset解除後に自動でNcoTickへ設定される。
 pub module ClockEnableNco #(

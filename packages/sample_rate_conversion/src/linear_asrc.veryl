@@ -1,4 +1,4 @@
-/// 入力サンプル列を線形補間して、分数比のoutput tickへ変換するASRC。
+/// 入力サンプル列を線形補間して、分数比のoutput tickへ変換するASRC
 ///
 /// 入力は`input_valid && input_ready`で受け付け、内部のVeryl STD FIFOへ
 /// 一時保持する。`ratio`は「output 1回あたりに進む入力サンプル数」を
@@ -140,7 +140,7 @@ pub module LinearAsrc #(
     }
 }
 
-/// FIFOから入力窓を補充しながら、50MHzの全クロックで線形補間値を出力するASRC。
+/// FIFOから入力窓を補充しながら、50MHzの全クロックで線形補間値を出力するASRC
 ///
 /// `phase`と`advance`は`nco::FractionalPhaseAccumulator`から受け取る。
 /// `phase`が現在の入力サンプルから次の入力サンプルへ進む割合を表し、

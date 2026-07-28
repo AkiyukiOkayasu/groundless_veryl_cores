@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- doc commentのsummary表記を統一
 - MIDI受信testへ検証目的を示すdoc commentを追加
 ### Changed
 

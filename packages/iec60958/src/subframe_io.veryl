@@ -1,4 +1,4 @@
-/// IEC60958 subframeを共通payload/BMC codecへ接続する送信器。
+/// IEC60958 subframeを共通payload/BMC codecへ接続する送信器
 import Types::AudioSample;
 import Types::LinkType;
 import Types::PreambleKind;
@@ -48,7 +48,7 @@ module Iec60958SubframeTx #(
     );
 }
 
-/// IEC60958 BMC codecをsubframe fieldへ戻す受信器。
+/// IEC60958 BMC codecをsubframe fieldへ戻す受信器
 module Iec60958SubframeRx (
     clk           : input  clock       ,
     rst           : input  reset       ,

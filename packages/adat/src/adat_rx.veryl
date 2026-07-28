@@ -70,7 +70,7 @@ import Types::AdatFamily;
 /// }
 /// ```
 ///
-/// # 使用例
+/// # Examples
 /// ```veryl
 /// inst adat: AdatRx (
 ///     clk        : sys_clk_50mhz,

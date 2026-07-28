@@ -1,4 +1,4 @@
-/// 2段のhalfband補間と連続線形ASRCを接続した1ch 4倍オーバーサンプラ。
+/// 2段のhalfband補間と連続線形ASRCを接続した1ch 4倍オーバーサンプラ
 ///
 /// 入力1サンプルから論理的に4サンプルを生成し、後段のSTD FIFOへburstで
 /// 受け渡す。FIFOの読み出しと50MHz出力の位相進行は`ContinuousLinearAsrc`

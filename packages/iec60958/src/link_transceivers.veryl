@@ -1,7 +1,7 @@
 import Types::AudioSample;
 import Types::SampleRate;
 
-/// S/PDIF consumer transmitter。
+/// S/PDIF consumer transmitter
 ///
 /// PCM stereo sampleを受け取り、channel statusを自動生成してBMC lineへ出す。
 /// channel statusの詳細設定を明示的に受け取るため、用途に応じて固定値を
@@ -114,7 +114,7 @@ pub module SpdifTransmitter (
     );
 }
 
-/// S/PDIF consumer receiver。
+/// S/PDIF consumer receiver
 ///
 /// 共通stereo receiverをS/PDIF向けの公開APIとして提供する薄いラッパー。
 /// A subframeを保持し、続くB subframeと組み合わせてstereo sampleを出力する。
@@ -175,7 +175,7 @@ pub module SpdifReceiver (
     );
 }
 
-/// AES3 professional transmitter。
+/// AES3 professional transmitter
 ///
 /// status mapperとblock CRCを内蔵し、AES3のC bitを自動生成する。
 /// stereo sampleの受理、A/B subframe送信、`busy`の契約は
@@ -238,7 +238,7 @@ pub module Aes3Transmitter (
     );
 }
 
-/// AES3 professional receiver。
+/// AES3 professional receiver
 ///
 /// 共通stereo receiverをAES3向けの公開APIとして提供する薄いラッパー。
 /// A/B subframeの組み立てとoutput backpressureの契約は

@@ -1,4 +1,4 @@
-/// ベンチマーク専用の0次ホールド基準。
+/// ベンチマーク専用の0次ホールド基準
 module BenchmarkZeroOrderHold #(
     param SAMPLE_WIDTH: u32 = 32,
     param PHASE_WIDTH : u32 = 32,
@@ -11,7 +11,7 @@ module BenchmarkZeroOrderHold #(
     assign sample = sample0;
 }
 
-/// 補間kernelだけを比較する決定論的ベンチマーク。
+/// 補間kernelだけを比較する決定論的ベンチマーク
 ///
 /// oscillatorには依存せず、固定のstep/ramp/sign-crossing/impulse vectorを
 /// 256位相へ展開する。CSV schemaはrootの解析スクリプトと互換に保つ

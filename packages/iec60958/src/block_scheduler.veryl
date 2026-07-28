@@ -1,4 +1,4 @@
-/// IEC 60958の192フレームblockを管理する共通scheduler。
+/// IEC 60958の192フレームblockを管理する共通scheduler
 ///
 /// `advance`を1回受けるたびに、A/Bのsubframeを1つ進める。
 /// 出力は常に次に送出すべきsubframeを指し、reset直後はblock先頭のAとなる。

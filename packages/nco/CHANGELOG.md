@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- doc commentのsummary表記を統一
 - 各testのdoc commentを検証目的が分かる表現へ統一
 ### Changed
 

@@ -4,7 +4,7 @@
 /// 30ビットエンコードから24ビットPCMに変換。
 ///
 /// # フレーム構造 (256 bits)
-/// ```
+/// ```text
 /// [Sync 10bit][1][User 4bit][1][Ch0 30bit][Ch1 30bit]...[Ch7 30bit]
 /// ```
 ///
@@ -26,13 +26,13 @@
 /// - 24bit = D[23:20] | D[19:16] | D[15:12] | D[11:8] | D[7:4] | D[3:0]
 ///
 /// # シリアル伝送順とビット有意性の注意
-/// - `bits` は bit_decoder からの LSB-aligned 符号化表現。
+/// - `bits` は bit_decoder からの LSB-aligned 符号化表現
 ///   例: 5bit間隔（"00001"）は `bits=5'b10000`（`bits[4]=1`）。
 /// - 本モジュールは `bits[0]` から順に shift へ取り込むため、
 ///   取り込み時点では nibble 内ビット並びが反転して見える。
 /// - ただし抽出位置を固定して24bit語へ再構成するため、最終 `data` の
 ///   ビット有意性は `data[23]` がMSB、`data[0]` がLSBで一定。
-/// - `data` は24bit単一ベクタであり、byte order（エンディアン）依存はない。
+/// - `data` は24bit単一ベクタであり、byte order（エンディアン）依存はない
 module FrameParser (
     /// システムクロック
     clk: input clock,

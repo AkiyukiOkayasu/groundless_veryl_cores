@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- doc commentのsummary表記を統一
 - UART受信testのdoc commentへ検証対象を明記
 ### Changed
 

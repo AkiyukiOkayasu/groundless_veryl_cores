@@ -1,4 +1,4 @@
-/// AES3 channel statusをsubframe schedulerへ同期する。
+/// AES3 channel statusをsubframe schedulerへ同期する
 ///
 /// 0..183ではstatus mapperのbitを出しながらCRCを更新し、184..191では
 /// 完了したCRCをLSB firstで出力する。channel A/Bのstatusが同一の構成を

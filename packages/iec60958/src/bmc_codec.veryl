@@ -1,4 +1,4 @@
-/// IEC60958 BMC serializer。
+/// IEC60958 BMC serializer
 ///
 /// 1 subframeは8cellのpreambleと28bit payloadの56cellで構成する。
 /// `cell_tick`が到来したときだけ次のcellへ進み、入力は1エントリpending
@@ -118,7 +118,7 @@ module Iec60958BmcSerializer (
     }
 }
 
-/// IEC60958 BMC deserializer。
+/// IEC60958 BMC deserializer
 ///
 /// cell_tickでline_bitをサンプルし、8cell sliding windowでpreambleを
 /// 探索する。通常payloadの先頭cellに必要な遷移も検証する。

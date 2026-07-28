@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- doc commentのsummary、箇条書き、`Examples`見出し、code fence形式を整理
 - 各testへ検証目的を示すdoc commentを追加
 - 公開型packageをproject名と重複する`Adat`から`Types`へ改名
 ### Changed

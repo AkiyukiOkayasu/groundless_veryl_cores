@@ -1,4 +1,4 @@
-/// 2倍補間用の固定係数halfband FIR。
+/// 2倍補間用の固定係数halfband FIR
 ///
 /// `COEFFICIENT_SET`は1段目（103tap）または2段目（39tap）を選ぶ。
 /// 係数はQ2.(COEFFICIENT_WIDTH - 2)、入力と出力はQ1.(SAMPLE_WIDTH - 1)

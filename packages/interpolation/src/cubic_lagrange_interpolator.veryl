@@ -1,4 +1,4 @@
-/// 4点3次Lagrange補間器。
+/// 4点3次Lagrange補間器
 ///
 /// `sample_m1`、`sample0`、`sample1`、`sample2`の4点を3次Horner形式で
 /// 評価する。係数はQ2.16へ量子化し、組み合わせlatencyは0です。

@@ -1,10 +1,10 @@
-/// CIC（Cascaded Integrator-Comb）フィルタ群。
+/// CIC（Cascaded Integrator-Comb）フィルタ群
 ///
 /// CICは係数乗算器を使わず、加算器・減算器・遅延器だけでレート変換を行う。
 /// 音声帯域の最終補間器としては通過帯域 droop が大きいが、
 /// ADAT/I2S周辺の粗いレート変換や後段FIRの前段として有用である。
 
-/// CIC間引きフィルタ。
+/// CIC間引きフィルタ
 ///
 /// 入力側でSTAGES段の積分器を毎`input_valid`時に更新し、
 /// DECIMATION個ごとにSTAGES段の櫛形フィルタを通して出力する。
@@ -98,7 +98,7 @@ pub module CicDecimator #(
     }
 }
 
-/// CIC補間フィルタ。
+/// CIC補間フィルタ
 ///
 /// 入力サンプルをSTAGES段の櫛形フィルタへ通し、その結果を
 /// INTERPOLATION倍のゼロ挿入列としてSTAGES段の積分器へ入力する。

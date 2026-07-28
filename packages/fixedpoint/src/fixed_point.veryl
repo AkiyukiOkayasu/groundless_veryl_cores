@@ -1,95 +1,83 @@
-/// signed固定小数点formatの契約。
+/// signed固定小数点formatの契約
 ///
-/// `WIDTH`は符号ビットを含む総ビット幅、`FRACTION_BITS`はbinary pointの
-/// 右側に置く小数ビット数である。したがって、左側のビット数は
-/// `WIDTH - FRACTION_BITS`となる。
+/// `WIDTH`は符号ビットを含む総ビット幅、`FRACTION_BITS`はbinary pointの右側に置く小数ビット数である。したがって、左側のビット数は`WIDTH - FRACTION_BITS`となる。
 ///
-/// `Raw`はformatに対応するsignedな2の補数ビット表現であり、実数値は
-/// `Raw / 2^FRACTION_BITS`として解釈する。`Raw`自体にはformatのscale情報は
-/// 埋め込まれないため、異なるformat間の変換には`convert`を使う。
+/// `Raw`はformatに対応するsignedな2の補数ビット表現であり、実数値は`Raw / 2^FRACTION_BITS`として解釈する。`Raw`自体にはformatのscale情報は埋め込まれないため、異なるformat間の変換には`convert`を使う。
 ///
 /// 実装は`WIDTH > 0`かつ`FRACTION_BITS < WIDTH`を満たす必要がある。
 ///
-/// # 使用例
+/// # Examples
 ///
-/// ```
+/// ```veryl
 /// let one: Q8_24::Raw = Q8_24::ONE;
 /// // `one`の実数値は1.0、ビット表現は0x0100_0000。
 /// ```
 pub proto package SignedFixedPointFormat {
-    /// 符号ビットを含む総ビット幅。
+    /// 符号ビットを含む総ビット幅
     ///
-    /// `Raw`は` signed logic<WIDTH> `として表現され、signed値の範囲は
-    /// `[-2^(WIDTH - 1), 2^(WIDTH - 1) - 1]`となる。
+    /// `Raw`は` signed logic<WIDTH> `として表現され、signed値の範囲は`[-2^(WIDTH - 1), 2^(WIDTH - 1) - 1]`となる。
     const WIDTH: u32;
-    /// binary pointの右側にある小数ビット数。
+    /// binary pointの右側にある小数ビット数
     ///
-    /// raw値をこのビット数だけ右シフトした位置が整数部に相当する。
-    /// 例えばQ8.24では`WIDTH = 32`、`FRACTION_BITS = 24`である。
+    /// raw値をこのビット数だけ右シフトした位置が整数部に相当する。例えばQ8.24では`WIDTH = 32`、`FRACTION_BITS = 24`である。
     const FRACTION_BITS: u32;
-    /// このformatのsigned固定小数点ビット表現。
+    /// このformatのsigned固定小数点ビット表現
     ///
-    /// これはformatを表すタグ付きnewtypeではなく、実際のRTLに接続できる
-    /// signed bit vectorの別名である。`Q1_31::Raw`と`Q8_24::Raw`のように
-    /// formatが異なっても、幅とsignednessが同じならビットレベルでは同じ型になる。
+    /// これはformatを表すタグ付きnewtypeではなく、実際のRTLに接続できるsigned bit vectorの別名である。`Q1_31::Raw`と`Q8_24::Raw`のようにformatが異なっても、幅とsignednessが同じならビットレベルでは同じ型になる。
     type Raw = signed logic<WIDTH>;
 
-    /// 数値0を表すraw値。常に`'0`である。
+    /// 数値0を表すraw値。常に`'0`である
     const ZERO: Raw;
-    /// 表現可能な最小値。raw値では`-2^(WIDTH - 1)`に相当する。
+    /// 表現可能な最小値。raw値では`-2^(WIDTH - 1)`に相当する
     const MIN: Raw;
-    /// 表現可能な最大値。raw値では`2^(WIDTH - 1) - 1`に相当する。
+    /// 表現可能な最大値。raw値では`2^(WIDTH - 1) - 1`に相当する
     const MAX: Raw;
 }
 
-/// 固定小数点演算で共有する丸め・overflow policy。
+/// 固定小数点演算で共有する丸め・overflow policy
 ///
-/// policyは関数のgeneric parameterとして指定するため、ハードウェア上の
-/// 実行時selectorは生成されない。丸めは小数ビットを削減する右シフト時に、
-/// overflow処理は出力幅を狭める処理時に適用される。
+/// policyは関数のgeneric parameterとして指定するため、ハードウェア上の実行時selectorは生成されない。丸めは小数ビットを削減する右シフト時に、overflow処理は出力幅を狭める処理時に適用される。
 pub package Types {
-    /// 小数ビット削減時に、どの整数raw値を選ぶかを指定する。
+    /// 小数ビット削減時に、どの整数raw値を選ぶかを指定
     ///
-    /// `SHIFT`ビット右シフトする場合、丸め対象の実数値は概念上
-    /// `value / 2^SHIFT`である。`SHIFT == 0`の場合はすべてのmodeで入力を保持する。
+    /// `SHIFT`ビット右シフトする場合、丸め対象の実数値は概念上`value / 2^SHIFT`である。`SHIFT == 0`の場合はすべてのmodeで入力を保持する。
     enum RoundingMode {
-        /// 切り下げ。負数を含めて負の無限大方向へ丸める。
+        /// 切り下げ。負数を含めて負の無限大方向へ丸める
         ///
         /// 例: `1.5 -> 1`、`-1.5 -> -2`。
         TOWARD_NEGATIVE,
-        /// 切り捨て。ゼロ方向へ丸め、絶対値を増やさない。
+        /// 切り捨て。ゼロ方向へ丸め、絶対値を増やさない
         ///
         /// 例: `1.5 -> 1`、`-1.5 -> -1`。
         TOWARD_ZERO,
-        /// 切り上げ。正の無限大方向へ丸める。
+        /// 切り上げ。正の無限大方向へ丸める
         ///
         /// 例: `1.5 -> 2`、`-1.5 -> -1`。
         TOWARD_POSITIVE,
-        /// 最近傍値へ丸め、ちょうど中間の場合は正方向へ丸める。
+        /// 最近傍値へ丸め、ちょうど中間の場合は正方向へ丸める
         ///
         /// 例: `1.5 -> 2`、`-1.5 -> -1`。
         NEAREST_TIES_TOWARD_POSITIVE,
-        /// 最近傍値へ丸め、ちょうど中間の場合は絶対値が大きくなる方向へ丸める。
+        /// 最近傍値へ丸め、ちょうど中間の場合は絶対値が大きくなる方向へ丸める
         ///
         /// 例: `1.5 -> 2`、`-1.5 -> -2`。
         NEAREST_TIES_AWAY_FROM_ZERO,
-        /// 最近傍値へ丸め、ちょうど中間の場合は結果の最下位ビットを偶数にする。
+        /// 最近傍値へ丸め、ちょうど中間の場合は結果の最下位ビットを偶数にする
         ///
         /// 例: `2.5 -> 2`、`3.5 -> 4`。負数でも結果の整数raw値を偶数にする。
         NEAREST_TIES_TO_EVEN,
     }
 
-    /// 出力幅を超えた値をどのように処理するかを指定する。
+    /// 出力幅を超えた値の処理方法
     ///
-    /// 処理順は小数位置調整、`RoundingMode`による丸め、`OverflowMode`による
-    /// 範囲処理である。`WRAP`はビットを保持し、`SATURATE`は数値を保持する。
+    /// 処理順は小数位置調整、`RoundingMode`による丸め、`OverflowMode`による範囲処理である。`WRAP`はビットを保持し、`SATURATE`は数値を保持する。
     enum OverflowMode {
-        /// 出力幅の下位ビットを保持する。
+        /// 出力幅の下位ビットを保持する
         ///
         /// signed 2の補数値としては`2^OUT_WIDTH`を法としたwrapになるため、
         /// 大きな正数が負数として見えることがある。
         WRAP,
-        /// 出力formatの`MIN`/`MAX`へ制限する。
+        /// 出力formatの`MIN`/`MAX`へ制限する
         ///
         /// signed出力の範囲は`[-2^(OUT_WIDTH - 1), 2^(OUT_WIDTH - 1) - 1]`であり、
         /// 範囲外の値をwrapさせず最小値または最大値に置き換える。
@@ -97,19 +85,18 @@ pub package Types {
     }
 }
 
-/// WIDTHと小数ビット数でsigned固定小数点formatを定義する。
+/// WIDTHと小数ビット数によるsigned固定小数点formatの定義
 ///
-/// 固定のQ形式presetを増やす代わりに、任意の幅と小数ビット数を
-/// formatとして直接使用できる。
+/// 固定のQ形式presetを増やす代わりに、任意の幅と小数ビット数をformatとして直接使用できる。
 ///
-/// # Generic引数
+/// # Type Parameters
 ///
-/// - `W`: `WIDTH`として使う総ビット幅。
-/// - `F`: `FRACTION_BITS`として使う小数ビット数。
+/// - `W`: `WIDTH`として使う総ビット幅
+/// - `F`: `FRACTION_BITS`として使う小数ビット数
 ///
-/// # 使用例
+/// # Examples
 ///
-/// ```
+/// ```veryl
 /// var input: SignedFixedPointFormatOf::<16, 8>::Raw;
 /// input = 16'sd384; // 1.5
 /// ```
@@ -123,7 +110,7 @@ pub package SignedFixedPointFormatOf::<W: u32, F: u32> for SignedFixedPointForma
     const MAX : Raw = {1'b0, 1'b1 repeat WIDTH - 1};
 }
 
-/// Q2.16形式。27x18乗算器の係数に使用する。
+/// Q2.16形式。27x18乗算器の係数に使用する
 ///
 /// raw値`x`の実数値は`x / 2^16`である。
 pub package Q2_16 for SignedFixedPointFormat {
@@ -138,7 +125,7 @@ pub package Q2_16 for SignedFixedPointFormat {
     const ZERO   : Raw = 18'sd0;
 }
 
-/// Q1.31形式 (-1.0以上、+1.0未満)。デルタシグマ変調器などに使用する。
+/// Q1.31形式 (-1.0以上、+1.0未満)。デルタシグマ変調器などに使用する
 ///
 /// `Q1_31::ONE`は定義されない。+1.0は表現範囲外であるため、必要な場合は
 /// `Q1_31::MAX`を使用する。
@@ -152,7 +139,7 @@ pub package Q1_31 for SignedFixedPointFormat {
     const ZERO: Raw = 32'sd0;
 }
 
-/// Q8.24形式。波形オシレーターの出力などに使用する。
+/// Q8.24形式。波形オシレーターの出力などに使用する
 ///
 /// raw値`x`の実数値は`x / 2^24`である。
 pub package Q8_24 for SignedFixedPointFormat {
@@ -167,7 +154,7 @@ pub package Q8_24 for SignedFixedPointFormat {
     const ZERO   : Raw = 32'sd0;
 }
 
-/// Q8.19形式。36x27乗算器の係数に使用する。
+/// Q8.19形式。36x27乗算器の係数に使用する
 ///
 /// raw値`x`の実数値は`x / 2^19`である。
 pub package Q8_19 for SignedFixedPointFormat {
@@ -182,7 +169,7 @@ pub package Q8_19 for SignedFixedPointFormat {
     const ZERO   : Raw = 27'sd0;
 }
 
-/// Q3.24形式。36x27乗算器の係数に使用する。
+/// Q3.24形式。36x27乗算器の係数に使用する
 ///
 /// raw値`x`の実数値は`x / 2^24`である。
 pub package Q3_24 for SignedFixedPointFormat {
@@ -197,32 +184,29 @@ pub package Q3_24 for SignedFixedPointFormat {
     const ZERO   : Raw = 27'sd0;
 }
 
-/// signed固定小数点値を小数ビット数と出力幅ごと変換するproject-scope function。
+/// signed固定小数点値を小数ビット数と出力幅ごと変換するproject-scope function
 ///
-/// VerylのSystemVerilog出力制約により、module parameterをgeneric actual argumentへ
-/// 渡せるのはcomponent namespace外のfunctionに限られるためである。
+/// VerylのSystemVerilog出力制約により、module parameterをgeneric actual argumentへ渡せるのはcomponent namespace外のfunctionに限られるためである。
 ///
-/// 処理順は「小数位置調整 → 丸め → overflow処理」である。小数ビットを増やす場合は
-/// 左シフト、減らす場合は`MODE`で丸める右シフトを行う。`OVERFLOW == WRAP`では
-/// 出力幅の下位ビットを保持し、`SATURATE`ではsigned出力範囲へ制限する。
+/// 処理順は「小数位置調整 → 丸め → overflow処理」である。小数ビットを増やす場合は左シフト、減らす場合は`MODE`で丸める右シフトを行う。`OVERFLOW == WRAP`では出力幅の下位ビットを保持し、`SATURATE`ではsigned出力範囲へ制限する。
 ///
-/// # 引数
+/// # Arguments
 ///
-/// - `value`: 入力formatのsigned raw値。
-/// - `IN_WIDTH`: 入力の総ビット幅。
-/// - `IN_FRAC`: 入力の小数ビット数。
-/// - `OUT_WIDTH`: 出力の総ビット幅。
-/// - `OUT_FRAC`: 出力の小数ビット数。
-/// - `MODE`: 小数ビット削減時の丸め方。
-/// - `OVERFLOW`: 整数部削減時のoverflow処理。
+/// - `value`: 入力formatのsigned raw値
+/// - `IN_WIDTH`: 入力の総ビット幅
+/// - `IN_FRAC`: 入力の小数ビット数
+/// - `OUT_WIDTH`: 出力の総ビット幅
+/// - `OUT_FRAC`: 出力の小数ビット数
+/// - `MODE`: 小数ビット削減時の丸め方
+/// - `OVERFLOW`: 整数部削減時のoverflow処理
 ///
-/// # 戻り値
+/// # Returns
 ///
 /// 指定した出力formatのsigned raw値。
 ///
-/// # 使用例
+/// # Examples
 ///
-/// ```
+/// ```veryl
 /// let result: signed logic<8> = resize::<
 ///     12,
 ///     4,
@@ -323,27 +307,24 @@ pub function resize::<
     return result;
 }
 
-/// signed値を算術右シフトし、指定モードで丸める。
+/// signed値の算術右シフトと指定modeによる丸め
 ///
-/// `SHIFT == 0`では入力をそのまま返す。`SHIFT > 0`では小数ビットを
-/// `SHIFT`個削減し、結果は入力と同じ幅で返す。丸めによる幅超過は
-/// この関数では飽和せず、出力幅の下位ビットが残る。
+/// `SHIFT == 0`では入力をそのまま返す。`SHIFT > 0`では小数ビットを`SHIFT`個削減し、結果は入力と同じ幅で返す。丸めによる幅超過はこの関数では飽和せず、出力幅の下位ビットが残る。
 ///
-/// # 引数
+/// # Arguments
 ///
-/// - `value`: 算術右シフトするsigned raw値。
-/// - `WIDTH`: `value`と戻り値のビット幅。
-/// - `SHIFT`: 右シフトするビット数。
-/// - `MODE`: 適用する`RoundingMode`。
+/// - `value`: 算術右シフトするsigned raw値
+/// - `WIDTH`: `value`と戻り値のビット幅
+/// - `SHIFT`: 右シフトするビット数
+/// - `MODE`: 適用する`RoundingMode`
 ///
-/// # 戻り値
+/// # Returns
 ///
-/// 丸め後のsigned raw値。小数点位置は`SHIFT`ビット右へ移動したものとして
-/// 解釈する。
+/// 丸め後のsigned raw値。小数点位置は`SHIFT`ビット右へ移動したものとして解釈する。
 ///
-/// # 使用例
+/// # Examples
 ///
-/// ```
+/// ```veryl
 /// let result: signed logic<8> = round_shift::<
 ///     8,
 ///     2,
@@ -356,24 +337,23 @@ pub function round_shift::<WIDTH: u32, SHIFT: u32, MODE: Types::RoundingMode> (
     return resize::<WIDTH, SHIFT, WIDTH, 0, MODE, Types::OverflowMode::WRAP>(value);
 }
 
-/// signed値を指定幅へ飽和させる。
+/// signed値の指定幅への飽和
 ///
-/// 出力範囲は`[-2^(OUT_WIDTH-1), 2^(OUT_WIDTH-1)-1]`とする。入力が
-/// 範囲内の場合は数値を保持し、範囲外の場合は最小値または最大値を返す。
+/// 出力範囲は`[-2^(OUT_WIDTH-1), 2^(OUT_WIDTH-1)-1]`とする。入力が範囲内の場合は数値を保持し、範囲外の場合は最小値または最大値を返す。
 ///
-/// # 引数
+/// # Arguments
 ///
-/// - `value`: 飽和対象のsigned値。
-/// - `IN_WIDTH`: `value`のビット幅。
-/// - `OUT_WIDTH`: 戻り値のビット幅。
+/// - `value`: 飽和対象のsigned値
+/// - `IN_WIDTH`: `value`のビット幅
+/// - `OUT_WIDTH`: 戻り値のビット幅
 ///
-/// # 戻り値
+/// # Returns
 ///
 /// `OUT_WIDTH`で表現可能な範囲に制限されたsigned値。
 ///
-/// # 使用例
+/// # Examples
 ///
-/// ```
+/// ```veryl
 /// let result: signed logic<8> = saturate::<12, 8>(12'sd200);
 /// // 200は8-bit signedの最大値127を超えるため、127。
 /// ```
@@ -385,26 +365,24 @@ pub function saturate::<IN_WIDTH: u32, OUT_WIDTH: u32> (
     );
 }
 
-/// signed整数同士を、入力幅の合計幅で乗算する。
+/// signed整数同士の入力幅の合計幅による乗算
 ///
-/// 結果の幅は`A_WIDTH + B_WIDTH`。固定小数点値として解釈する場合、
-/// 結果の小数ビット数は入力の小数ビット数の合計になる。丸めや出力幅の
-/// 制限は行わないため、必要に応じて`resize`を続けて呼び出す。
+/// 結果の幅は`A_WIDTH + B_WIDTH`。固定小数点値として解釈する場合、結果の小数ビット数は入力の小数ビット数の合計になる。丸めや出力幅の制限は行わないため、必要に応じて`resize`を続けて呼び出す。
 ///
-/// # 引数
+/// # Arguments
 ///
-/// - `a`: 第一入力のsigned raw値。
-/// - `b`: 第二入力のsigned raw値。
-/// - `A_WIDTH`: `a`のビット幅。
-/// - `B_WIDTH`: `b`のビット幅。
+/// - `a`: 第一入力のsigned raw値
+/// - `b`: 第二入力のsigned raw値
+/// - `A_WIDTH`: `a`のビット幅
+/// - `B_WIDTH`: `b`のビット幅
 ///
-/// # 戻り値
+/// # Returns
 ///
 /// `A_WIDTH + B_WIDTH`ビットのsigned積。
 ///
-/// # 使用例
+/// # Examples
 ///
-/// ```
+/// ```veryl
 /// let product: signed logic<16> = multiply::<8, 8>(8'sd32, 8'sd16);
 /// // product == 512。Q4.4同士なら実数値は2.0 * 1.0 = 2.0。
 /// ```
@@ -420,29 +398,28 @@ pub function multiply::<A_WIDTH: u32, B_WIDTH: u32> (
     return a_ext * b_ext;
 }
 
-/// signed乗算結果を指定formatへ変換する。
+/// signed乗算結果の指定formatへの変換
 ///
-/// 積の小数ビット数は`A_FRAC + B_FRAC`として扱い、`resize`と同じ順序で
-/// 小数位置調整、丸め、overflow処理を行う。
+/// 積の小数ビット数は`A_FRAC + B_FRAC`として扱い、`resize`と同じ順序で小数位置調整、丸め、overflow処理を行う。
 ///
-/// # 引数
+/// # Arguments
 ///
-/// - `a`: 第一入力のsigned raw値。
-/// - `b`: 第二入力のsigned raw値。
-/// - `A_WIDTH`/`B_WIDTH`: 入力の総ビット幅。
-/// - `A_FRAC`/`B_FRAC`: 入力の小数ビット数。
-/// - `OUT_WIDTH`: 出力の総ビット幅。
-/// - `OUT_FRAC`: 出力の小数ビット数。
-/// - `MODE`: 小数ビット削減時の丸め方。
-/// - `OVERFLOW`: 出力幅超過時の処理。
+/// - `a`: 第一入力のsigned raw値
+/// - `b`: 第二入力のsigned raw値
+/// - `A_WIDTH`/`B_WIDTH`: 入力の総ビット幅
+/// - `A_FRAC`/`B_FRAC`: 入力の小数ビット数
+/// - `OUT_WIDTH`: 出力の総ビット幅
+/// - `OUT_FRAC`: 出力の小数ビット数
+/// - `MODE`: 小数ビット削減時の丸め方
+/// - `OVERFLOW`: 出力幅超過時の処理
 ///
-/// # 戻り値
+/// # Returns
 ///
 /// 指定した出力formatのsigned raw値。
 ///
-/// # 使用例
+/// # Examples
 ///
-/// ```
+/// ```veryl
 /// let product: signed logic<8> = multiply_resize::<
 ///     8,
 ///     4,
@@ -475,27 +452,25 @@ pub function multiply_resize::<
     return resize::<PRODUCT_WIDTH, PRODUCT_FRAC, OUT_WIDTH, OUT_FRAC, MODE, OVERFLOW>(product);
 }
 
-/// 小数位置調整、丸め、指定overflow処理の順でformat変換する。
+/// 小数位置調整、丸め、指定overflow処理の順によるformat変換
 ///
-/// 入力と出力のformatが同じ場合は、`MODE`が`TOWARD_ZERO`などであっても
-/// 値は変化しない。出力formatの整数部が狭くなる場合、`SATURATE`を指定すると
-/// wrapを防いで`OUT_FORMAT::MIN`/`MAX`へ制限できる。
+/// 入力と出力のformatが同じ場合は、`MODE`が`TOWARD_ZERO`などであっても値は変化しない。出力formatの整数部が狭くなる場合、`SATURATE`を指定するとwrapを防いで`OUT_FORMAT::MIN`/`MAX`へ制限できる。
 ///
-/// # 引数
+/// # Arguments
 ///
-/// - `value`: `IN_FORMAT`のsigned raw値。
-/// - `IN_FORMAT`: 入力の幅と小数ビット位置。
-/// - `OUT_FORMAT`: 出力の幅と小数ビット位置。
-/// - `MODE`: 小数ビット削減時の丸め方。
-/// - `OVERFLOW`: 出力幅超過時の処理。
+/// - `value`: `IN_FORMAT`のsigned raw値
+/// - `IN_FORMAT`: 入力の幅と小数ビット位置
+/// - `OUT_FORMAT`: 出力の幅と小数ビット位置
+/// - `MODE`: 小数ビット削減時の丸め方
+/// - `OVERFLOW`: 出力幅超過時の処理
 ///
-/// # 戻り値
+/// # Returns
 ///
 /// `OUT_FORMAT`へ変換されたsigned raw値。
 ///
-/// # 使用例
+/// # Examples
 ///
-/// ```
+/// ```veryl
 /// let input: Q1_31::Raw = 32'sh6000_0000; // 0.75
 /// let output: Q8_24::Raw = convert::<
 ///     Q1_31,

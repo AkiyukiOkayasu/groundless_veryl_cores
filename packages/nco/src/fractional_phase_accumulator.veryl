@@ -1,4 +1,4 @@
-/// ASRC用の分数位相アキュムレータ。
+/// ASRC用の分数位相アキュムレータ
 ///
 /// `phase`はQ0.WIDTHの小数位相を表す。毎クロック`phase_increment`を
 /// 加算し、2^WIDTHを跨ぐときだけ`advance`を1にする。
