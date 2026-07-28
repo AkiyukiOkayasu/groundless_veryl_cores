@@ -5,7 +5,30 @@
 Verylで記述した、オーディオ信号処理・デジタルオーディオ伝送向けのRTLコア集です。
 各コアは単体で利用できる公開モジュールと、Veryl Native testによる回帰テストを持ちます。
 
-## package構成
+## 開発終了と移行先
+
+このmonorepoの開発は終了しており、今後は更新しません。
+各packageの開発は、以下の独立リポジトリへ移行しました。
+
+| package | 移行先 |
+| --- | --- |
+| `fixedpoint` | [gndless-fixedpoint-veryl](https://github.com/AkiyukiOkayasu/gndless-fixedpoint-veryl) |
+| `interpolation` | [gndless-interpolation-veryl](https://github.com/AkiyukiOkayasu/gndless-interpolation-veryl) |
+| `nco` | [gndless-nco-veryl](https://github.com/AkiyukiOkayasu/gndless-nco-veryl) |
+| `filter` | [gndless-filter-veryl](https://github.com/AkiyukiOkayasu/gndless-filter-veryl) |
+| `oscillator` | [gndless-oscillator-veryl](https://github.com/AkiyukiOkayasu/gndless-oscillator-veryl) |
+| `sample_rate_conversion` | [gndless-sample-rate-conversion-veryl](https://github.com/AkiyukiOkayasu/gndless-sample-rate-conversion-veryl) |
+| `delta_sigma` | [gndless-delta-sigma-veryl](https://github.com/AkiyukiOkayasu/gndless-delta-sigma-veryl) |
+| `uart` | [gndless-uart-veryl](https://github.com/AkiyukiOkayasu/gndless-uart-veryl) |
+| `midi` | [gndless-midi-veryl](https://github.com/AkiyukiOkayasu/gndless-midi-veryl) |
+| `spi` | [gndless-spi-veryl](https://github.com/AkiyukiOkayasu/gndless-spi-veryl) |
+| `adat` | [gndless-adat-veryl](https://github.com/AkiyukiOkayasu/gndless-adat-veryl) |
+| `iec60958` | [gndless-iec60958-veryl](https://github.com/AkiyukiOkayasu/gndless-iec60958-veryl) |
+
+このリポジトリは移行前の履歴を参照するために残しています。issueやpull requestを含む新しい変更は、
+対応する移行先リポジトリで行ってください。
+
+## 移行前のpackage構成
 
 | package | 主な公開API | 用途 |
 | --- | --- | --- |
@@ -30,8 +53,7 @@ signedness、latency、reset、転送契約は対応するREADMEとdoc comment�
 詳細なポート一覧と型は、[公開ドキュメント](https://akiyukiokayasu.github.io/groundless_veryl_cores/)を参照してください。
 
 固定小数点演算は`packages/fixedpoint/`の`gndless_fixedpoint`として管理し、
-他packageからは`fixedpoint::...`で直接参照します。全packageは当面monorepo内の
-local path dependencyだけを使用し、外部repository化とregistry publishは行いません。
+他packageからは`fixedpoint::...`で直接参照していました。
 
 ## インターフェース方針
 
