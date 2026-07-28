@@ -1,4 +1,4 @@
-/// AES3 professional channel statusのCRC-8を計算する
+/// AES3 professional channel statusのCRC-8計算
 ///
 /// CRC対象はblock先頭からの184bitで、LSB first・初期値FFh・生成多項式x^8+x^4+x^3+x^2+1（反転表現B8h）を用いる。
 /// 1クロックに1bitを処理するため、50MHz動作でも回路規模を抑えられる。
@@ -71,25 +71,25 @@ module test_aes3_channel_status_crc {
     );
 
     initial {
-        start      = 0;
-        status     = 0;
+        start  = 0;
+        status = 0;
         rst.assert();
 
-        status   = 184'h1;
-        start    = 1;
+        status = 184'h1;
+        start  = 1;
         clk.next(1);
-        start    = 0;
-        $assert (busy, "AES3 CRC must become busy after start");
+        start = 0;
+        $assert(busy, "AES3 CRC must become busy after start");
         clk.next(184);
-        $assert (done && !busy, "AES3 CRC must finish after 184 bits");
-        $assert (crc == 8'h32, "AES3 CRC bit-zero vector mismatch");
+        $assert(done && !busy, "AES3 CRC must finish after 184 bits");
+        $assert(crc == 8'h32, "AES3 CRC bit-zero vector mismatch");
 
-        status   = 0;
-        start    = 1;
+        status = 0;
+        start  = 1;
         clk.next(1);
-        start    = 0;
+        start = 0;
         clk.next(184);
-        $assert (crc == 8'hB0, "AES3 CRC zero vector mismatch");
-        $finish ();
+        $assert(crc == 8'hB0, "AES3 CRC zero vector mismatch");
+        $finish();
     }
 }

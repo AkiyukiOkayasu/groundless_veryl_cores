@@ -1,7 +1,6 @@
 /// S/PDIF consumer channel statusのbit mapper
 ///
-/// IEC 60958-3の代表的なPCMプロファイルを扱う。未使用byteは0とし、
-/// 呼び出し側がbit_indexを0..191で走査してsubframeのC bitへ供給する。
+/// IEC 60958-3の代表的なPCMプロファイル。未使用byteは0、呼び出し側はbit_indexを0..191で走査してsubframeのC bitへ供給
 import Types::SampleRate;
 import Spdif::SampleRateCode;
 import Aes3::ChannelMode;
@@ -50,7 +49,7 @@ module SpdifChannelStatusBit (
 
 /// AES3 professional channel statusのbit mapper
 ///
-/// CRC byte（bit 184..191）は`Aes3ChannelStatusCrc`で別途生成する。
+/// CRC byte（bit 184..191）は`Aes3ChannelStatusCrc`で別途生成
 
 module Aes3ChannelStatusBit (
     bit_index   : input  logic            <8>,

@@ -1,12 +1,9 @@
 /// 分数比から1クロック幅のtickを生成するNCO
 ///
-/// phaseはDDSの位相ではなく、modulus未満の剰余を保持する。
+/// phaseはDDSの位相ではなく、modulus未満の剰余を保持
 /// そのため、tickの平均周波数はincrement / modulus * clkになる。
 ///
-/// 同じクロックで複数の制御がHighの場合、優先順位は
-/// `update` > `restart` > `!enable` > 通常の位相加算となる。
-/// `update`と`restart`はphaseを0へ戻して`tick`を抑止し、disable中も
-/// phaseを保持して`tick`だけをLowにする。
+/// 同じクロックで複数の制御がHighの場合、優先順位は`update` > `restart` > `!enable` > 通常の位相加算。`update`と`restart`はphaseを0へ戻して`tick`を抑止し、disable中もphaseを保持して`tick`だけをLow化
 ///
 /// ```wavedrom
 /// {
@@ -22,18 +19,18 @@
 /// }
 /// ```
 pub module NcoTick #(
-    param WIDTH: u32 = 32,
+    param WIDTH: u32 = 32, /// 位相・増分・modulusのビット幅
 ) (
-    clk         : input  clock       ,
-    rst         : input  reset       ,
-    enable      : input  bbool       ,
-    update      : input  logic       ,
-    restart     : input  logic       ,
-    increment   : input  logic<WIDTH>,
-    modulus     : input  logic<WIDTH>,
-    tick        : output logic       ,
-    configured  : output bbool       ,
-    config_error: output bbool       ,
+    clk         : input  clock       , /// システムクロック
+    rst         : input  reset       , /// リセット
+    enable      : input  bbool       , /// tick生成イネーブル
+    update      : input  logic       , /// incrementとmodulusの更新要求
+    restart     : input  logic       , /// 位相を0へ戻す要求
+    increment   : input  logic<WIDTH>, /// 1クロックあたりの位相増分
+    modulus     : input  logic<WIDTH>, /// tick周期の法
+    tick        : output logic       , /// 周期完了パルス
+    configured  : output bbool       , /// 有効な設定が適用済み
+    config_error: output bbool       , /// modulusが不正であることを示すフラグ
 ) {
     var increment_reg: logic<WIDTH>;
     var modulus_reg  : logic<WIDTH>;
@@ -88,17 +85,17 @@ pub module NcoTick #(
 
 /// 固定クロック比のclock-enable NCO
 ///
-/// 固定値はreset解除後に自動でNcoTickへ設定される。
+/// 固定値はreset解除後に自動でNcoTickへ設定される
 pub module ClockEnableNco #(
-    param WIDTH      : u32 = 32        ,
-    param CLOCK_FREQ : u32 = 50_000_000,
-    param TARGET_FREQ: u32 = 12_288_000,
+    param WIDTH      : u32 = 32        , /// 位相・増分・modulusのビット幅
+    param CLOCK_FREQ : u32 = 50_000_000, /// システムクロック周波数 [Hz]
+    param TARGET_FREQ: u32 = 12_288_000, /// 生成するtick周波数 [Hz]
 ) (
-    clk       : input  clock,
-    rst       : input  reset,
-    enable    : input  bbool,
-    tick      : output logic,
-    configured: output bbool,
+    clk       : input  clock, /// システムクロック
+    rst       : input  reset, /// リセット
+    enable    : input  bbool, /// tick生成イネーブル
+    tick      : output logic, /// 周期完了パルス
+    configured: output bbool, /// 固定比設定が有効
 ) {
     const INCREMENT: logic<WIDTH> = TARGET_FREQ as WIDTH;
     const MODULUS  : logic<WIDTH> = CLOCK_FREQ as WIDTH;

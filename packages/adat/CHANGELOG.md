@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 公開moduleのparam/port doc commentを宣言末尾へ統一し、ADAT説明文の改行を整理
+- doc commentの句点と体言止めの表記を整理
 - doc commentのsummary、箇条書き、`Examples`見出し、code fence形式を整理
 - 各testへ検証目的を示すdoc commentを追加
 - 公開型packageをproject名と重複する`Adat`から`Types`へ改名

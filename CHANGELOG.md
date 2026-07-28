@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 公開APIのparam/port doc commentを同じ行末へ統一し、説明文の途中改行を整理
+- doc commentの句点と体言止めの表記を整理
 - doc commentのsummary・箇条書き・改行とcode fence形式を整理
 - doc commentの`Arguments`、`Returns`、`Type Parameters`、`Examples`見出しをRustdoc準拠へ統一
 - 全testへ検証目的を示すdoc commentを追加し、表記を統一

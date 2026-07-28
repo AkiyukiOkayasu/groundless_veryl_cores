@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 公開transceiverのport doc commentを追加し、説明文を日本語と単一行段落へ整理
+- doc commentの句点と体言止めの表記を整理
 - doc commentのsummary表記を統一
 - 各testのdoc commentを検証目的が分かる表現へ統一
 

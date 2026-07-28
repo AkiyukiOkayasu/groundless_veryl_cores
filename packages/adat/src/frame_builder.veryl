@@ -8,19 +8,13 @@
 ///
 /// 各5bit nibbleは [4bit data][1bit separator=1] で構成される。
 module FrameBuilder (
-    /// システムクロック
-    clk: input clock,
-    rst: input reset,
-    /// 8チャンネルPCM入力
-    channels: input logic<24> [8],
-    /// User nibble入力
-    user_bits: input logic<4>,
-    /// フレーム構築トリガ
-    build: input logic,
-    /// 構築済みADATフレーム
-    frame: output logic<256>,
-    /// フレーム有効パルス
-    ready: output logic,
+    clk      : input  clock         , /// システムクロック
+    rst      : input  reset         , /// リセット
+    channels : input  logic<24>  [8], /// 8チャンネルPCM入力
+    user_bits: input  logic<4>      , /// User nibble入力
+    build    : input  logic         , /// フレーム構築トリガ
+    frame    : output logic<256>    , /// 構築済みADATフレーム
+    ready    : output logic         , /// フレーム有効パルス
 ) {
     var frame_reg      : logic<256>    ;
     var r_ready        : logic         ;

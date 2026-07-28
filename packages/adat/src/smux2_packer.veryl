@@ -18,14 +18,14 @@
 /// }
 /// ```
 pub module Smux2Packer #(
-    param SAMPLE_WIDTH: u32 = 24,
+    param SAMPLE_WIDTH: u32 = 24, /// サンプルのビット幅
 ) (
-    clk         : input  clock                  ,
-    rst         : input  reset                  ,
-    sample_valid: input  logic                  ,
-    samples     : input  logic<SAMPLE_WIDTH> [4],
-    channels    : output logic<SAMPLE_WIDTH> [8],
-    frame_valid : output logic                  ,
+    clk         : input  clock                  , /// システムクロック
+    rst         : input  reset                  , /// リセット
+    sample_valid: input  logic                  , /// 高速サンプル受理パルス
+    samples     : input  logic<SAMPLE_WIDTH> [4], /// 4チャンネルの高速サンプル
+    channels    : output logic<SAMPLE_WIDTH> [8], /// S/MUX物理スロット列
+    frame_valid : output logic                  , /// フレーム更新パルス
 ) {
     var first_samples: logic<SAMPLE_WIDTH> [4];
     var have_first   : logic                  ;

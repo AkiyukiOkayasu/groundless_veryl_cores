@@ -1,7 +1,7 @@
 /// ADATフレームパーサ
 ///
-/// ビット列からユーザーデータと8チャンネルのPCMデータを抽出する。
-/// 30ビットエンコードから24ビットPCMに変換。
+/// ビット列からユーザーデータと8チャンネルPCMデータを抽出する。
+/// 30ビットエンコードから24ビットPCMに変換する。
 ///
 /// # フレーム構造 (256 bits)
 /// ```text
@@ -20,37 +20,28 @@
 /// - Ch7: bit 255
 ///
 /// # 30bit → 24bit 変換
-/// sync_bitを除去して24bit PCMデータに変換
+/// sync_bitを除去した24bit PCMデータへの変換
 /// 各チャンネルは6つの5bitニブルで構成:
 /// - 各ニブル: [D3:D0][sync_bit]
 /// - 24bit = D[23:20] | D[19:16] | D[15:12] | D[11:8] | D[7:4] | D[3:0]
 ///
 /// # シリアル伝送順とビット有意性の注意
 /// - `bits` は bit_decoder からの LSB-aligned 符号化表現
-///   例: 5bit間隔（"00001"）は `bits=5'b10000`（`bits[4]=1`）。
-/// - 本モジュールは `bits[0]` から順に shift へ取り込むため、取り込み時点では nibble 内ビット並びが反転して見える。
-/// - ただし抽出位置を固定して24bit語へ再構成するため、最終 `data` のビット有意性は `data[23]` がMSB、`data[0]` がLSBで一定。
-/// - `data` は24bit単一ベクタであり、byte order（エンディアン）依存はない
+///   例: 5bit間隔（"00001"）は `bits=5'b10000`（`bits[4]=1`）
+/// - 本モジュールは `bits[0]` から順に shift へ取り込むため、取り込み時点では nibble 内ビット並びが反転して見える
+/// - ただし抽出位置を固定して24bit語へ再構成するため、最終 `data` のビット有意性は `data[23]` がMSB、`data[0]` がLSBで一定
+/// - `data` は24bit単一ベクタであり、byte order（エンディアン）に依存しない
 module FrameParser (
-    /// システムクロック
-    clk: input clock,
-    rst: input reset,
-    /// デコードされたビット列
-    bits: input logic<5>,
-    /// ビット数
-    bit_count: input logic<3>,
-    /// ビット有効
-    valid: input logic,
-    /// 同期マスク (1=データ期間)
-    sync: input logic,
-    /// ユーザーデータ出力 (4bit)
-    user_bits: output logic<4>,
-    /// PCMデータ出力 (24bit)
-    data: output logic<24>,
-    /// チャンネル番号 (0-7)
-    channel: output logic<3>,
-    /// データ有効
-    data_valid: output logic,
+    clk       : input  clock    , /// システムクロック
+    rst       : input  reset    , /// リセット
+    bits      : input  logic<5> , /// デコードされたビット列
+    bit_count : input  logic<3> , /// ビット数
+    valid     : input  logic    , /// ビット有効
+    sync      : input  logic    , /// 同期マスク (1=データ期間)
+    user_bits : output logic<4> , /// ユーザーデータ出力 (4bit)
+    data      : output logic<24>, /// PCMデータ出力 (24bit)
+    channel   : output logic<3> , /// チャンネル番号 (0-7)
+    data_valid: output logic    , /// データ有効
 ) {
     // フレーム内ビットカウンタ
     var bit_counter: logic<8>;
@@ -120,8 +111,8 @@ module FrameParser (
                 r_user  = {shift_next[0], shift_next[1], shift_next[2], shift_next[3]};
                 r_valid = 1'b0;
             } else {
-                // 30bit -> 24bit: 各5bitのnibbleから上位4bitを抽出する。
-                // LSBは同期用セパレーターのため破棄する。
+                // 30bit -> 24bit: 各5bitのnibbleから上位4bitを抽出する
+                // LSBは同期用セパレーターのため破棄する
                 let pcm_data: logic<24> = {
                     shift_next[29:26], shift_next[24:21], shift_next[19:16], shift_next[14:11], shift_next[9:6],
                     shift_next[4:1]
@@ -177,8 +168,8 @@ module test_adat_frame_parser {
         bits      = value;
         bit_count = count;
         valid     = 1'b1;
-        clk.next (1);
-        valid     = 1'b0;
+        clk.next(1);
+        valid = 1'b0;
     }
 
     function push_channel_123456 () {
@@ -191,22 +182,22 @@ module test_adat_frame_parser {
     }
 
     initial {
-        bits       = 5'd0;
-        bit_count  = 3'd0;
-        valid      = 1'b0;
-        sync       = 1'b1;
+        bits      = 5'd0;
+        bit_count = 3'd0;
+        valid     = 1'b0;
+        sync      = 1'b1;
         rst.assert();
 
-        // User=0xA。先頭のseparatorを含む反転済み入力。
+        // User=0xA。先頭のseparatorを含む反転済み入力
         push_bits(5'b10101, 3'd5);
-        $assert  (user_bits == 4'hA, "user bits mismatch");
+        $assert(user_bits == 4'hA, "user bits mismatch");
 
-        // 同じPCM値を全8チャンネルへ送り、チャンネル抽出と番号を検証する。
+        // 同じPCM値を全8チャンネルへ送り、チャンネル抽出と番号を検証する
         for i in 0..8 {
             push_channel_123456();
-            $assert            (data_valid == 1'b1, "channel data should be valid");
-            $assert            (channel == (i as 3), "channel index mismatch");
-            $assert            (data == 24'h123456, "PCM data mismatch");
+            $assert(data_valid == 1'b1, "channel data should be valid");
+            $assert(channel == (i as 3), "channel index mismatch");
+            $assert(data == 24'h123456, "PCM data mismatch");
         }
 
         $finish();

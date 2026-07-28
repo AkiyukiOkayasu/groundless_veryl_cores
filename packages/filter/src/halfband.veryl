@@ -23,19 +23,19 @@
 /// }
 /// ```
 pub module HalfbandInterpolator2x #(
-    param SAMPLE_WIDTH     : u32 = 32                                  ,
-    param COEFFICIENT_WIDTH: u32 = 18                                  ,
-    param ACCUMULATOR_WIDTH: u32 = SAMPLE_WIDTH + COEFFICIENT_WIDTH + 8,
-    param COEFFICIENT_SET  : u32 = 1                                   ,
+    param SAMPLE_WIDTH     : u32 = 32                                  , /// 入出力サンプルのビット幅
+    param COEFFICIENT_WIDTH: u32 = 18                                  , /// 係数のビット幅
+    param ACCUMULATOR_WIDTH: u32 = SAMPLE_WIDTH + COEFFICIENT_WIDTH + 8, /// MACアキュムレータのビット幅
+    param COEFFICIENT_SET  : u32 = 1                                   , /// 使用する係数セット (1または2)
 ) (
-    clk          : input  clock                     ,
-    rst          : input  reset                     ,
-    input_valid  : input  bbool                     ,
-    input_ready  : output bbool                     ,
-    input_sample : input  signed logic<SAMPLE_WIDTH>,
-    output_valid : output bbool                     ,
-    output_ready : input  bbool                     ,
-    output_sample: output signed logic<SAMPLE_WIDTH>,
+    clk          : input  clock                     , /// システムクロック
+    rst          : input  reset                     , /// リセット
+    input_valid  : input  bbool                     , /// 入力サンプル有効
+    input_ready  : output bbool                     , /// 入力受理可能
+    input_sample : input  signed logic<SAMPLE_WIDTH>, /// 入力サンプル
+    output_valid : output bbool                     , /// 出力サンプル有効
+    output_ready : input  bbool                     , /// 出力受理可能
+    output_sample: output signed logic<SAMPLE_WIDTH>, /// 補間後の出力サンプル
 ) {
     const PAIR_COUNT    : u32 = if COEFFICIENT_SET == 1 ? 26 : 10;
     const HISTORY_LENGTH: u32 = PAIR_COUNT * 2;
@@ -227,41 +227,41 @@ module test_halfband_interpolator2x_stream {
         input_valid  = false;
         input_sample = 16'sd1000;
         output_ready = false;
-        rst.assert  ();
+        rst.assert();
 
-        $assert    (input_ready, "halfband must accept input while idle");
+        $assert(input_ready, "halfband must accept input while idle");
         input_valid = true;
-        clk.next   (1);
+        clk.next(1);
         input_valid = false;
 
-        // 10個の対称係数を1クロックずつ積算する。
-        clk.next   (10);
-        $assert    (output_valid, "halfband must emit the first output");
-        $assert    (output_sample == 16'sd0, "zero-padded history must produce a zero even output");
+        // 10個の対称係数を1クロックずつ積算する
+        clk.next(10);
+        $assert(output_valid, "halfband must emit the first output");
+        $assert(output_sample == 16'sd0, "zero-padded history must produce a zero even output");
         let held_sample: signed logic<16> = output_sample;
-        clk.next   (2);
-        $assert    (output_valid && output_sample == held_sample, "output must hold while stalled");
+        clk.next(2);
+        $assert(output_valid && output_sample == held_sample, "output must hold while stalled");
 
         output_ready = true;
-        clk.next    (1);
-        $assert     (output_valid, "halfband must emit the second output consecutively");
-        $assert     (output_sample == 16'sd0, "zero-padded history must produce a zero odd output");
-        clk.next    (1);
-        $assert     (!output_valid && input_ready, "halfband must return idle after the burst");
+        clk.next(1);
+        $assert(output_valid, "halfband must emit the second output consecutively");
+        $assert(output_sample == 16'sd0, "zero-padded history must produce a zero odd output");
+        clk.next(1);
+        $assert(!output_valid && input_ready, "halfband must return idle after the burst");
 
-        // 窓が入力値で満たされた後は、2つのpolyphase出力ともDCゲイン1になる。
+        // 窓が入力値で満たされた後は、2つのpolyphase出力ともDCゲイン1になる
         for sample_index in 0..19 {
             input_valid  = true;
             input_sample = 16'sd1000;
-            clk.next    (1);
-            input_valid  = false;
-            clk.next    (10);
-            $assert     (output_valid, "halfband must emit each DC burst");
+            clk.next(1);
+            input_valid = false;
+            clk.next(10);
+            $assert(output_valid, "halfband must emit each DC burst");
             if sample_index == 18 {
                 $assert(output_sample == 16'sd1000, "DC input must preserve the even output");
             }
             clk.next(1);
-            $assert (output_valid, "halfband must emit the odd phase");
+            $assert(output_valid, "halfband must emit the odd phase");
             if sample_index == 18 {
                 $assert(output_sample == 16'sd1000, "DC input must preserve the odd output");
             }

@@ -1,23 +1,22 @@
 /// 4サンプル窓のCubic補間を使うASRC
 ///
 /// 初期化時に4サンプルを受け取り、出力tickごとに分数位相を進める。
-/// `ratio`が整数部Nを持つ場合は、窓をNサンプル進めて不足分をFIFOから
-/// 補充する。Cubic補間のため、最初の出力は初期窓の2番目のsample位置になる。
+/// `ratio`が整数部Nを持つ場合は、窓をNサンプル進めて不足分をFIFOから補充する。Cubic補間のため、最初の出力は初期窓の2番目のsample位置になる。
 pub module CubicLagrangeAsrc #(
-    param SAMPLE_WIDTH: u32 = 32,
-    param PHASE_WIDTH : u32 = 32,
-    param INPUT_DEPTH : u32 = 8 ,
+    param SAMPLE_WIDTH: u32 = 32, /// 入出力サンプルの符号付きビット幅
+    param PHASE_WIDTH : u32 = 32, /// `ratio`の小数部ビット幅
+    param INPUT_DEPTH : u32 = 8 , /// 入力FIFOの深さ
 ) (
-    clk          : input  clock                        ,
-    rst          : input  reset                        ,
-    input_valid  : input  logic                        ,
-    input_ready  : output logic                        ,
-    input_sample : input  signed logic<SAMPLE_WIDTH>   ,
-    output_tick  : input  logic                        ,
-    output_ready : output logic                        ,
-    output_valid : output logic                        ,
-    output_sample: output signed logic<SAMPLE_WIDTH>   ,
-    ratio        : input  logic       <PHASE_WIDTH + 2>,
+    clk          : input  clock                        , /// システムクロック
+    rst          : input  reset                        , /// リセット
+    input_valid  : input  logic                        , /// 入力サンプル有効
+    input_ready  : output logic                        , /// 入力受理可能
+    input_sample : input  signed logic<SAMPLE_WIDTH>   , /// 入力サンプル
+    output_tick  : input  logic                        , /// 出力生成要求
+    output_ready : output logic                        , /// 出力窓が準備済み
+    output_valid : output logic                        , /// 出力サンプル有効
+    output_sample: output signed logic<SAMPLE_WIDTH>   , /// 補間後の出力サンプル
+    ratio        : input  logic       <PHASE_WIDTH + 2>, /// 出力1回あたりの入力進行量
 ) {
     const LEVEL_WIDTH: u32 = $clog2(INPUT_DEPTH + 1);
 

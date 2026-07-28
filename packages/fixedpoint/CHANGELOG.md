@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 - doc commentのsummary・箇条書き・改行とサンプルコードの言語指定を整理
+- doc commentの句点と体言止めの表記を整理
 - doc commentのsection見出しをRustdoc準拠の英語表記へ統一
 - 各testのdoc commentを検証目的が分かる表現へ統一
 

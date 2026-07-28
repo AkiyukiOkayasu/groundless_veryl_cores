@@ -4,12 +4,9 @@ import Types::SampleRate;
 /// S/PDIF consumer transmitter
 ///
 /// PCM stereo sampleを受け取り、channel statusを自動生成してBMC lineへ出す。
-/// channel statusの詳細設定を明示的に受け取るため、用途に応じて固定値を
-/// 上位で管理できる。
+/// channel statusの詳細設定を明示的に受け取るため、用途に応じて固定値を上位で管理できる。
 ///
-/// `sample_valid && sample_ready`でstereo sampleを受理し、payloadを内部保持して
-/// A（left）、B（right）の順にsubframeを送る。B subframeを受理するまでは
-/// `sample_ready`がLowとなり、`busy`はBMC送信完了までHighを含み得る。
+/// `sample_valid && sample_ready`でstereo sampleを受理し、payloadを内部保持してA（left）、B（right）の順にsubframeを送る。B subframeを受理するまでは`sample_ready`がLowとなり、`busy`はBMC送信完了までHighを含み得る。
 /// 64cellの詳細は省略し、`line_valid`区間として示す。
 ///
 /// ```wavedrom
@@ -26,32 +23,32 @@ import Types::SampleRate;
 /// }
 /// ```
 pub module SpdifTransmitter (
-    clk                 : input  clock         ,
-    rst                 : input  reset         ,
-    cell_tick           : input  logic         ,
-    sample_valid        : input  logic         ,
-    sample_ready        : output logic         ,
-    left_audio          : input  AudioSample   ,
-    right_audio         : input  AudioSample   ,
-    left_invalid        : input  bbool         ,
-    right_invalid       : input  bbool         ,
-    left_user           : input  logic         ,
-    right_user          : input  logic         ,
-    sample_rate         : input  SampleRate    ,
-    original_sample_rate: input  SampleRate    ,
-    category_code       : input  logic      <7>,
-    source_number       : input  logic      <4>,
-    left_channel_number : input  logic      <4>,
-    right_channel_number: input  logic      <4>,
-    copy_permitted      : input  bbool         ,
-    non_audio           : input  bbool         ,
-    emphasis            : input  logic      <2>,
-    mode                : input  logic      <2>,
-    clock_accuracy      : input  logic      <2>,
-    original            : input  bbool         ,
-    line_bit            : output logic         ,
-    line_valid          : output logic         ,
-    busy                : output logic         ,
+    clk                 : input  clock         , /// システムクロック
+    rst                 : input  reset         , /// リセット
+    cell_tick           : input  logic         , /// BMC cell進行パルス
+    sample_valid        : input  logic         , /// stereo sample有効
+    sample_ready        : output logic         , /// stereo sample受理可能
+    left_audio          : input  AudioSample   , /// 左チャンネルPCM
+    right_audio         : input  AudioSample   , /// 右チャンネルPCM
+    left_invalid        : input  bbool         , /// 左チャンネルinvalid flag
+    right_invalid       : input  bbool         , /// 右チャンネルinvalid flag
+    left_user           : input  logic         , /// 左subframeのU bit
+    right_user          : input  logic         , /// 右subframeのU bit
+    sample_rate         : input  SampleRate    , /// 現在のサンプルレート
+    original_sample_rate: input  SampleRate    , /// 元のサンプルレート
+    category_code       : input  logic      <7>, /// channel status category code
+    source_number       : input  logic      <4>, /// channel status source number
+    left_channel_number : input  logic      <4>, /// 左チャンネル番号
+    right_channel_number: input  logic      <4>, /// 右チャンネル番号
+    copy_permitted      : input  bbool         , /// コピー許可フラグ
+    non_audio           : input  bbool         , /// non-audioフラグ
+    emphasis            : input  logic      <2>, /// emphasis code
+    mode                : input  logic      <2>, /// channel status mode
+    clock_accuracy      : input  logic      <2>, /// クロック精度コード
+    original            : input  bbool         , /// オリジナル音源フラグ
+    line_bit            : output logic         , /// BMC line出力
+    line_valid          : output logic         , /// line_bit有効
+    busy                : output logic         , /// 送信中フラグ
 ) {
     var frame_index      : logic<8>;
     var channel_b        : logic   ;
@@ -116,10 +113,9 @@ pub module SpdifTransmitter (
 
 /// S/PDIF consumer receiver
 ///
-/// 共通stereo receiverをS/PDIF向けの公開APIとして提供する薄いラッパー。
+/// 共通stereo receiverをS/PDIF向けの公開APIとして提供する薄いラッパー
 /// A subframeを保持し、続くB subframeと組み合わせてstereo sampleを出力する。
-/// `sample_valid && !sample_ready`の間はPCM、invalid、user、statusを保持し、
-/// line側にもbackpressureを伝えて次の完成subframeを受理しない。
+/// `sample_valid && !sample_ready`の間はPCM、invalid、user、statusを保持し、line側にもbackpressureを伝えて次の完成subframeを受理しない。
 /// `block_start`と`error`はイベントを示す1クロックpulseであり、stall中は保持しない。
 ///
 /// ```wavedrom
@@ -136,23 +132,23 @@ pub module SpdifTransmitter (
 /// }
 /// ```
 pub module SpdifReceiver (
-    clk          : input  clock      ,
-    rst          : input  reset      ,
-    cell_tick    : input  logic      ,
-    line_bit     : input  logic      ,
-    line_valid   : input  logic      ,
-    sample_valid : output logic      ,
-    sample_ready : input  logic      ,
-    left_audio   : output AudioSample,
-    right_audio  : output AudioSample,
-    left_invalid : output bbool      ,
-    right_invalid: output bbool      ,
-    left_user    : output logic      ,
-    right_user   : output logic      ,
-    left_status  : output logic      ,
-    right_status : output logic      ,
-    block_start  : output logic      ,
-    error        : output bbool      ,
+    clk          : input  clock      , /// システムクロック
+    rst          : input  reset      , /// リセット
+    cell_tick    : input  logic      , /// BMC cell進行パルス
+    line_bit     : input  logic      , /// BMC line入力
+    line_valid   : input  logic      , /// line_bit有効
+    sample_valid : output logic      , /// stereo sample出力有効
+    sample_ready : input  logic      , /// stereo sample受理可能
+    left_audio   : output AudioSample, /// 左チャンネルPCM
+    right_audio  : output AudioSample, /// 右チャンネルPCM
+    left_invalid : output bbool      , /// 左チャンネルinvalid flag
+    right_invalid: output bbool      , /// 右チャンネルinvalid flag
+    left_user    : output logic      , /// 左subframeのU bit
+    right_user   : output logic      , /// 右subframeのU bit
+    left_status  : output logic      , /// 左subframeのC bit
+    right_status : output logic      , /// 右subframeのC bit
+    block_start  : output logic      , /// block開始パルス
+    error        : output bbool      , /// 受信エラーフラグ
 ) {
     inst core: Iec60958StereoRx (
         clk          : clk          ,
@@ -178,23 +174,22 @@ pub module SpdifReceiver (
 /// AES3 professional transmitter
 ///
 /// status mapperとblock CRCを内蔵し、AES3のC bitを自動生成する。
-/// stereo sampleの受理、A/B subframe送信、`busy`の契約は
-/// `SpdifTransmitter`のIEC60958 stereo TX timingと同じ。
+/// stereo sampleの受理、A/B subframe送信、`busy`の契約は`SpdifTransmitter`のIEC60958 stereo TX timingと同じ。
 pub module Aes3Transmitter (
-    clk          : input  clock            ,
-    rst          : input  reset            ,
-    cell_tick    : input  logic            ,
-    sample_valid : input  logic            ,
-    sample_ready : output logic            ,
-    left_audio   : input  AudioSample      ,
-    right_audio  : input  AudioSample      ,
-    left_invalid : input  bbool            ,
-    right_invalid: input  bbool            ,
-    sample_rate  : input  Types::SampleRate,
-    channel_mode : input  Aes3::ChannelMode,
-    line_bit     : output logic            ,
-    line_valid   : output logic            ,
-    busy         : output logic            ,
+    clk          : input  clock            , /// システムクロック
+    rst          : input  reset            , /// リセット
+    cell_tick    : input  logic            , /// BMC cell進行パルス
+    sample_valid : input  logic            , /// stereo sample有効
+    sample_ready : output logic            , /// stereo sample受理可能
+    left_audio   : input  AudioSample      , /// 左チャンネルPCM
+    right_audio  : input  AudioSample      , /// 右チャンネルPCM
+    left_invalid : input  bbool            , /// 左チャンネルinvalid flag
+    right_invalid: input  bbool            , /// 右チャンネルinvalid flag
+    sample_rate  : input  Types::SampleRate, /// サンプルレート
+    channel_mode : input  Aes3::ChannelMode, /// AES3 channel mode
+    line_bit     : output logic            , /// BMC line出力
+    line_valid   : output logic            , /// line_bit有効
+    busy         : output logic            , /// 送信中フラグ
 ) {
     var frame_index      : logic<8>;
     var channel_b        : logic   ;
@@ -240,27 +235,26 @@ pub module Aes3Transmitter (
 
 /// AES3 professional receiver
 ///
-/// 共通stereo receiverをAES3向けの公開APIとして提供する薄いラッパー。
-/// A/B subframeの組み立てとoutput backpressureの契約は
-/// `SpdifReceiver`のIEC60958 stereo RX timingと同じ。
+/// 共通stereo receiverをAES3向けの公開APIとして提供する薄いラッパー
+/// A/B subframeの組み立てとoutput backpressureの契約は`SpdifReceiver`のIEC60958 stereo RX timingと同じ。
 pub module Aes3Receiver (
-    clk          : input  clock      ,
-    rst          : input  reset      ,
-    cell_tick    : input  logic      ,
-    line_bit     : input  logic      ,
-    line_valid   : input  logic      ,
-    sample_valid : output logic      ,
-    sample_ready : input  logic      ,
-    left_audio   : output AudioSample,
-    right_audio  : output AudioSample,
-    left_invalid : output bbool      ,
-    right_invalid: output bbool      ,
-    left_user    : output logic      ,
-    right_user   : output logic      ,
-    left_status  : output logic      ,
-    right_status : output logic      ,
-    block_start  : output logic      ,
-    error        : output bbool      ,
+    clk          : input  clock      , /// システムクロック
+    rst          : input  reset      , /// リセット
+    cell_tick    : input  logic      , /// BMC cell進行パルス
+    line_bit     : input  logic      , /// BMC line入力
+    line_valid   : input  logic      , /// line_bit有効
+    sample_valid : output logic      , /// stereo sample出力有効
+    sample_ready : input  logic      , /// stereo sample受理可能
+    left_audio   : output AudioSample, /// 左チャンネルPCM
+    right_audio  : output AudioSample, /// 右チャンネルPCM
+    left_invalid : output bbool      , /// 左チャンネルinvalid flag
+    right_invalid: output bbool      , /// 右チャンネルinvalid flag
+    left_user    : output logic      , /// 左subframeのU bit
+    right_user   : output logic      , /// 右subframeのU bit
+    left_status  : output logic      , /// 左subframeのC bit
+    right_status : output logic      , /// 右subframeのC bit
+    block_start  : output logic      , /// block開始パルス
+    error        : output bbool      , /// 受信エラーフラグ
 ) {
     inst core: Iec60958StereoRx (
         clk          : clk          ,

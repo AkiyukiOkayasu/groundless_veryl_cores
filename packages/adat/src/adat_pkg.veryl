@@ -1,6 +1,6 @@
 /// ADAT公開型
 ///
-/// ADAT RX/TX間で共有する型定義を提供する。
+/// ADAT RX/TX間で共有する型定義の提供
 pub package Types {
     /// ADATビットレートファミリー
     ///

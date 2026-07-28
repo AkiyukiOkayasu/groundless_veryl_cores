@@ -2,7 +2,7 @@ import Types::AdatFamily;
 
 /// ADAT TXトップモジュール
 ///
-/// 8ch 24bit PCMをADATフレームへ変換し、NRZI信号として出力する。
+/// 8ch 24bit PCMをADATフレームへ変換し、NRZI信号として出力
 ///
 /// # 実機確認状況
 /// 実機動作は未確認。現時点ではNative testと、RTL内部で接続した`AdatTx`→`AdatRx` loopback testだけを確認している。
@@ -35,24 +35,16 @@ import Types::AdatFamily;
 /// }
 /// ```
 pub module AdatTx #(
-    /// システムクロック周波数 [Hz]
-    param CLK_FREQ: u32 = 50_000_000,
-    /// ADATビットレートファミリー (1'b0=F44K1[44.1kHz系], 1'b1=F48K[48kHz系])
-    param ADAT_FAMILY: AdatFamily = AdatFamily::F48K,
+    param CLK_FREQ   : u32        = 50_000_000      , /// システムクロック周波数 [Hz]
+    param ADAT_FAMILY: AdatFamily = AdatFamily::F48K, /// ADATビットレートファミリー (44.1kHz系 or 48kHz系)
 ) (
-    /// システムクロック (50MHz)
-    clk: input clock,
-    rst: input reset,
-    /// 外部フレームクロック立ち上がりで新規フレーム送信開始
-    frame_clk: input logic,
-    /// 8ch 24bit PCM入力
-    channels: input logic<24> [8],
-    /// S/MUX有効フラグ入力
-    smux_active: input bbool,
-    /// ADAT NRZI出力
-    adat: output logic,
-    /// 256bitフレーム送信完了パルス
-    frame_done: output logic,
+    clk        : input  clock        , /// システムクロック (50MHz)
+    rst        : input  reset        , /// リセット
+    frame_clk  : input  logic        , /// 外部フレームクロック立ち上がりで新規フレーム送信開始
+    channels   : input  logic<24> [8], /// 8ch 24bit PCM入力
+    smux_active: input  bbool        , /// S/MUX有効フラグ入力
+    adat       : output logic        , /// ADAT NRZI出力
+    frame_done : output logic        , /// 256bitフレーム送信完了パルス
 ) {
     var frame_build_pulse: logic     ;
     var frame_data       : logic<256>;

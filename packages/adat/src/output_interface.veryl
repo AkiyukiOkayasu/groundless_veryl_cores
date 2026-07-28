@@ -1,11 +1,10 @@
 /// 出力インターフェース
 ///
-/// S/MUX対応、サンプルレート自動検出、フレームクロック生成を行う。
+/// S/MUX対応、サンプルレート自動検出、フレームクロック生成を行う
 ///
 /// # フレームクロック
-/// ADATフレーム周期のクロック（サンプルクロックではない）
-/// 通常は44.1/48kHz、S/MUX有効時のサンプルレートはこの2倍または4倍
-/// フレーム周期の約50%デューティで出力
+/// ADATフレーム周期のクロック（サンプルクロックではない）。
+/// 通常は44.1/48kHzで、S/MUX有効時のサンプルレートはこの2倍または4倍。フレーム周期の約50%デューティで出力する。
 ///
 /// # valid
 /// `data_valid && channel==7` のとき、`valid` を1サイクルだけアサートする。
@@ -16,31 +15,19 @@
 /// 目安として、リセット解除後に有効なフレーム受信が継続すれば5フレーム以内に1になる。
 /// complete-frame未観測が`frame_time`の約2倍続いた場合はロックを解除する。
 module OutputInterface (
-    /// システムクロック
-    clk: input clock,
-    rst: input reset,
-    /// フレーム時間
-    frame_time: input logic<12>,
-    /// PCMデータ入力
-    data: input logic<24>,
-    /// チャンネル番号
-    channel: input logic<3>,
-    /// データ有効
-    data_valid: input logic,
-    /// 同期マスク
-    sync: input logic,
-    /// ユーザービット入力
-    user_bits: input logic<4>,
-    /// 検出されたS/MUX有効状態 (1: enabled, 0: disabled)
-    smux_active: output bbool,
-    /// ADATフレーム周期のクロック出力（サンプルクロックではない）
-    frame_clk: output logic,
-    /// 8チャンネルPCMデータ出力
-    channels: output logic<24> [8],
-    /// 全チャンネルデータ有効
-    valid: output logic,
-    /// 同期ロック状態
-    locked: output bbool,
+    clk        : input  clock        , /// システムクロック
+    rst        : input  reset        , /// リセット
+    frame_time : input  logic<12>    , /// フレーム時間
+    data       : input  logic<24>    , /// PCMデータ入力
+    channel    : input  logic<3>     , /// チャンネル番号
+    data_valid : input  logic        , /// データ有効
+    sync       : input  logic        , /// 同期マスク
+    user_bits  : input  logic<4>     , /// ユーザービット入力
+    smux_active: output bbool        , /// 検出されたS/MUX有効状態 (1: 有効, 0: 無効)
+    frame_clk  : output logic        , /// ADATフレーム周期のクロック出力（サンプルクロックではない）
+    channels   : output logic<24> [8], /// 8チャンネルPCMデータ出力
+    valid      : output logic        , /// 全チャンネルデータ有効
+    locked     : output bbool        , /// 同期ロック状態
 ) {
     // ワードクロックカウンタ
     var word_clk_cnt: logic<12>;

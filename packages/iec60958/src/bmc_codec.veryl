@@ -1,8 +1,7 @@
 /// IEC60958 BMC serializer
 ///
-/// 1 subframeは8cellのpreambleと28bit payloadの56cellで構成する。
-/// `cell_tick`が到来したときだけ次のcellへ進み、入力は1エントリpending
-/// bufferへ先行受理できる。
+/// 1 subframeは8cellのpreambleと28bit payloadの56cellで構成。
+/// `cell_tick`が到来したときだけ次のcellへ進み、入力は1エントリpending bufferへ先行受理できる。
 import Types::PreambleLineCode;
 import Types::Payload;
 
@@ -58,7 +57,7 @@ module Iec60958BmcSerializer (
                 level            = encoded_preamble[7];
             }
         } else if cell_tick && cell_index == 6'd63 {
-            // 最終cellはtick直前のline_bitで消費され、ここで次の先頭cellを準備する。
+            // 最終cellはtick直前のline_bitで消費され、ここで次の先頭cellを準備する
             if pending_valid {
                 let encoded_preamble: logic<8> = if level ? ~pending_preamble : pending_preamble;
                 preamble_shift   = encoded_preamble;
@@ -120,8 +119,7 @@ module Iec60958BmcSerializer (
 
 /// IEC60958 BMC deserializer
 ///
-/// cell_tickでline_bitをサンプルし、8cell sliding windowでpreambleを
-/// 探索する。通常payloadの先頭cellに必要な遷移も検証する。
+/// cell_tickでline_bitをサンプルし、8cell sliding windowでpreambleを探索。通常payloadの先頭cellに必要な遷移も検証
 module Iec60958BmcDeserializer (
     clk           : input  clock           ,
     rst           : input  reset           ,

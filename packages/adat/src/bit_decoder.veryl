@@ -15,23 +15,15 @@
 /// - 3.5以上〜4.5 bit time未満 → 4 bits ("0001")
 /// - 4.5 bit time以上 → 5 bits ("00001")
 module BitDecoder (
-    /// システムクロック
-    clk: input clock,
-    rst: input reset,
-    /// エッジ検出パルス
-    edge_pulse: input logic,
-    /// エッジ間隔時間
-    edge_time: input logic<12>,
-    /// フレーム時間
-    frame_time: input logic<12>,
-    /// 同期マスク (1=データ期間)
-    sync_mask: input logic,
-    /// デコードされたビット列 (LSB aligned)
-    bits: output logic<5>,
-    /// デコードされたビット数 (1-5)
-    bit_count: output logic<3>,
-    /// 出力有効
-    valid: output logic,
+    clk       : input  clock    , /// システムクロック
+    rst       : input  reset    , /// リセット
+    edge_pulse: input  logic    , /// エッジ検出パルス
+    edge_time : input  logic<12>, /// エッジ間隔時間
+    frame_time: input  logic<12>, /// フレーム時間
+    sync_mask : input  logic    , /// 同期マスク (1=データ期間)
+    bits      : output logic<5> , /// デコードされたビット列 (LSB aligned)
+    bit_count : output logic<3> , /// デコードされたビット数 (1-5)
+    valid     : output logic    , /// 出力有効
 ) {
     // 出力レジスタ
     var r_bits : logic<5>;
@@ -49,8 +41,8 @@ module BitDecoder (
             r_valid = 1'b0;
         } else if edge_pulse && sync_mask {
             r_valid = 1'b1;
-            // frame_timeを直接使った固定小数判定。
-            // timing_trackerのedge_timeは実エッジ間クロック数より1小さく見えるため+1する。
+            // frame_timeを直接使った固定小数判定
+            // timing_trackerのedge_timeは実エッジ間クロック数より1小さく見えるため+1する
             let edge_clocks : logic<13> = {1'b0, edge_time} + 13'd1;
             let edge_scaled : logic<24> = ({11'd0, edge_clocks} << 9); // (edge_time + 1) * 512
             let frame_scaled: logic<24> = {12'd0, frame_time};
@@ -61,8 +53,8 @@ module BitDecoder (
 
             // 時間ビンによるビット数判定
             // NRZIデコード: 遷移で終わる→最後が'1'
-            // 境界値は上側binへ入れる。
-            // 50MHz/48kHzでは実測edge_time=6を2bit側に寄せる方が安定する。
+            // 境界値は上側binへ入れる
+            // 50MHz/48kHzでは実測edge_time=6を2bit側に寄せる方が安定する
             if edge_scaled <: t1 {
                 // 1 bit: "1"
                 r_bits  = 5'b00001;

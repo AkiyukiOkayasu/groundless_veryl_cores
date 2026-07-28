@@ -1,21 +1,20 @@
 /// 4点3次Lagrange補間器
 ///
-/// `sample_m1`、`sample0`、`sample1`、`sample2`の4点を3次Horner形式で
-/// 評価する。係数はQ2.16へ量子化し、組み合わせlatencyは0です。
+/// `sample_m1`、`sample0`、`sample1`、`sample2`の4点を3次Horner形式で評価する。係数はQ2.16へ量子化し、組み合わせlatencyは0です
 pub module CubicLagrangeInterpolator #(
-    param SAMPLE_WIDTH : u32                             = 32                                                   ,
-    param PHASE_WIDTH  : u32                             = 32                                                   ,
-    param ROUNDING_MODE: fixedpoint::Types::RoundingMode = fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN,
-    param OVERFLOW_MODE: fixedpoint::Types::OverflowMode = fixedpoint::Types::OverflowMode::SATURATE            ,
+    param SAMPLE_WIDTH : u32                             = 32                                                   , /// サンプルの符号付きビット幅
+    param PHASE_WIDTH  : u32                             = 32                                                   , /// 位相の小数部ビット幅
+    param ROUNDING_MODE: fixedpoint::Types::RoundingMode = fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN, /// 右シフト時の丸め方式
+    param OVERFLOW_MODE: fixedpoint::Types::OverflowMode = fixedpoint::Types::OverflowMode::SATURATE            , /// 出力幅超過時の処理方式
     const NUM_WIDTH    : u32                             = SAMPLE_WIDTH + 2 + 18 + PHASE_WIDTH * 3 + 3          ,
     const OUTPUT_SHIFT : u32                             = 16 + PHASE_WIDTH * 3                                 ,
 ) (
-    sample_m1: input  signed logic<SAMPLE_WIDTH>,
-    sample0  : input  signed logic<SAMPLE_WIDTH>,
-    sample1  : input  signed logic<SAMPLE_WIDTH>,
-    sample2  : input  signed logic<SAMPLE_WIDTH>,
-    phase    : input  logic       <PHASE_WIDTH> ,
-    sample   : output signed logic<SAMPLE_WIDTH>,
+    sample_m1: input  signed logic<SAMPLE_WIDTH>, /// 補間窓の1つ前のサンプル
+    sample0  : input  signed logic<SAMPLE_WIDTH>, /// 補間窓の第1サンプル
+    sample1  : input  signed logic<SAMPLE_WIDTH>, /// 補間窓の第2サンプル
+    sample2  : input  signed logic<SAMPLE_WIDTH>, /// 補間窓の第3サンプル
+    phase    : input  logic       <PHASE_WIDTH> , /// sample0からsample1へ進む位相
+    sample   : output signed logic<SAMPLE_WIDTH>, /// 補間結果
 ) {
     const COEFF_WIDTH   : u32 = 18;
     const COEFF_FRACTION: u32 = 16;

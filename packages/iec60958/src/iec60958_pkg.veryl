@@ -9,7 +9,7 @@ pub package Types {
     /// サブフレームpreambleの4bit表現
     type Preamble = logic<4>;
 
-    /// BMC違反パターンとして送出する8bitラインコード
+    /// BMC違反パターンとして送出する8bitラインコード。
     /// bit[7]が最初に送出される。
     enum PreambleLineCode: logic<8> {
         X = 8'b1110_0010,
@@ -31,7 +31,7 @@ pub package Types {
         ChannelB,
     }
 
-    /// preambleを除いた28bit payload
+    /// preambleを除いた28bit payload。
     /// bit[27:4]がaudio、bit[3:1]がV/U/C、bit[0]が偶数パリティ。
     type Payload = logic<28>;
 
@@ -39,7 +39,7 @@ pub package Types {
     struct Subframe {
         preamble_kind: PreambleKind,
         audio        : AudioSample ,
-        // payload由来のbitは4-stateデータと同じlogic型で保持する。
+        // payload由来のbitは4-stateデータと同じlogic型で保持する
         invalid       : logic,
         user          : logic,
         channel_status: logic,
@@ -65,7 +65,7 @@ pub package Types {
         return if ^{audio, invalid, user, channel_status} ? 1'b1 : 1'b0;
     }
 
-    /// 規格共通preambleを規格ごとの8cellラインコードへ変換する
+    /// 規格共通preambleの規格ごとの8cellラインコードへの変換
     function preamble_kind_to_line_code (
         link: input LinkType    ,
         kind: input PreambleKind,
@@ -116,7 +116,7 @@ pub package Types {
         Reserved = 4'b1111,
     }
 
-    /// preambleが指定リンクで妥当か判定する
+    /// 指定リンクにおけるpreambleの妥当性判定
     function preamble_is_valid (
         link    : input LinkType,
         preamble: input Preamble,
@@ -128,7 +128,7 @@ pub package Types {
         }
     }
 
-    /// preambleを共通のラインコードへ変換する
+    /// preambleの共通ラインコードへの変換
     function preamble_to_line_code (
         link    : input LinkType,
         preamble: input Preamble,

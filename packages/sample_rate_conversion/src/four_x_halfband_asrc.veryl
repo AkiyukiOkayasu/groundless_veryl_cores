@@ -1,8 +1,6 @@
 /// 2段のhalfband補間と連続線形ASRCを接続した1ch 4倍オーバーサンプラ
 ///
-/// 入力1サンプルから論理的に4サンプルを生成し、後段のSTD FIFOへburstで
-/// 受け渡す。FIFOの読み出しと50MHz出力の位相進行は`ContinuousLinearAsrc`
-/// が担当するため、HBF自身は入力受理と2サンプルburstのready/validだけを扱う。
+/// 入力1サンプルから論理的に4サンプルを生成し、後段のSTD FIFOへburstで受け渡す。FIFOの読み出しと50MHz出力の位相進行は`ContinuousLinearAsrc`が担当するため、HBF自身は入力受理と2サンプルburstのready/validだけを扱う。
 ///
 /// ```text
 /// input → Halfband 2x (stage 1) → Halfband 2x (stage 2)
@@ -26,20 +24,20 @@
 /// }
 /// ```
 pub module FourXHalfbandAsrc #(
-    param SAMPLE_WIDTH: u32 = 32,
-    param PHASE_WIDTH : u32 = 32,
-    param INPUT_DEPTH : u32 = 8 ,
+    param SAMPLE_WIDTH: u32 = 32, /// 入出力サンプルの符号付きビット幅
+    param PHASE_WIDTH : u32 = 32, /// 位相入力のビット幅
+    param INPUT_DEPTH : u32 = 8 , /// 出力側入力FIFOの深さ
 ) (
-    clk            : input  clock                                ,
-    rst            : input  reset                                ,
-    input_valid    : input  bbool                                ,
-    input_ready    : output bbool                                ,
-    input_sample   : input  signed logic<SAMPLE_WIDTH>           ,
-    phase_increment: input  logic       <PHASE_WIDTH>            ,
-    output_active  : output bbool                                ,
-    output_sample  : output signed logic<SAMPLE_WIDTH>           ,
-    input_level    : output logic       <$clog2(INPUT_DEPTH + 1)>,
-    underflow      : output bbool                                ,
+    clk            : input  clock                                , /// システムクロック
+    rst            : input  reset                                , /// リセット
+    input_valid    : input  bbool                                , /// 入力サンプル有効
+    input_ready    : output bbool                                , /// 入力受理可能
+    input_sample   : input  signed logic<SAMPLE_WIDTH>           , /// 入力サンプル
+    phase_increment: input  logic       <PHASE_WIDTH>            , /// 毎クロックの位相増分
+    output_active  : output bbool                                , /// 連続出力が有効
+    output_sample  : output signed logic<SAMPLE_WIDTH>           , /// 補間後の出力サンプル
+    input_level    : output logic       <$clog2(INPUT_DEPTH + 1)>, /// 入力FIFOのワード数
+    underflow      : output bbool                                , /// 入力不足のstickyフラグ
 ) {
     var phase       : logic<PHASE_WIDTH>;
     var advance     : bbool             ;
@@ -160,30 +158,30 @@ module test_four_x_halfband_asrc {
         input_valid     = false;
         input_sample    = 16'sd1000;
         phase_increment = 0;
-        rst.assert();
+        rst.assert     ();
 
-        // 位相を止めた状態で2入力分の4サンプルburstをFIFOへ蓄積する。
-        $assert(input_ready, "4x ASRC must accept the first input");
+        // 位相を止めた状態で2入力分の4サンプルburstをFIFOへ蓄積する
+        $assert    (input_ready, "4x ASRC must accept the first input");
         input_valid = true;
-        clk.next(1);
+        clk.next   (1);
         input_valid = false;
-        clk.next(80);
+        clk.next   (80);
 
-        $assert(input_ready, "4x ASRC must accept the second input");
+        $assert    (input_ready, "4x ASRC must accept the second input");
         input_valid = true;
-        clk.next(1);
+        clk.next   (1);
         input_valid = false;
-        clk.next(80);
+        clk.next   (80);
 
         $assert(output_active, "4x ASRC must become active after HBF bursts");
         $assert(input_level == 4'd6, "two HBF bursts must leave six FIFO samples after prefill");
         $assert(!underflow, "4x ASRC must not underflow while phase is stopped");
 
-        // 192kHz / 50MHzのQ0.32進行へ切り替え、短時間の連続出力を確認する。
+        // 192kHz / 50MHzのQ0.32進行へ切り替え、短時間の連続出力を確認する
         phase_increment = 32'd16492674;
-        clk.next(520);
-        $assert(output_active, "4x ASRC must keep its output active");
-        $assert(!underflow, "4x ASRC must not underflow from the buffered burst");
-        $finish();
+        clk.next       (520);
+        $assert        (output_active, "4x ASRC must keep its output active");
+        $assert        (!underflow, "4x ASRC must not underflow from the buffered burst");
+        $finish        ();
     }
 }

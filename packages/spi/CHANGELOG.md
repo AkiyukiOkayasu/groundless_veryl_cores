@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 公開moduleのparam/port doc commentと日本語説明を整理
+- doc commentの句点と体言止めの表記を整理
 - 各testのdoc commentへmode別の検証対象を明記
 
 ### Changed

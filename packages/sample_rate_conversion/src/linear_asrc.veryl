@@ -1,14 +1,9 @@
 /// 入力サンプル列を線形補間して、分数比のoutput tickへ変換するASRC
 ///
-/// 入力は`input_valid && input_ready`で受け付け、内部のVeryl STD FIFOへ
-/// 一時保持する。`ratio`は「output 1回あたりに進む入力サンプル数」を
-/// Q(整数3bit).PHASE_WIDTHで表す。例えば96kHz入力から48kHzを作る場合は
-/// `2 << PHASE_WIDTH`、96kHz入力から44.1kHzを作る場合は
-/// `96_000 / 44_100 << PHASE_WIDTH`相当を設定する。
-///
+/// 入力は`input_valid && input_ready`で受け付け、内部のVeryl STD FIFOへ一時保持する。`ratio`は「output 1回あたりに進む入力サンプル数」をQ(整数3bit).PHASE_WIDTHで表す。
+/// 例えば96kHz入力から48kHzを作る場合は`2 << PHASE_WIDTH`、96kHz入力から44.1kHzを作る場合は`96_000 / 44_100 << PHASE_WIDTH`相当を設定する。
 /// 起動時はFIFOから2サンプル窓を作るまで`output_ready`がLowになる。
-/// `output_tick && output_ready`で出力し、位相進行が入力境界を越えた場合は
-/// 必要数だけFIFOから窓を補充する。補充中の`output_tick`は受理されない。
+/// `output_tick && output_ready`で出力し、位相進行が入力境界を越えた場合は必要数だけFIFOから窓を補充する。補充中の`output_tick`は受理されない。
 ///
 /// ```wavedrom
 /// {
@@ -26,20 +21,20 @@
 /// }
 /// ```
 pub module LinearAsrc #(
-    param SAMPLE_WIDTH: u32 = 32,
-    param PHASE_WIDTH : u32 = 32,
-    param INPUT_DEPTH : u32 = 8 ,
+    param SAMPLE_WIDTH: u32 = 32, /// 入出力サンプルの符号付きビット幅
+    param PHASE_WIDTH : u32 = 32, /// `ratio`の小数部ビット幅
+    param INPUT_DEPTH : u32 = 8 , /// 入力FIFOの深さ
 ) (
-    clk          : input  clock                        ,
-    rst          : input  reset                        ,
-    input_valid  : input  logic                        ,
-    input_ready  : output logic                        ,
-    input_sample : input  signed logic<SAMPLE_WIDTH>   ,
-    output_tick  : input  logic                        ,
-    output_ready : output logic                        ,
-    output_valid : output logic                        ,
-    output_sample: output signed logic<SAMPLE_WIDTH>   ,
-    ratio        : input  logic       <PHASE_WIDTH + 2>,
+    clk          : input  clock                        , /// システムクロック
+    rst          : input  reset                        , /// リセット
+    input_valid  : input  logic                        , /// 入力サンプル有効
+    input_ready  : output logic                        , /// 入力受理可能
+    input_sample : input  signed logic<SAMPLE_WIDTH>   , /// 入力サンプル
+    output_tick  : input  logic                        , /// 出力生成要求
+    output_ready : output logic                        , /// 出力窓が準備済み
+    output_valid : output logic                        , /// 出力サンプル有効
+    output_sample: output signed logic<SAMPLE_WIDTH>   , /// 補間後の出力サンプル
+    ratio        : input  logic       <PHASE_WIDTH + 2>, /// 出力1回あたりの入力進行量
 ) {
     const LEVEL_WIDTH: u32 = $clog2(INPUT_DEPTH + 1);
 
@@ -143,11 +138,8 @@ pub module LinearAsrc #(
 /// FIFOから入力窓を補充しながら、50MHzの全クロックで線形補間値を出力するASRC
 ///
 /// `phase`と`advance`は`nco::FractionalPhaseAccumulator`から受け取る。
-/// `phase`が現在の入力サンプルから次の入力サンプルへ進む割合を表し、
-/// `advance`が次のクロックで窓を1サンプル進めることを表す。
-/// 起動時に2サンプルの補間窓と、`STARTUP_LEVEL`以上の未消費FIFOが揃うまでは
-/// `output_active`をfalseにして0を出力する。burst入力ではこの値を大きくして、
-/// 出力開始前にFIFOへ余裕を持たせる。
+/// `phase`が現在の入力サンプルから次の入力サンプルへ進む割合を表し、`advance`が次のクロックで窓を1サンプル進めることを表す。
+/// 起動時に2サンプルの補間窓と、`STARTUP_LEVEL`以上の未消費FIFOが揃うまでは`output_active`をfalseにして0を出力する。burst入力ではこの値を大きくして、出力開始前にFIFOへ余裕を持たせる。
 /// 動作開始後は、入力不足を`underflow`へstickyに記録しながら出力を止めない。
 ///
 /// ```wavedrom
@@ -166,22 +158,22 @@ pub module LinearAsrc #(
 /// }
 /// ```
 pub module ContinuousLinearAsrc #(
-    param SAMPLE_WIDTH : u32 = 32,
-    param PHASE_WIDTH  : u32 = 32,
-    param INPUT_DEPTH  : u32 = 8 ,
-    param STARTUP_LEVEL: u32 = 1 ,
+    param SAMPLE_WIDTH : u32 = 32, /// 入出力サンプルの符号付きビット幅
+    param PHASE_WIDTH  : u32 = 32, /// 位相入力のビット幅
+    param INPUT_DEPTH  : u32 = 8 , /// 入力FIFOの深さ
+    param STARTUP_LEVEL: u32 = 1 , /// 出力開始に必要な未消費FIFOワード数
 ) (
-    clk          : input  clock                                ,
-    rst          : input  reset                                ,
-    input_valid  : input  bbool                                ,
-    input_ready  : output bbool                                ,
-    input_sample : input  signed logic<SAMPLE_WIDTH>           ,
-    input_level  : output logic       <$clog2(INPUT_DEPTH + 1)>,
-    phase        : input  logic       <PHASE_WIDTH>            ,
-    advance      : input  bbool                                ,
-    output_active: output bbool                                ,
-    output_sample: output signed logic<SAMPLE_WIDTH>           ,
-    underflow    : output bbool                                ,
+    clk          : input  clock                                , /// システムクロック
+    rst          : input  reset                                , /// リセット
+    input_valid  : input  bbool                                , /// 入力サンプル有効
+    input_ready  : output bbool                                , /// 入力受理可能
+    input_sample : input  signed logic<SAMPLE_WIDTH>           , /// 入力サンプル
+    input_level  : output logic       <$clog2(INPUT_DEPTH + 1)>, /// 入力FIFOのワード数
+    phase        : input  logic       <PHASE_WIDTH>            , /// 補間位相
+    advance      : input  bbool                                , /// 次の入力サンプルへ窓を進める要求
+    output_active: output bbool                                , /// 連続出力が有効
+    output_sample: output signed logic<SAMPLE_WIDTH>           , /// 補間後の出力サンプル
+    underflow    : output bbool                                , /// 入力不足のstickyフラグ
 ) {
     const LEVEL_WIDTH: u32 = $clog2(INPUT_DEPTH + 1);
 
@@ -332,37 +324,37 @@ module test_linear_asrc {
         input_sample = 0;
         output_tick  = 0;
         ratio        = 0;
-        clk.next(1);
-        $assert(interpolated == 16'sd1000, "linear interpolation phase zero mismatch");
-        phase = 4'd8;
-        clk.next(1);
-        $assert(interpolated == 16'sd2000, "linear interpolation midpoint mismatch");
+        clk.next    (1);
+        $assert     (interpolated == 16'sd1000, "linear interpolation phase zero mismatch");
+        phase        = 4'd8;
+        clk.next    (1);
+        $assert     (interpolated == 16'sd2000, "linear interpolation midpoint mismatch");
 
         input_sample = 16'sd100;
         input_valid  = 1;
         ratio        = 6'd24;
-        rst.assert();
-        clk.next(1);
+        rst.assert  ();
+        clk.next    (1);
         input_sample = 16'sd200;
-        clk.next(1);
+        clk.next    (1);
         input_sample = 16'sd300;
-        clk.next(1);
-        input_valid = 0;
-        clk.next(3);
-        $assert(output_ready, "ASRC must become ready after two input samples");
+        clk.next    (1);
+        input_valid  = 0;
+        clk.next    (3);
+        $assert     (output_ready, "ASRC must become ready after two input samples");
 
         output_tick = 1;
-        clk.next(1);
+        clk.next   (1);
         output_tick = 0;
-        $assert(output_valid && output_sample == 16'sd100, "ASRC first sample mismatch");
-        clk.next(1);
-        $assert(output_ready, "ASRC must refill one sample after a 1.5x advance");
+        $assert    (output_valid && output_sample == 16'sd100, "ASRC first sample mismatch");
+        clk.next   (1);
+        $assert    (output_ready, "ASRC must refill one sample after a 1.5x advance");
 
         output_tick = 1;
-        clk.next(1);
+        clk.next   (1);
         output_tick = 0;
-        $assert(output_valid && output_sample == 16'sd250, "ASRC interpolated sample mismatch");
-        $finish();
+        $assert    (output_valid && output_sample == 16'sd250, "ASRC interpolated sample mismatch");
+        $finish    ();
     }
 }
 
@@ -421,19 +413,19 @@ module test_continuous_linear_asrc {
         input_sample = 0;
         phase_enable = true;
         phase_inc    = 4'd4;
-        rst.assert();
+        rst.assert  ();
 
-        // 0, 100, 200, 300を連続投入し、窓を初期化する。
+        // 0, 100, 200, 300を連続投入し、窓を初期化する
         input_valid  = true;
         input_sample = 16'sd0;
-        clk.next(1);
+        clk.next    (1);
         input_sample = 16'sd100;
-        clk.next(1);
+        clk.next    (1);
         input_sample = 16'sd200;
-        clk.next(1);
+        clk.next    (1);
         input_sample = 16'sd300;
-        clk.next(1);
-        input_valid = false;
+        clk.next    (1);
+        input_valid  = false;
 
         $assert(output_active, "continuous ASRC must become active after priming");
         $assert(output_sample == 16'sd0, "continuous ASRC must hold the initial window while priming");
@@ -441,14 +433,14 @@ module test_continuous_linear_asrc {
         $assert(input_level == 4'd2, "priming sample and unused burst sample must remain in the FIFO");
 
         clk.next(1);
-        $assert(output_sample == 16'sd25, "continuous ASRC quarter phase mismatch");
+        $assert (output_sample == 16'sd25, "continuous ASRC quarter phase mismatch");
         clk.next(1);
-        $assert(output_sample == 16'sd50, "continuous ASRC midpoint phase mismatch");
+        $assert (output_sample == 16'sd50, "continuous ASRC midpoint phase mismatch");
         clk.next(1);
-        $assert(output_sample == 16'sd75, "continuous ASRC three-quarter phase mismatch");
+        $assert (output_sample == 16'sd75, "continuous ASRC three-quarter phase mismatch");
         clk.next(1);
-        $assert(output_sample == 16'sd100, "continuous ASRC second window mismatch");
-        $assert(!underflow, "continuous ASRC must keep the buffered stream running");
-        $finish();
+        $assert (output_sample == 16'sd100, "continuous ASRC second window mismatch");
+        $assert (!underflow, "continuous ASRC must keep the buffered stream running");
+        $finish ();
     }
 }

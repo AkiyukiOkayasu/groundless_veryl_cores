@@ -1,18 +1,14 @@
 /// TX NRZIエンコーダ
 ///
-/// シリアル入力ビットをNRZI信号へ変換する。
+/// シリアル入力ビットのNRZI信号変換
 /// - `serial_bit = 1` のとき出力レベルを反転
 /// - `serial_bit = 0` のとき出力レベルを維持
 module NrziEncoder (
-    /// システムクロック
-    clk: input clock,
-    rst: input reset,
-    /// シリアル入力ビット
-    serial_bit: input logic,
-    /// 入力ビット有効
-    valid: input logic,
-    /// NRZI出力
-    nrzi: output logic,
+    clk       : input  clock, /// システムクロック
+    rst       : input  reset, /// リセット
+    serial_bit: input  logic, /// シリアル入力ビット
+    valid     : input  logic, /// 入力ビット有効
+    nrzi      : output logic, /// NRZI出力
 ) {
     var nrzi_level: logic;
 

@@ -5,8 +5,7 @@
 
 /// CIC間引きフィルタ
 ///
-/// 入力側でSTAGES段の積分器を毎`input_valid`時に更新し、
-/// DECIMATION個ごとにSTAGES段の櫛形フィルタを通して出力する。
+/// 入力側でSTAGES段の積分器を毎`input_valid`時に更新し、DECIMATION個ごとにSTAGES段の櫛形フィルタを通して出力する。
 /// 出力にはCIC固有のゲイン DECIMATION^STAGES が含まれる。
 ///
 /// ```wavedrom
@@ -22,17 +21,17 @@
 /// }
 /// ```
 pub module CicDecimator #(
-    param INPUT_WIDTH      : u32 = 16,
-    param ACCUMULATOR_WIDTH: u32 = 32,
-    param STAGES           : u32 = 3 ,
-    param DECIMATION       : u32 = 2 ,
+    param INPUT_WIDTH      : u32 = 16, /// 入力サンプルのビット幅
+    param ACCUMULATOR_WIDTH: u32 = 32, /// 積分器・出力のビット幅
+    param STAGES           : u32 = 3 , /// 積分器と櫛形フィルタの段数
+    param DECIMATION       : u32 = 2 , /// 間引き比
 ) (
-    clk          : input  clock                          ,
-    rst          : input  reset                          ,
-    input_valid  : input  bbool                          ,
-    input_sample : input  signed logic<INPUT_WIDTH>      ,
-    output_valid : output bbool                          ,
-    output_sample: output signed logic<ACCUMULATOR_WIDTH>,
+    clk          : input  clock                          , /// システムクロック
+    rst          : input  reset                          , /// リセット
+    input_valid  : input  bbool                          , /// 入力サンプル有効
+    input_sample : input  signed logic<INPUT_WIDTH>      , /// 入力サンプル
+    output_valid : output bbool                          , /// 出力サンプル有効
+    output_sample: output signed logic<ACCUMULATOR_WIDTH>, /// 間引き後の出力サンプル
 ) {
     const COUNT_WIDTH: u32 = $clog2(DECIMATION + 1);
 
@@ -120,18 +119,18 @@ pub module CicDecimator #(
 /// }
 /// ```
 pub module CicInterpolator #(
-    param INPUT_WIDTH      : u32 = 16,
-    param ACCUMULATOR_WIDTH: u32 = 32,
-    param STAGES           : u32 = 3 ,
-    param INTERPOLATION    : u32 = 2 ,
+    param INPUT_WIDTH      : u32 = 16, /// 入力サンプルのビット幅
+    param ACCUMULATOR_WIDTH: u32 = 32, /// 積分器・出力のビット幅
+    param STAGES           : u32 = 3 , /// 積分器と櫛形フィルタの段数
+    param INTERPOLATION    : u32 = 2 , /// 補間比
 ) (
-    clk          : input  clock                          ,
-    rst          : input  reset                          ,
-    input_valid  : input  bbool                          ,
-    input_ready  : output logic                          ,
-    input_sample : input  signed logic<INPUT_WIDTH>      ,
-    output_valid : output bbool                          ,
-    output_sample: output signed logic<ACCUMULATOR_WIDTH>,
+    clk          : input  clock                          , /// システムクロック
+    rst          : input  reset                          , /// リセット
+    input_valid  : input  bbool                          , /// 入力サンプル有効
+    input_ready  : output logic                          , /// 入力受理可能
+    input_sample : input  signed logic<INPUT_WIDTH>      , /// 入力サンプル
+    output_valid : output bbool                          , /// 出力サンプル有効
+    output_sample: output signed logic<ACCUMULATOR_WIDTH>, /// 補間後の出力サンプル
 ) {
     const PHASE_WIDTH: u32 = $clog2(INTERPOLATION + 1);
 
@@ -238,19 +237,19 @@ module test_cic_decimator {
     initial {
         input_valid  = false;
         input_sample = 16'sd1;
-        rst.assert  ();
-        clk.next    (1);
+        rst.assert();
+        clk.next(1);
 
         input_valid = true;
-        clk.next   (1);
-        $assert    (!output_valid, "CIC decimator emitted too early");
-        clk.next   (1);
-        $assert    (output_valid && output_sample == 16'sd2, "CIC decimator first output mismatch");
-        clk.next   (1);
-        $assert    (!output_valid, "CIC decimator output valid width mismatch");
-        clk.next   (1);
-        $assert    (output_valid && output_sample == 16'sd2, "CIC decimator second output mismatch");
-        $finish    ();
+        clk.next(1);
+        $assert(!output_valid, "CIC decimator emitted too early");
+        clk.next(1);
+        $assert(output_valid && output_sample == 16'sd2, "CIC decimator first output mismatch");
+        clk.next(1);
+        $assert(!output_valid, "CIC decimator output valid width mismatch");
+        clk.next(1);
+        $assert(output_valid && output_sample == 16'sd2, "CIC decimator second output mismatch");
+        $finish();
     }
 }
 
@@ -284,18 +283,18 @@ module test_cic_interpolator {
     initial {
         input_valid  = false;
         input_sample = 16'sd1;
-        rst.assert  ();
-        clk.next    (1);
+        rst.assert();
+        clk.next(1);
 
         input_valid = true;
-        $assert    (input_ready, "CIC interpolator must accept the first sample");
-        clk.next   (1);
+        $assert(input_ready, "CIC interpolator must accept the first sample");
+        clk.next(1);
         input_valid = false;
-        $assert    (output_valid && output_sample == 16'sd1, "CIC interpolator first output mismatch");
-        clk.next   (1);
-        $assert    (output_valid && output_sample == 16'sd1, "CIC interpolator zero-stuff output mismatch");
-        clk.next   (1);
-        $assert    (!output_valid, "CIC interpolator output valid width mismatch");
-        $finish    ();
+        $assert(output_valid && output_sample == 16'sd1, "CIC interpolator first output mismatch");
+        clk.next(1);
+        $assert(output_valid && output_sample == 16'sd1, "CIC interpolator zero-stuff output mismatch");
+        clk.next(1);
+        $assert(!output_valid, "CIC interpolator output valid width mismatch");
+        $finish();
     }
 }

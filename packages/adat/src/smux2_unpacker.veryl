@@ -16,14 +16,14 @@
 /// }
 /// ```
 pub module Smux2Unpacker #(
-    param SAMPLE_WIDTH: u32 = 24,
+    param SAMPLE_WIDTH: u32 = 24, /// サンプルのビット幅
 ) (
-    clk         : input  clock                  ,
-    rst         : input  reset                  ,
-    channels    : input  logic<SAMPLE_WIDTH> [8],
-    frame_valid : input  logic                  ,
-    samples     : output logic<SAMPLE_WIDTH> [4],
-    sample_valid: output logic                  ,
+    clk         : input  clock                  , /// システムクロック
+    rst         : input  reset                  , /// リセット
+    channels    : input  logic<SAMPLE_WIDTH> [8], /// S/MUX物理スロット列
+    frame_valid : input  logic                  , /// フレーム受理パルス
+    samples     : output logic<SAMPLE_WIDTH> [4], /// 4チャンネルの高速サンプル
+    sample_valid: output logic                  , /// 高速サンプル有効パルス
 ) {
     var second_samples: logic<SAMPLE_WIDTH> [4];
     var emit_second   : logic                  ;
@@ -102,20 +102,20 @@ module test_smux2_pack_unpack {
         input_samples[1] = 24'h000002;
         input_samples[2] = 24'h000003;
         input_samples[3] = 24'h000004;
-        rst.assert      ();
+        rst.assert();
 
         input_valid = 1'b1;
-        clk.next   (1);
+        clk.next(1);
         input_valid = 1'b0;
-        $assert    (packed_valid == 1'b0, "first sample must be buffered");
+        $assert(packed_valid == 1'b0, "first sample must be buffered");
 
         input_samples[0] = 24'h100001;
         input_samples[1] = 24'h100002;
         input_samples[2] = 24'h100003;
         input_samples[3] = 24'h100004;
         input_valid      = 1'b1;
-        clk.next        (1);
-        input_valid      = 1'b0;
+        clk.next(1);
+        input_valid = 1'b0;
 
         $assert(packed_valid == 1'b1, "second sample must complete a frame");
         $assert(packed_channels[0] == 24'h000001, "CH0 first sample mismatch");
@@ -124,17 +124,17 @@ module test_smux2_pack_unpack {
         $assert(packed_channels[3] == 24'h100002, "CH1 second sample mismatch");
 
         clk.next(1);
-        $assert (unpacked_valid == 1'b1, "first unpacked sample must be valid");
-        $assert (unpacked_samples[0] == 24'h000001, "unpacked CH0 first mismatch");
-        $assert (unpacked_samples[3] == 24'h000004, "unpacked CH3 first mismatch");
+        $assert(unpacked_valid == 1'b1, "first unpacked sample must be valid");
+        $assert(unpacked_samples[0] == 24'h000001, "unpacked CH0 first mismatch");
+        $assert(unpacked_samples[3] == 24'h000004, "unpacked CH3 first mismatch");
 
         clk.next(1);
-        $assert (unpacked_valid == 1'b1, "second unpacked sample must be valid");
-        $assert (unpacked_samples[0] == 24'h100001, "unpacked CH0 second mismatch");
-        $assert (unpacked_samples[3] == 24'h100004, "unpacked CH3 second mismatch");
+        $assert(unpacked_valid == 1'b1, "second unpacked sample must be valid");
+        $assert(unpacked_samples[0] == 24'h100001, "unpacked CH0 second mismatch");
+        $assert(unpacked_samples[3] == 24'h100004, "unpacked CH3 second mismatch");
 
         clk.next(1);
-        $assert (unpacked_valid == 1'b0, "unpacker valid must be a pulse");
-        $finish ();
+        $assert(unpacked_valid == 1'b0, "unpacker valid must be a pulse");
+        $finish();
     }
 }

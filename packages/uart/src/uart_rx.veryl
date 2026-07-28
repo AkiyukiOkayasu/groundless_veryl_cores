@@ -1,10 +1,8 @@
 /// 非同期シリアル入力を受信するUARTレシーバ
 ///
-/// `CLK_FREQ`と`BAUD_RATE`から1ビットのクロック数を計算し、スタートビット、
-/// `DATA_WIDTH`ビットのデータ、ストップビットを順にサンプリングする。
-/// 1バイトの受信完了時に`valid`を1クロックだけアサートする。
-/// data bitはLSB-firstで、各bitの中央をサンプリングする。stop bitがLowなら
-/// framing errorとして破棄し、`valid`をアサートしない。
+/// `CLK_FREQ`と`BAUD_RATE`から1ビットのクロック数を計算し、スタートビット、`DATA_WIDTH`ビットのデータ、ストップビットを順にサンプリング。
+/// 1バイトの受信完了時に`valid`を1クロックだけアサート。
+/// data bitはLSB-firstで、各bitの中央をサンプリングする。stop bitがLowならframing errorとして破棄し、`valid`をアサートしない。
 ///
 /// ```wavedrom
 /// {
@@ -18,15 +16,15 @@
 /// }
 /// ```
 pub module UartRx #(
-    param CLK_FREQ  : u32 = 50_000_000,
-    param BAUD_RATE : u32 = 31250     ,
-    param DATA_WIDTH: u8  = 8         ,
+    param CLK_FREQ  : u32 = 50_000_000, /// 入力クロック周波数 [Hz]
+    param BAUD_RATE : u32 = 31250     , /// UARTボーレート [baud]
+    param DATA_WIDTH: u8  = 8         , /// 受信データ幅
 ) (
-    clk  : input  clock            ,
-    rst  : input  reset            ,
-    rx   : input  logic            ,
-    data : output logic<DATA_WIDTH>,
-    valid: output logic            ,
+    clk  : input  clock            , /// システムクロック
+    rst  : input  reset            , /// リセット
+    rx   : input  logic            , /// 非同期UART入力
+    data : output logic<DATA_WIDTH>, /// 受信データ
+    valid: output logic            , /// 受信完了パルス
 ) {
     const CYCLES_PER_BIT: u32 = CLK_FREQ / BAUD_RATE;
 

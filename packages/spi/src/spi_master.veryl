@@ -3,8 +3,8 @@ import Types::SpiMode;
 /// SPI Master モジュール
 ///
 /// `start`はidle中に1クロックだけHighにし、同じcycleの`tx_data`を保持する。
-/// 受理後は`busy`と`cs_n`をアサートし、全bitの転送とCS High保持時間が
-/// 終わると`done`を1クロックだけHighにする。転送はMSB-first。
+/// 受理後は`busy`と`cs_n`をアサートし、全bitの転送とCS High保持時間が終わると`done`を1クロックだけHighにする。
+/// 転送はMSB-first。
 ///
 /// ```wavedrom
 /// {
@@ -335,17 +335,17 @@ module test_spi_mode0_loopback {
     );
 
     initial {
-        start   = 0;
-        tx_data = 8'hA5;
+        start      = 0;
+        tx_data    = 8'hA5;
         rst.assert();
-        clk.next(10); // リセット解除後十分待機
-        start = 1;
-        clk.next(1);
-        start = 0;
-        clk.next(500); // 十分な時間待機
-        $assert(busy == 0, "転送が完了していない");
-        $assert(rx_data == 8'hA5, "ループバックデータ不一致");
-        $finish();
+        clk.next  (10); // リセット解除後十分待機
+        start      = 1;
+        clk.next  (1);
+        start      = 0;
+        clk.next  (500); // 十分な時間待機
+        $assert   (busy == 0, "転送が完了していない");
+        $assert   (rx_data == 8'hA5, "ループバックデータ不一致");
+        $finish   ();
     }
 }
 
@@ -389,17 +389,17 @@ module test_spi_mode1_loopback {
     );
 
     initial {
-        start   = 0;
-        tx_data = 8'hA5;
+        start      = 0;
+        tx_data    = 8'hA5;
         rst.assert();
-        clk.next(10); // リセット解除後十分待機
-        start = 1;
-        clk.next(1);
-        start = 0;
-        clk.next(500); // 十分な時間待機
-        $assert(busy == 0, "転送が完了していない");
-        $assert(rx_data == 8'hA5, "ループバックデータ不一致");
-        $finish();
+        clk.next  (10); // リセット解除後十分待機
+        start      = 1;
+        clk.next  (1);
+        start      = 0;
+        clk.next  (500); // 十分な時間待機
+        $assert   (busy == 0, "転送が完了していない");
+        $assert   (rx_data == 8'hA5, "ループバックデータ不一致");
+        $finish   ();
     }
 }
 
@@ -443,17 +443,17 @@ module test_spi_mode2_loopback {
     );
 
     initial {
-        start   = 0;
-        tx_data = 8'hA5;
+        start      = 0;
+        tx_data    = 8'hA5;
         rst.assert();
-        clk.next(10); // リセット解除後十分待機
-        start = 1;
-        clk.next(1);
-        start = 0;
-        clk.next(500); // 十分な時間待機
-        $assert(busy == 0, "転送が完了していない");
-        $assert(rx_data == 8'hA5, "ループバックデータ不一致");
-        $finish();
+        clk.next  (10); // リセット解除後十分待機
+        start      = 1;
+        clk.next  (1);
+        start      = 0;
+        clk.next  (500); // 十分な時間待機
+        $assert   (busy == 0, "転送が完了していない");
+        $assert   (rx_data == 8'hA5, "ループバックデータ不一致");
+        $finish   ();
     }
 }
 
@@ -497,17 +497,17 @@ module test_spi_mode3_loopback {
     );
 
     initial {
-        start   = 0;
-        tx_data = 8'hA5;
+        start      = 0;
+        tx_data    = 8'hA5;
         rst.assert();
-        clk.next(10); // リセット解除後十分待機
-        start = 1;
-        clk.next(1);
-        start = 0;
-        clk.next(500); // 十分な時間待機
-        $assert(busy == 0, "転送が完了していない");
-        $assert(rx_data == 8'hA5, "ループバックデータ不一致");
-        $finish();
+        clk.next  (10); // リセット解除後十分待機
+        start      = 1;
+        clk.next  (1);
+        start      = 0;
+        clk.next  (500); // 十分な時間待機
+        $assert   (busy == 0, "転送が完了していない");
+        $assert   (rx_data == 8'hA5, "ループバックデータ不一致");
+        $finish   ();
     }
 }
 
@@ -570,10 +570,10 @@ module test_spi_idle_polarity {
     );
 
     initial {
-        start   = 0;
-        tx_data = 0;
+        start      = 0;
+        tx_data    = 0;
         rst.assert();
-        clk.next(5);
+        clk.next  (5);
         // Mode 0/1: SCLK idle Low
         $assert(sclk_out_mode0 == 0, "Mode 0 SCLK idle should be Low");
         // Mode 2/3: SCLK idle High
@@ -622,27 +622,27 @@ module test_spi_consecutive_transfer {
     );
 
     initial {
-        start = 0;
+        start      = 0;
         rst.assert();
-        clk.next(10);
+        clk.next  (10);
 
         // 1回目の送信
-        tx_data = 8'hA5;
-        start   = 1;
+        tx_data  = 8'hA5;
+        start    = 1;
         clk.next(1);
-        start = 0;
+        start    = 0;
         clk.next(500); // 十分な時間待機
-        $assert(busy == 0, "1回目の転送が完了していない");
-        $assert(rx_data == 8'hA5, "1回目のループバックデータ不一致");
+        $assert (busy == 0, "1回目の転送が完了していない");
+        $assert (rx_data == 8'hA5, "1回目のループバックデータ不一致");
 
         // 2回目の送信
-        tx_data = 8'h5A;
-        start   = 1;
+        tx_data  = 8'h5A;
+        start    = 1;
         clk.next(1);
-        start = 0;
+        start    = 0;
         clk.next(500); // 十分な時間待機
-        $assert(busy == 0, "2回目の転送が完了していない");
-        $assert(rx_data == 8'h5A, "2回目のループバックデータ不一致");
+        $assert (busy == 0, "2回目の転送が完了していない");
+        $assert (rx_data == 8'h5A, "2回目のループバックデータ不一致");
 
         $finish();
     }

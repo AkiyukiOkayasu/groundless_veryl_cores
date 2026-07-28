@@ -10,33 +10,33 @@
 ///
 /// ```veryl
 /// let one: Q8_24::Raw = Q8_24::ONE;
-/// // `one`の実数値は1.0、ビット表現は0x0100_0000。
+/// // `one`の実数値は1.0、ビット表現は0x0100_0000
 /// ```
 pub proto package SignedFixedPointFormat {
     /// 符号ビットを含む総ビット幅
     ///
-    /// `Raw`は` signed logic<WIDTH> `として表現され、signed値の範囲は`[-2^(WIDTH - 1), 2^(WIDTH - 1) - 1]`となる。
+    /// `Raw`は` signed logic<WIDTH> `として表現され、signed値の範囲は`[-2^(WIDTH - 1), 2^(WIDTH - 1) - 1]`となる
     const WIDTH: u32;
     /// binary pointの右側にある小数ビット数
     ///
-    /// raw値をこのビット数だけ右シフトした位置が整数部に相当する。例えばQ8.24では`WIDTH = 32`、`FRACTION_BITS = 24`である。
+    /// raw値をこのビット数だけ右シフトした位置が整数部に相当する。例えばQ8.24では`WIDTH = 32`、`FRACTION_BITS = 24`である
     const FRACTION_BITS: u32;
     /// このformatのsigned固定小数点ビット表現
     ///
-    /// これはformatを表すタグ付きnewtypeではなく、実際のRTLに接続できるsigned bit vectorの別名である。`Q1_31::Raw`と`Q8_24::Raw`のようにformatが異なっても、幅とsignednessが同じならビットレベルでは同じ型になる。
+    /// これはformatを表すタグ付きnewtypeではなく、実際のRTLに接続できるsigned bit vectorの別名である。`Q1_31::Raw`と`Q8_24::Raw`のようにformatが異なっても、幅とsignednessが同じならビットレベルでは同じ型になる
     type Raw = signed logic<WIDTH>;
 
     /// 数値0を表すraw値。常に`'0`である
     const ZERO: Raw;
-    /// 表現可能な最小値。raw値では`-2^(WIDTH - 1)`に相当する
+    /// 表現可能な最小値。raw値では`-2^(WIDTH - 1)`に相当
     const MIN: Raw;
-    /// 表現可能な最大値。raw値では`2^(WIDTH - 1) - 1`に相当する
+    /// 表現可能な最大値。raw値では`2^(WIDTH - 1) - 1`に相当
     const MAX: Raw;
 }
 
 /// 固定小数点演算で共有する丸め・overflow policy
 ///
-/// policyは関数のgeneric parameterとして指定するため、ハードウェア上の実行時selectorは生成されない。丸めは小数ビットを削減する右シフト時に、overflow処理は出力幅を狭める処理時に適用される。
+/// policyは関数のgeneric parameterとして指定するため、ハードウェア上の実行時selectorは生成されない。丸めは小数ビットを削減する右シフト時に、overflow処理は出力幅を狭める処理時に適用される
 pub package Types {
     /// 小数ビット削減時に、どの整数raw値を選ぶかを指定
     ///
@@ -44,48 +44,48 @@ pub package Types {
     enum RoundingMode {
         /// 切り下げ。負数を含めて負の無限大方向へ丸める
         ///
-        /// 例: `1.5 -> 1`、`-1.5 -> -2`。
+        /// 例: `1.5 -> 1`、`-1.5 -> -2`
         TOWARD_NEGATIVE,
         /// 切り捨て。ゼロ方向へ丸め、絶対値を増やさない
         ///
-        /// 例: `1.5 -> 1`、`-1.5 -> -1`。
+        /// 例: `1.5 -> 1`、`-1.5 -> -1`
         TOWARD_ZERO,
         /// 切り上げ。正の無限大方向へ丸める
         ///
-        /// 例: `1.5 -> 2`、`-1.5 -> -1`。
+        /// 例: `1.5 -> 2`、`-1.5 -> -1`
         TOWARD_POSITIVE,
         /// 最近傍値へ丸め、ちょうど中間の場合は正方向へ丸める
         ///
-        /// 例: `1.5 -> 2`、`-1.5 -> -1`。
+        /// 例: `1.5 -> 2`、`-1.5 -> -1`
         NEAREST_TIES_TOWARD_POSITIVE,
         /// 最近傍値へ丸め、ちょうど中間の場合は絶対値が大きくなる方向へ丸める
         ///
-        /// 例: `1.5 -> 2`、`-1.5 -> -2`。
+        /// 例: `1.5 -> 2`、`-1.5 -> -2`
         NEAREST_TIES_AWAY_FROM_ZERO,
-        /// 最近傍値へ丸め、ちょうど中間の場合は結果の最下位ビットを偶数にする
+        /// 最近傍値への丸め。ちょうど中間の場合は結果の最下位ビットを偶数化
         ///
-        /// 例: `2.5 -> 2`、`3.5 -> 4`。負数でも結果の整数raw値を偶数にする。
+        /// 例: `2.5 -> 2`、`3.5 -> 4`。負数でも結果の整数raw値を偶数化
         NEAREST_TIES_TO_EVEN,
     }
 
     /// 出力幅を超えた値の処理方法
     ///
-    /// 処理順は小数位置調整、`RoundingMode`による丸め、`OverflowMode`による範囲処理である。`WRAP`はビットを保持し、`SATURATE`は数値を保持する。
+    /// 処理順は小数位置調整、`RoundingMode`による丸め、`OverflowMode`による範囲処理の順。`WRAP`はビット保持、`SATURATE`は数値保持
     enum OverflowMode {
-        /// 出力幅の下位ビットを保持する
+        /// 出力幅の下位ビット保持
         ///
-        /// signed 2の補数値としては`2^OUT_WIDTH`を法としたwrapになるため、大きな正数が負数として見えることがある。
+        /// signed 2の補数値としては`2^OUT_WIDTH`を法としたwrapになるため、大きな正数が負数として見えることがある
         WRAP,
-        /// 出力formatの`MIN`/`MAX`へ制限する
+        /// 出力formatの`MIN`/`MAX`への制限
         ///
-        /// signed出力の範囲は`[-2^(OUT_WIDTH - 1), 2^(OUT_WIDTH - 1) - 1]`であり、範囲外の値をwrapさせず最小値または最大値に置き換える。
+        /// signed出力の範囲は`[-2^(OUT_WIDTH - 1), 2^(OUT_WIDTH - 1) - 1]`であり、範囲外の値をwrapさせず最小値または最大値に置き換える
         SATURATE,
     }
 }
 
 /// WIDTHと小数ビット数によるsigned固定小数点formatの定義
 ///
-/// 固定のQ形式presetを増やす代わりに、任意の幅と小数ビット数をformatとして直接使用できる。
+/// 固定のQ形式presetを増やす代わりに、任意の幅と小数ビット数をformatとして直接使用できる
 ///
 /// # Type Parameters
 ///
@@ -108,9 +108,9 @@ pub package SignedFixedPointFormatOf::<W: u32, F: u32> for SignedFixedPointForma
     const MAX : Raw = {1'b0, 1'b1 repeat WIDTH - 1};
 }
 
-/// Q2.16形式。27x18乗算器の係数に使用する
+/// Q2.16形式。27x18乗算器の係数用途
 ///
-/// raw値`x`の実数値は`x / 2^16`である。
+/// raw値`x`の実数値は`x / 2^16`である
 pub package Q2_16 for SignedFixedPointFormat {
     const WIDTH        : u32                 = 18;
     const FRACTION_BITS: u32                 = 16;
@@ -123,9 +123,9 @@ pub package Q2_16 for SignedFixedPointFormat {
     const ZERO   : Raw = 18'sd0;
 }
 
-/// Q1.31形式 (-1.0以上、+1.0未満)。デルタシグマ変調器などに使用する
+/// Q1.31形式 (-1.0以上、+1.0未満)。デルタシグマ変調器などの用途
 ///
-/// `Q1_31::ONE`は定義されない。+1.0は表現範囲外であるため、必要な場合は`Q1_31::MAX`を使用する。
+/// `Q1_31::ONE`は定義されない。+1.0は表現範囲外のため、必要時は`Q1_31::MAX`を利用
 pub package Q1_31 for SignedFixedPointFormat {
     const WIDTH        : u32                 = 32;
     const FRACTION_BITS: u32                 = 31;
@@ -136,9 +136,9 @@ pub package Q1_31 for SignedFixedPointFormat {
     const ZERO: Raw = 32'sd0;
 }
 
-/// Q8.24形式。波形オシレーターの出力などに使用する
+/// Q8.24形式。波形オシレーターの出力などの用途
 ///
-/// raw値`x`の実数値は`x / 2^24`である。
+/// raw値`x`の実数値は`x / 2^24`である
 pub package Q8_24 for SignedFixedPointFormat {
     const WIDTH        : u32                 = 32;
     const FRACTION_BITS: u32                 = 24;
@@ -151,9 +151,9 @@ pub package Q8_24 for SignedFixedPointFormat {
     const ZERO   : Raw = 32'sd0;
 }
 
-/// Q8.19形式。36x27乗算器の係数に使用する
+/// Q8.19形式。36x27乗算器の係数用途
 ///
-/// raw値`x`の実数値は`x / 2^19`である。
+/// raw値`x`の実数値は`x / 2^19`である
 pub package Q8_19 for SignedFixedPointFormat {
     const WIDTH        : u32                 = 27;
     const FRACTION_BITS: u32                 = 19;
@@ -166,9 +166,9 @@ pub package Q8_19 for SignedFixedPointFormat {
     const ZERO   : Raw = 27'sd0;
 }
 
-/// Q3.24形式。36x27乗算器の係数に使用する
+/// Q3.24形式。36x27乗算器の係数用途
 ///
-/// raw値`x`の実数値は`x / 2^24`である。
+/// raw値`x`の実数値は`x / 2^24`である
 pub package Q3_24 for SignedFixedPointFormat {
     const WIDTH        : u32                 = 27;
     const FRACTION_BITS: u32                 = 24;
@@ -183,9 +183,9 @@ pub package Q3_24 for SignedFixedPointFormat {
 
 /// signed固定小数点値を小数ビット数と出力幅ごと変換するproject-scope function
 ///
-/// VerylのSystemVerilog出力制約により、module parameterをgeneric actual argumentへ渡せるのはcomponent namespace外のfunctionに限られるためである。
+/// VerylのSystemVerilog出力制約により、module parameterをgeneric actual argumentへ渡せるのはcomponent namespace外のfunctionに限られるためである
 ///
-/// 処理順は「小数位置調整 → 丸め → overflow処理」である。小数ビットを増やす場合は左シフト、減らす場合は`MODE`で丸める右シフトを行う。`OVERFLOW == WRAP`では出力幅の下位ビットを保持し、`SATURATE`ではsigned出力範囲へ制限する。
+/// 処理順は「小数位置調整 → 丸め → overflow処理」の順。小数ビットを増やす場合は左シフト、減らす場合は`MODE`で丸める右シフト。`OVERFLOW == WRAP`では出力幅の下位ビット保持、`SATURATE`ではsigned出力範囲への制限
 ///
 /// # Arguments
 ///
@@ -199,7 +199,7 @@ pub package Q3_24 for SignedFixedPointFormat {
 ///
 /// # Returns
 ///
-/// 指定した出力formatのsigned raw値。
+/// 指定した出力formatのsigned raw値
 ///
 /// # Examples
 ///
@@ -211,7 +211,7 @@ pub package Q3_24 for SignedFixedPointFormat {
 ///     2,
 ///     Types::RoundingMode::NEAREST_TIES_TO_EVEN,
 ///     Types::OverflowMode::SATURATE,
-/// >(12'sd24); // 1.5を8-bit Q6.2へ変換し、result == 6。
+/// >(12'sd24); // 1.5を8-bit Q6.2へ変換し、result == 6
 /// ```
 pub function resize::<
     IN_WIDTH : u32                ,
@@ -306,7 +306,7 @@ pub function resize::<
 
 /// signed値の算術右シフトと指定modeによる丸め
 ///
-/// `SHIFT == 0`では入力をそのまま返す。`SHIFT > 0`では小数ビットを`SHIFT`個削減し、結果は入力と同じ幅で返す。丸めによる幅超過はこの関数では飽和せず、出力幅の下位ビットが残る。
+/// `SHIFT == 0`では入力をそのまま返す。`SHIFT > 0`では小数ビットを`SHIFT`個削減し、結果は入力と同じ幅で返す。丸めによる幅超過はこの関数では飽和せず、出力幅の下位ビットが残る
 ///
 /// # Arguments
 ///
@@ -317,7 +317,7 @@ pub function resize::<
 ///
 /// # Returns
 ///
-/// 丸め後のsigned raw値。小数点位置は`SHIFT`ビット右へ移動したものとして解釈する。
+/// 丸め後のsigned raw値。小数点位置は`SHIFT`ビット右へ移動したものとして解釈
 ///
 /// # Examples
 ///
@@ -336,7 +336,7 @@ pub function round_shift::<WIDTH: u32, SHIFT: u32, MODE: Types::RoundingMode> (
 
 /// signed値の指定幅への飽和
 ///
-/// 出力範囲は`[-2^(OUT_WIDTH-1), 2^(OUT_WIDTH-1)-1]`とする。入力が範囲内の場合は数値を保持し、範囲外の場合は最小値または最大値を返す。
+/// 出力範囲は`[-2^(OUT_WIDTH-1), 2^(OUT_WIDTH-1)-1]`とする。入力が範囲内の場合は数値を保持し、範囲外の場合は最小値または最大値を返す
 ///
 /// # Arguments
 ///
@@ -346,13 +346,13 @@ pub function round_shift::<WIDTH: u32, SHIFT: u32, MODE: Types::RoundingMode> (
 ///
 /// # Returns
 ///
-/// `OUT_WIDTH`で表現可能な範囲に制限されたsigned値。
+/// `OUT_WIDTH`で表現可能な範囲に制限されたsigned値
 ///
 /// # Examples
 ///
 /// ```veryl
 /// let result: signed logic<8> = saturate::<12, 8>(12'sd200);
-/// // 200は8-bit signedの最大値127を超えるため、127。
+/// // 200は8-bit signedの最大値127を超えるため、127
 /// ```
 pub function saturate::<IN_WIDTH: u32, OUT_WIDTH: u32> (
     value: input signed logic<IN_WIDTH>,
@@ -364,7 +364,7 @@ pub function saturate::<IN_WIDTH: u32, OUT_WIDTH: u32> (
 
 /// signed整数同士の入力幅の合計幅による乗算
 ///
-/// 結果の幅は`A_WIDTH + B_WIDTH`。固定小数点値として解釈する場合、結果の小数ビット数は入力の小数ビット数の合計になる。丸めや出力幅の制限は行わないため、必要に応じて`resize`を続けて呼び出す。
+/// 結果の幅は`A_WIDTH + B_WIDTH`。固定小数点値として解釈する場合、結果の小数ビット数は入力の小数ビット数の合計になる。丸めや出力幅の制限は行わないため、必要に応じて`resize`を続けて呼び出す
 ///
 /// # Arguments
 ///
@@ -375,13 +375,13 @@ pub function saturate::<IN_WIDTH: u32, OUT_WIDTH: u32> (
 ///
 /// # Returns
 ///
-/// `A_WIDTH + B_WIDTH`ビットのsigned積。
+/// `A_WIDTH + B_WIDTH`ビットのsigned積
 ///
 /// # Examples
 ///
 /// ```veryl
 /// let product: signed logic<16> = multiply::<8, 8>(8'sd32, 8'sd16);
-/// // product == 512。Q4.4同士なら実数値は2.0 * 1.0 = 2.0。
+/// // product == 512。Q4.4同士なら実数値は2.0 * 1.0 = 2.0
 /// ```
 pub function multiply::<A_WIDTH: u32, B_WIDTH: u32> (
     a: input signed logic<A_WIDTH>,
@@ -397,7 +397,7 @@ pub function multiply::<A_WIDTH: u32, B_WIDTH: u32> (
 
 /// signed乗算結果の指定formatへの変換
 ///
-/// 積の小数ビット数は`A_FRAC + B_FRAC`として扱い、`resize`と同じ順序で小数位置調整、丸め、overflow処理を行う。
+/// 積の小数ビット数は`A_FRAC + B_FRAC`として扱い、`resize`と同じ順序で小数位置調整、丸め、overflow処理を行う
 ///
 /// # Arguments
 ///
@@ -412,7 +412,7 @@ pub function multiply::<A_WIDTH: u32, B_WIDTH: u32> (
 ///
 /// # Returns
 ///
-/// 指定した出力formatのsigned raw値。
+/// 指定した出力formatのsigned raw値
 ///
 /// # Examples
 ///
@@ -426,7 +426,7 @@ pub function multiply::<A_WIDTH: u32, B_WIDTH: u32> (
 ///     4,
 ///     Types::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO,
 ///     Types::OverflowMode::SATURATE,
-/// >(8'sd32, 8'sd16); // Q4.4の2.0 * 1.0 -> 2.0、result == 8'sd32。
+/// >(8'sd32, 8'sd16); // Q4.4の2.0 * 1.0 -> 2.0、result == 8'sd32
 /// ```
 pub function multiply_resize::<
     A_WIDTH  : u32                ,
@@ -451,7 +451,7 @@ pub function multiply_resize::<
 
 /// 小数位置調整、丸め、指定overflow処理の順によるformat変換
 ///
-/// 入力と出力のformatが同じ場合は、`MODE`が`TOWARD_ZERO`などであっても値は変化しない。出力formatの整数部が狭くなる場合、`SATURATE`を指定するとwrapを防いで`OUT_FORMAT::MIN`/`MAX`へ制限できる。
+/// 入力と出力のformatが同じ場合は、`MODE`が`TOWARD_ZERO`などであっても値は変化しない。出力formatの整数部が狭くなる場合、`SATURATE`を指定するとwrapを防いで`OUT_FORMAT::MIN`/`MAX`へ制限できる
 ///
 /// # Arguments
 ///
@@ -463,7 +463,7 @@ pub function multiply_resize::<
 ///
 /// # Returns
 ///
-/// `OUT_FORMAT`へ変換されたsigned raw値。
+/// `OUT_FORMAT`へ変換されたsigned raw値
 ///
 /// # Examples
 ///
@@ -520,70 +520,70 @@ module test_fixed_point_round_shift {
 
     initial {
         test_input = 7;
-        clk.next  ();
-        $assert   (toward_negative == 8'sd3, "positive toward-negative mismatch");
-        $assert   (toward_zero == 8'sd3, "positive toward-zero mismatch");
-        $assert   (toward_positive == 8'sd4, "positive toward-positive mismatch");
-        $assert   (ties_positive == 8'sd4, "positive half-up mismatch");
-        $assert   (ties_away == 8'sd4, "positive half-away mismatch");
-        $assert   (ties_even == 8'sd4, "positive nearest-even mismatch");
+        clk.next();
+        $assert(toward_negative == 8'sd3, "positive toward-negative mismatch");
+        $assert(toward_zero == 8'sd3, "positive toward-zero mismatch");
+        $assert(toward_positive == 8'sd4, "positive toward-positive mismatch");
+        $assert(ties_positive == 8'sd4, "positive half-up mismatch");
+        $assert(ties_away == 8'sd4, "positive half-away mismatch");
+        $assert(ties_even == 8'sd4, "positive nearest-even mismatch");
 
         test_input = -7;
-        clk.next  ();
-        $assert   (toward_negative == -8'sd4, "negative toward-negative mismatch");
-        $assert   (toward_zero == -8'sd3, "negative toward-zero mismatch");
-        $assert   (toward_positive == -8'sd3, "negative toward-positive mismatch");
-        $assert   (ties_positive == -8'sd3, "negative half-up mismatch");
-        $assert   (ties_away == -8'sd4, "negative half-away mismatch");
-        $assert   (ties_even == -8'sd4, "negative nearest-even mismatch");
+        clk.next();
+        $assert(toward_negative == -8'sd4, "negative toward-negative mismatch");
+        $assert(toward_zero == -8'sd3, "negative toward-zero mismatch");
+        $assert(toward_positive == -8'sd3, "negative toward-positive mismatch");
+        $assert(ties_positive == -8'sd3, "negative half-up mismatch");
+        $assert(ties_away == -8'sd4, "negative half-away mismatch");
+        $assert(ties_even == -8'sd4, "negative nearest-even mismatch");
 
         test_input = 5;
-        clk.next  ();
-        $assert   (toward_negative == 8'sd2, "positive non-tie toward-negative mismatch");
-        $assert   (toward_zero == 8'sd2, "positive non-tie toward-zero mismatch");
-        $assert   (toward_positive == 8'sd3, "positive non-tie toward-positive mismatch");
-        $assert   (ties_positive == 8'sd3, "positive non-tie nearest mismatch");
-        $assert   (ties_away == 8'sd3, "positive non-tie half-away mismatch");
-        $assert   (ties_even == 8'sd2, "positive nearest-even mismatch");
+        clk.next();
+        $assert(toward_negative == 8'sd2, "positive non-tie toward-negative mismatch");
+        $assert(toward_zero == 8'sd2, "positive non-tie toward-zero mismatch");
+        $assert(toward_positive == 8'sd3, "positive non-tie toward-positive mismatch");
+        $assert(ties_positive == 8'sd3, "positive non-tie nearest mismatch");
+        $assert(ties_away == 8'sd3, "positive non-tie half-away mismatch");
+        $assert(ties_even == 8'sd2, "positive nearest-even mismatch");
 
         test_input = -5;
-        clk.next  ();
-        $assert   (toward_negative == -8'sd3, "negative non-tie toward-negative mismatch");
-        $assert   (toward_zero == -8'sd2, "negative non-tie toward-zero mismatch");
-        $assert   (toward_positive == -8'sd2, "negative non-tie toward-positive mismatch");
-        $assert   (ties_positive == -8'sd2, "negative non-tie nearest mismatch");
-        $assert   (ties_away == -8'sd3, "negative non-tie half-away mismatch");
-        $assert   (ties_even == -8'sd2, "negative nearest-even mismatch");
+        clk.next();
+        $assert(toward_negative == -8'sd3, "negative non-tie toward-negative mismatch");
+        $assert(toward_zero == -8'sd2, "negative non-tie toward-zero mismatch");
+        $assert(toward_positive == -8'sd2, "negative non-tie toward-positive mismatch");
+        $assert(ties_positive == -8'sd2, "negative non-tie nearest mismatch");
+        $assert(ties_away == -8'sd3, "negative non-tie half-away mismatch");
+        $assert(ties_even == -8'sd2, "negative nearest-even mismatch");
 
         test_input = 2;
-        clk.next  ();
-        $assert   (
+        clk.next();
+        $assert(
             round_shift::<8, 2, Types::RoundingMode::NEAREST_TIES_TO_EVEN>(test_input) == 8'sd0,
             "positive even tie mismatch",
         );
-        $assert   (
+        $assert(
             round_shift::<8, 2, Types::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO>(test_input) == 8'sd1,
             "positive away tie mismatch",
         );
 
         test_input = -2;
-        clk.next  ();
-        $assert   (
+        clk.next();
+        $assert(
             round_shift::<8, 2, Types::RoundingMode::NEAREST_TIES_TO_EVEN>(test_input) == -8'sd0,
             "negative even tie mismatch",
         );
-        $assert   (
+        $assert(
             round_shift::<8, 2, Types::RoundingMode::NEAREST_TIES_AWAY_FROM_ZERO>(test_input) == -8'sd1,
             "negative away tie mismatch",
         );
 
         test_input = -128;
-        clk.next  ();
-        $assert   (ties_away == -8'sd64, "signed minimum rounding mismatch");
+        clk.next();
+        $assert(ties_away == -8'sd64, "signed minimum rounding mismatch");
 
         test_input = -7;
-        clk.next  ();
-        $assert   (shift_zero == -8'sd7, "zero shift mismatch");
+        clk.next();
+        $assert(shift_zero == -8'sd7, "zero shift mismatch");
 
         $finish();
     }
@@ -605,34 +605,34 @@ module test_fixed_point_saturation {
 
     initial {
         test_input = 127;
-        clk.next  ();
-        $assert   (saturated_small == 4'sd7, "positive saturation mismatch");
-        $assert   (widened == 10'sd127, "positive widening mismatch");
+        clk.next();
+        $assert(saturated_small == 4'sd7, "positive saturation mismatch");
+        $assert(widened == 10'sd127, "positive widening mismatch");
 
         test_input = 8;
-        clk.next  ();
-        $assert   (saturated_small == 4'sd7, "positive boundary saturation mismatch");
+        clk.next();
+        $assert(saturated_small == 4'sd7, "positive boundary saturation mismatch");
 
         test_input = 7;
-        clk.next  ();
-        $assert   (saturated_small == 4'sd7, "positive exact maximum mismatch");
+        clk.next();
+        $assert(saturated_small == 4'sd7, "positive exact maximum mismatch");
 
         test_input = -9;
-        clk.next  ();
-        $assert   (saturated_small == -4'sd8, "negative saturation mismatch");
+        clk.next();
+        $assert(saturated_small == -4'sd8, "negative saturation mismatch");
 
         test_input = -2;
-        clk.next  ();
-        $assert   (saturated_small == -4'sd2, "negative in-range mismatch");
-        $assert   (widened == -10'sd2, "negative widening mismatch");
+        clk.next();
+        $assert(saturated_small == -4'sd2, "negative in-range mismatch");
+        $assert(widened == -10'sd2, "negative widening mismatch");
 
         test_input = -8;
-        clk.next  ();
-        $assert   (saturated_small == -4'sd8, "negative exact minimum mismatch");
+        clk.next();
+        $assert(saturated_small == -4'sd8, "negative exact minimum mismatch");
 
         test_input = -128;
-        clk.next  ();
-        $assert   (saturated_small == -4'sd8, "negative minimum saturation mismatch");
+        clk.next();
+        $assert(saturated_small == -4'sd8, "negative minimum saturation mismatch");
 
         $finish();
     }
@@ -709,44 +709,44 @@ module test_fixed_point_resize_and_mul {
         resize_sat_in = 0;
         a             = 0;
         b             = 0;
-        clk.next     ();
-        $assert      (resize_down == 8'sd2, "fractional reduction rounding mismatch");
-        $assert      (resize_up == 10'sd24, "fractional expansion mismatch");
+        clk.next();
+        $assert(resize_down == 8'sd2, "fractional reduction rounding mismatch");
+        $assert(resize_up == 10'sd24, "fractional expansion mismatch");
 
         resize_input = -6;
-        clk.next    ();
-        $assert     (resize_ext == -10'sd6, "resize sign extension mismatch");
-        $assert     (resize_direct == -10'sd2, "direct resize rounding mismatch");
-        $assert     (resize_down == -8'sd2, "negative fractional reduction rounding mismatch");
-        $assert     (resize_up == -10'sd24, "negative fractional expansion mismatch");
+        clk.next();
+        $assert(resize_ext == -10'sd6, "resize sign extension mismatch");
+        $assert(resize_direct == -10'sd2, "direct resize rounding mismatch");
+        $assert(resize_down == -8'sd2, "negative fractional reduction rounding mismatch");
+        $assert(resize_up == -10'sd24, "negative fractional expansion mismatch");
 
         resize_sat_in = 2047;
-        clk.next     ();
-        $assert      (resize_sat == 8'sd127, "resize positive saturation mismatch");
-        $assert      (resize_wrap == 8'sd0, "resize wrap mismatch");
+        clk.next();
+        $assert(resize_sat == 8'sd127, "resize positive saturation mismatch");
+        $assert(resize_wrap == 8'sd0, "resize wrap mismatch");
 
         resize_sat_in = -2048;
-        clk.next     ();
-        $assert      (resize_sat == -8'sd128, "resize negative saturation mismatch");
-        $assert      (resize_wrap == 8'sd0, "resize negative wrap mismatch");
-
-        a        = 6;
-        b        = 2;
         clk.next();
-        $assert (product == 16'sd12, "positive product mismatch");
-        $assert (product_resized == 8'sd3, "positive product resize mismatch");
+        $assert(resize_sat == -8'sd128, "resize negative saturation mismatch");
+        $assert(resize_wrap == 8'sd0, "resize negative wrap mismatch");
 
-        a        = -6;
-        b        = 2;
+        a = 6;
+        b = 2;
         clk.next();
-        $assert (product == -16'sd12, "negative product mismatch");
-        $assert (product_resized == -8'sd3, "negative product resize mismatch");
+        $assert(product == 16'sd12, "positive product mismatch");
+        $assert(product_resized == 8'sd3, "positive product resize mismatch");
 
-        a        = -6;
-        b        = -2;
+        a = -6;
+        b = 2;
         clk.next();
-        $assert (product == 16'sd12, "negative times negative product mismatch");
-        $assert (product_resized == 8'sd3, "negative times negative resize mismatch");
+        $assert(product == -16'sd12, "negative product mismatch");
+        $assert(product_resized == -8'sd3, "negative product resize mismatch");
+
+        a = -6;
+        b = -2;
+        clk.next();
+        $assert(product == 16'sd12, "negative times negative product mismatch");
+        $assert(product_resized == 8'sd3, "negative times negative resize mismatch");
 
         $finish();
     }
@@ -846,37 +846,37 @@ module test_fixed_point_generic_api {
         signed_a   = -3;
         signed_b   = 5;
         wide_input = 40'sd1 <<< 32;
-        clk.next  ();
-        $display  ("generic sat=%d wrap=%d", sat_output, wrap_output);
-        $assert   (truncation == 8'sd1, "resize truncation mismatch");
-        $assert   (half_up == 8'sd2, "resize half-up tie mismatch");
-        $assert   (half_away == 8'sd2, "resize half-away tie mismatch");
-        $assert   (nearest_even == 8'sd2, "resize nearest-even tie mismatch");
-        $assert   (expanded == 12'sd6, "integer expansion mismatch");
-        $assert   (sat_output == 6'sd31, "resize upper saturation mismatch");
-        $assert   (wrap_output == -6'sd1, "resize upper wrap mismatch");
-        $assert   (product == -10'sd15, "asymmetric signed product mismatch");
-        $assert   (resized == -8'sd2, "signed multiply-resize mismatch");
-        $assert   (even_resized == -8'sd1, "signed nearest-even multiply-resize mismatch");
-        $assert   (wide_rounded == 40'sd1, "widened shift positive tie mismatch");
+        clk.next();
+        $display("generic sat=%d wrap=%d", sat_output, wrap_output);
+        $assert(truncation == 8'sd1, "resize truncation mismatch");
+        $assert(half_up == 8'sd2, "resize half-up tie mismatch");
+        $assert(half_away == 8'sd2, "resize half-away tie mismatch");
+        $assert(nearest_even == 8'sd2, "resize nearest-even tie mismatch");
+        $assert(expanded == 12'sd6, "integer expansion mismatch");
+        $assert(sat_output == 6'sd31, "resize upper saturation mismatch");
+        $assert(wrap_output == -6'sd1, "resize upper wrap mismatch");
+        $assert(product == -10'sd15, "asymmetric signed product mismatch");
+        $assert(resized == -8'sd2, "signed multiply-resize mismatch");
+        $assert(even_resized == -8'sd1, "signed nearest-even multiply-resize mismatch");
+        $assert(wide_rounded == 40'sd1, "widened shift positive tie mismatch");
 
         test_input = -6;
         sat_input  = -2048;
         wide_input = -(40'sd1 <<< 32);
-        clk.next  ();
-        $assert   (truncation == -8'sd2, "negative resize truncation mismatch");
-        $assert   (half_up == -8'sd1, "negative resize half-up tie mismatch");
-        $assert   (half_away == -8'sd2, "negative resize half-away tie mismatch");
-        $assert   (nearest_even == -8'sd2, "negative resize nearest-even tie mismatch");
-        $assert   (expanded == -12'sd6, "negative expansion mismatch");
-        $assert   (sat_output == -6'sd32, "resize lower saturation mismatch");
-        $assert   (wrap_output == 6'sd0, "resize lower wrap mismatch");
-        $assert   (wide_rounded == -40'sd1, "widened shift negative tie mismatch");
+        clk.next();
+        $assert(truncation == -8'sd2, "negative resize truncation mismatch");
+        $assert(half_up == -8'sd1, "negative resize half-up tie mismatch");
+        $assert(half_away == -8'sd2, "negative resize half-away tie mismatch");
+        $assert(nearest_even == -8'sd2, "negative resize nearest-even tie mismatch");
+        $assert(expanded == -12'sd6, "negative expansion mismatch");
+        $assert(sat_output == -6'sd32, "resize lower saturation mismatch");
+        $assert(wrap_output == 6'sd0, "resize lower wrap mismatch");
+        $assert(wide_rounded == -40'sd1, "widened shift negative tie mismatch");
 
         test_input = 3;
-        clk.next  ();
-        $assert   (half_up == 8'sd1, "positive resize half tie mismatch");
-        $assert   (half_away == 8'sd1, "positive resize half-away mismatch");
+        clk.next();
+        $assert(half_up == 8'sd1, "positive resize half tie mismatch");
+        $assert(half_away == 8'sd1, "positive resize half-away mismatch");
 
         $finish();
     }
@@ -910,15 +910,15 @@ module test_fixed_point_convert {
     initial {
         q1_input      = 32'sh4000_0000;
         generic_input = 10;
-        clk.next     ();
-        $assert      (q8_output == 32'sh0080_0000, "typed format conversion mismatch");
-        $assert      (generic_output == 8'sd3, "generic format conversion mismatch");
+        clk.next();
+        $assert(q8_output == 32'sh0080_0000, "typed format conversion mismatch");
+        $assert(generic_output == 8'sd3, "generic format conversion mismatch");
 
         q1_input      = -32'sh4000_0000;
         generic_input = -10;
-        clk.next     ();
-        $assert      (q8_output == -32'sh0080_0000, "typed negative conversion mismatch");
-        $assert      (generic_output == -8'sd3, "generic negative conversion mismatch");
+        clk.next();
+        $assert(q8_output == -32'sh0080_0000, "typed negative conversion mismatch");
+        $assert(generic_output == -8'sd3, "generic negative conversion mismatch");
 
         $finish();
     }

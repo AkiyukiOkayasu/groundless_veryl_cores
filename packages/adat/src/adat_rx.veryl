@@ -87,25 +87,21 @@ import Types::AdatFamily;
 /// - 推奨クロック: 50MHz
 /// - ADAT入力: TOSLINK光→電気変換済み信号
 pub module AdatRx (
-    /// システムクロック (50MHz推奨)
-    clk: input clock,
-    rst: input reset,
-    /// ADAT入力 (光→電気変換済み)
-    adat: input logic,
-    /// ADATフレーム周期のクロック出力（sample rateではない）
+    clk : input clock, /// システムクロック (50MHz推奨)
+    rst : input reset, /// リセット
+    adat: input logic, /// ADAT入力 (光→電気変換済み)
+    /// ADATフレーム周期のクロック出力（sample rateではない）。
     /// 通常は44.1/48kHz。
-    /// warning: S/MUX有効時でも44.1kHz/48kHzが出力されることに注意
+    /// warning: S/MUX有効時でも44.1kHz/48kHzが出力されることに注意。
     frame_clk: output logic,
-    /// UserBit2に基づいて検出されたS/MUX有効状態 (1: enabled, 0: disabled)
-    /// warning: S/MUX2とS/MUX4の判別は原理的に不可能なので、あくまでS/MUXが有効or無効のみを示す
+    /// UserBit2に基づいて検出されたS/MUX有効状態 (1: enabled, 0: disabled)。
+    /// 注意: S/MUX2とS/MUX4の判別は原理的に不可能なので、あくまでS/MUXが有効か無効かだけを示す。
     smux_active: output bbool,
-    /// 8チャンネルPCMデータ出力（ADAT物理スロット）
-    /// warning: S/MUX有効時の論理チャンネル再構成は利用側の実装が必要
+    /// 8チャンネルPCMデータ出力（ADAT物理スロット）。
+    /// 注意: S/MUX有効時の論理チャンネル再構成は利用側の実装が必要
     channels: output logic<24> [8],
-    /// データ有効信号
-    valid: output logic,
-    /// 同期ロック状態
-    locked: output bbool,
+    valid   : output logic        , /// データ有効信号
+    locked  : output bbool        , /// 同期ロック状態
 ) {
     // 内部信号
     var adat_edge  : logic    ;
@@ -257,7 +253,7 @@ module test_adat_loopback {
         locked     : locked_rx     ,
     );
 
-    // TX完了イベントで次フレームを開始し、RXの完了フレーム数を記録する。
+    // TX完了イベントで次フレームを開始し、RXの完了フレーム数を記録する
     always_ff (clk, rst) {
         if_reset {
             frame_clk_tx     = 1'b0;
@@ -280,7 +276,7 @@ module test_adat_loopback {
         } else {
             frame_clk_tx = 1'b0;
 
-            // 最初のフレームを開始し、以降はframe_doneを待って開始する。
+            // 最初のフレームを開始し、以降はframe_doneを待って開始する
             if sent_count == 4'd0 {
                 frame_clk_tx = 1'b1;
                 sent_count   = 4'd1;
@@ -310,7 +306,7 @@ module test_adat_loopback {
 
     initial {
         rst.assert();
-        // 11フレームが完了するまでの上限。送信開始自体はframe_done駆動。
+        // 11フレームが完了するまでの上限。送信開始自体はframe_done駆動
         clk.next(16_000);
 
         $assert(complete == 1'b1, "ADAT loopback did not complete");

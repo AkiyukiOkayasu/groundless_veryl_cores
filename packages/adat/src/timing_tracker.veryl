@@ -1,7 +1,7 @@
 /// タイミング追跡モジュール
 ///
 /// エッジ間の時間を計測し、最大時間を追跡して同期パターンを検出する。
-/// フレーム時間も計測してビットデコードの基準を提供。
+/// フレーム時間も計測してビットデコードの基準を提供する。
 ///
 /// # アルゴリズム
 /// 1. エッジ間の時間をカウント
@@ -13,17 +13,12 @@
 /// ADATのSYNCパターンは10個の連続'0'で、これはフレーム内で唯一の長時間無遷移期間（約814ns）となる。
 /// 通常データは最大5ビット連続まで。
 module TimingTracker (
-    /// システムクロック
-    clk: input clock,
-    rst: input reset,
-    /// エッジ検出パルス入力
-    edge_pulse: input logic,
-    /// 現在のエッジ間隔時間
-    edge_time: output logic<12>,
-    /// 同期検出フラグ (アクティブハイ=データ期間、ロー=同期期間)
-    sync_detect: output logic,
-    /// フレーム時間
-    frame_time: output logic<12>,
+    clk        : input  clock    , /// システムクロック
+    rst        : input  reset    , /// リセット
+    edge_pulse : input  logic    , /// エッジ検出パルス入力
+    edge_time  : output logic<12>, /// 現在のエッジ間隔時間
+    sync_detect: output logic    , /// 同期検出フラグ (アクティブハイ=データ期間、ロー=同期期間)
+    frame_time : output logic<12>, /// フレーム時間
 ) {
     // エッジ間時間カウンタ
     var cur_time: logic<12>;
@@ -131,9 +126,9 @@ module test_adat_timing_tracker {
         gap_cycles: input logic<12>,
     ) {
         edge_pulse = 1'b0;
-        clk.next  (gap_cycles);
+        clk.next(gap_cycles);
         edge_pulse = 1'b1;
-        clk.next  (1);
+        clk.next(1);
         edge_pulse = 1'b0;
     }
 
@@ -141,18 +136,18 @@ module test_adat_timing_tracker {
         edge_pulse = 1'b0;
         rst.assert();
 
-        // 短いエッジ間隔はデータ期間として扱う。
+        // 短いエッジ間隔はデータ期間として扱う
         pulse_edge(12'd4);
-        $assert   (sync_detect == 1'b1, "short interval should be data");
+        $assert(sync_detect == 1'b1, "short interval should be data");
 
-        // 長いエッジ間隔はSYNC期間として扱う。
+        // 長いエッジ間隔はSYNC期間として扱う
         pulse_edge(12'd40);
-        $assert   (sync_detect == 1'b0, "long interval should be sync");
+        $assert(sync_detect == 1'b0, "long interval should be sync");
 
-        // SYNC後にデータ期間へ復帰する。
+        // SYNC後にデータ期間へ復帰する
         pulse_edge(12'd4);
-        $assert   (sync_detect == 1'b1, "data should resume after sync");
-        $assert   (frame_time == 12'd1042, "initial frame time should be 1042");
+        $assert(sync_detect == 1'b1, "data should resume after sync");
+        $assert(frame_time == 12'd1042, "initial frame time should be 1042");
 
         $finish();
     }

@@ -60,7 +60,7 @@ pub package Aes3 {
         };
     }
 
-    /// AES3 professional channel statusのCRCを除く184bit目までを生成する
+    /// AES3 professional channel statusのCRCを除く184bit目までの生成
     function channel_status_bit (
         bit_index   : input logic      <8>,
         sample_rate : input SampleRate    ,

@@ -1,18 +1,17 @@
 /// 2点間の線形補間器
 ///
-/// `phase`は0以上1未満のunsigned Q0.`PHASE_WIDTH`値で、sample0から
-/// sample1へ移動する割合を表す。入力窓からの組み合わせlatencyは0です。
+/// `phase`は0以上1未満のunsigned Q0.`PHASE_WIDTH`値で、sample0からsample1へ移動する割合を表す。入力窓からの組み合わせlatencyは0です
 pub module LinearInterpolator #(
-    param SAMPLE_WIDTH : u32                             = 32                                                   ,
-    param PHASE_WIDTH  : u32                             = 32                                                   ,
-    param ROUNDING_MODE: fixedpoint::Types::RoundingMode = fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN,
-    param OVERFLOW_MODE: fixedpoint::Types::OverflowMode = fixedpoint::Types::OverflowMode::SATURATE            ,
+    param SAMPLE_WIDTH : u32                             = 32                                                   , /// サンプルの符号付きビット幅
+    param PHASE_WIDTH  : u32                             = 32                                                   , /// 位相の小数部ビット幅
+    param ROUNDING_MODE: fixedpoint::Types::RoundingMode = fixedpoint::Types::RoundingMode::NEAREST_TIES_TO_EVEN, /// 右シフト時の丸め方式
+    param OVERFLOW_MODE: fixedpoint::Types::OverflowMode = fixedpoint::Types::OverflowMode::SATURATE            , /// 出力幅超過時の処理方式
     const NUM_WIDTH    : u32                             = SAMPLE_WIDTH + PHASE_WIDTH + 3                       ,
 ) (
-    sample0: input  signed logic<SAMPLE_WIDTH>,
-    sample1: input  signed logic<SAMPLE_WIDTH>,
-    phase  : input  logic       <PHASE_WIDTH> ,
-    sample : output signed logic<SAMPLE_WIDTH>,
+    sample0: input  signed logic<SAMPLE_WIDTH>, /// 補間窓の前側サンプル
+    sample1: input  signed logic<SAMPLE_WIDTH>, /// 補間窓の後側サンプル
+    phase  : input  logic       <PHASE_WIDTH> , /// sample0からsample1へ進む位相
+    sample : output signed logic<SAMPLE_WIDTH>, /// 補間結果
 ) {
     always_comb {
         let delta      : signed logic<SAMPLE_WIDTH + 1> = $signed({sample1[msb], sample1})

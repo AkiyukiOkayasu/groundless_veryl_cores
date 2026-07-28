@@ -1,16 +1,10 @@
 /// ASRC用の分数位相アキュムレータ
 ///
-/// `phase`はQ0.WIDTHの小数位相を表す。毎クロック`phase_increment`を
-/// 加算し、2^WIDTHを跨ぐときだけ`advance`を1にする。
-/// `advance`は実クロックを生成するためではなく、入力サンプル窓を
-/// 1サンプル進めるための制御信号として使用する。
+/// `phase`はQ0.WIDTHの小数位相を表す。毎クロック`phase_increment`を加算し、2^WIDTHを跨ぐときだけ`advance`を1にする。`advance`は実クロックを生成するためではなく、入力サンプル窓を1サンプル進めるための制御信号として使用
 ///
-/// 初期仕様では`phase_increment`を0以上1未満に限定する。したがって、
-/// 1クロックで発生するwrapは最大1回である。
+/// 初期仕様では`phase_increment`を0以上1未満に限定する。したがって、1クロックで発生するwrapは最大1回である
 ///
-/// `advance`は現在の`phase + phase_increment`が次の立ち上がりでwrapすることを
-/// 組み合わせで予告する。wrapする立ち上がりの後、`phase`には剰余が現れ、
-/// `advance`は次回の加算がwrapしない限りLowへ戻る。
+/// `advance`は現在の`phase + phase_increment`が次の立ち上がりでwrapすることを組み合わせで予告する。wrapする立ち上がりの後、`phase`には剰余が現れ、`advance`は次回の加算がwrapしない限りLowへ戻る
 ///
 /// ```wavedrom
 /// {
@@ -25,14 +19,14 @@
 /// }
 /// ```
 pub module FractionalPhaseAccumulator #(
-    param WIDTH: u32 = 32,
+    param WIDTH: u32 = 32, /// 位相の小数部ビット幅
 ) (
-    clk            : input  clock       ,
-    rst            : input  reset       ,
-    enable         : input  bbool       ,
-    phase_increment: input  logic<WIDTH>,
-    phase          : output logic<WIDTH>,
-    advance        : output bbool       ,
+    clk            : input  clock       , /// システムクロック
+    rst            : input  reset       , /// リセット
+    enable         : input  bbool       , /// 位相更新イネーブル
+    phase_increment: input  logic<WIDTH>, /// 1クロックあたりの位相増分
+    phase          : output logic<WIDTH>, /// 現在の小数位相
+    advance        : output bbool       , /// 次の加算でwrapすることを示すパルス
 ) {
     var phase_reg: logic<WIDTH>    ;
     var phase_sum: logic<WIDTH + 1>;

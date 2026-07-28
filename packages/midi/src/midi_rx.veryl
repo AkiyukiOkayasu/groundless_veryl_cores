@@ -1,19 +1,17 @@
 /// MIDI UARTレシーバ
 ///
-/// 非同期MIDI入力を同期化して8N1のデータを受信し、1バイト受信ごとに
-/// `valid`を1クロックだけアサートする。
+/// 非同期MIDI入力を同期化して8N1のデータを受信し、1バイト受信ごとに`valid`を1クロックだけアサート
 ///
-/// `CLK_FREQ`は入力クロック周波数をHzで指定する。
-/// 8N1 frame、LSB-first、中央samplingのタイミングは`uart::UartRx`の
-/// Wavedromを参照。本moduleではその前段に2段synchronizerが加わる。
+/// `CLK_FREQ`は入力クロック周波数をHzで指定。
+/// 8N1 frame、LSB-first、中央samplingのタイミングは`uart::UartRx`のWavedromを参照。本moduleではその前段に2段synchronizerが加わる。
 pub module MidiRx #(
-    param CLK_FREQ: u32 = 50_000_000,
+    param CLK_FREQ: u32 = 50_000_000, /// 入力クロック周波数 [Hz]
 ) (
-    clk  : input  clock   ,
-    rst  : input  reset   ,
-    rx   : input  logic   , // MIDI入力信号 (非同期)
-    data : output logic<8>, // MIDI data byte
-    valid: output logic   , // MIDIデータ受信完了フラグ (1クロックパルス)
+    clk  : input  clock   , /// システムクロック
+    rst  : input  reset   , /// リセット
+    rx   : input  logic   , /// MIDI入力信号 (非同期)
+    data : output logic<8>, /// MIDIデータバイト
+    valid: output logic   , /// MIDIデータ受信完了フラグ (1クロックパルス)
 ) {
     var rx_synced: logic;
 

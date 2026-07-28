@@ -1,12 +1,12 @@
-/// ビットシフトによる一次ハイパスフィルタ (符号付き版)
-/// LPFの出力を入力から減算してHPFを構成: y[n] = x[n] - lpf[n]
-/// 内部でLpfShiftSignedをインスタンスして使用
+/// ビットシフトによる一次ハイパスフィルタ (符号付き版)。
+/// LPFの出力を入力から減算してHPFを構成: y[n] = x[n] - lpf[n]。
+/// 内部でLpfShiftSignedをインスタンスして使用する。
 ///
 /// カットオフ周波数の近似:
-///   fc ≈ fs / (2π * 2^SHIFT)
-///   例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz
+///   fc ≈ fs / (2π * 2^SHIFT)。
+///   例: fs=48kHz, SHIFT=8 → fc ≈ 30Hz。
 ///
-/// SHIFT値が大きいほどカットオフ周波数が低くなり、より多くの低域を通過させる。
+/// SHIFT値が大きいほどカットオフ周波数が低くなり、より多くの低域を通過させる
 pub module HpfShiftSigned #(
     param DATA_WIDTH: u32 = 16, /// 入出力データ幅
     param SHIFT     : u32 = 4 , /// シフト量 (1以上)。大きいほど低いカットオフ周波数
@@ -35,12 +35,12 @@ pub module HpfShiftSigned #(
     }
 }
 
-/// 可変シフト量に対応したHPF (符号付き版)
-/// 実行時にシフト量を変更可能
+/// 可変シフト量に対応したHPF (符号付き版)。
+/// 実行時にシフト量を変更できる。
 ///
 /// 伝達関数:
-///   y[n] = x[n] - lpf[n]
-///   ここで lpf[n] = lpf[n-1] + (x[n] - lpf[n-1]) >> shift
+///   y[n] = x[n] - lpf[n]。
+///   ここで lpf[n] = lpf[n-1] + (x[n] - lpf[n-1]) >> shift。
 pub module HpfShiftVariableSigned #(
     param DATA_WIDTH: u32 = 16                   , /// 入出力データ幅
     param MAX_SHIFT : u32 = 16                   , /// 最大シフト量
@@ -77,14 +77,14 @@ pub module HpfShiftVariableSigned #(
 // 符号なし (Unsigned) 版
 //-----------------------------------------------------------------------------
 
-/// ビットシフトによる一次ハイパスフィルタ (符号なし版)
-/// LPFの出力を入力から減算してHPFを構成: y[n] = x[n] - lpf[n]
-/// 内部でLpfShiftUnsignedをインスタンスして使用
+/// ビットシフトによる一次ハイパスフィルタ (符号なし版)。
+/// LPFの出力を入力から減算してHPFを構成: y[n] = x[n] - lpf[n]。
+/// 内部でLpfShiftUnsignedをインスタンスして使用する。
 ///
 /// カットオフ周波数の近似:
-///   fc ≈ fs / (2π * 2^SHIFT)
+///   fc ≈ fs / (2π * 2^SHIFT)。
 ///
-/// 注意: x < lpf_outの場合、出力はラップアラウンドする。
+/// 注意: x < lpf_outの場合、出力はラップアラウンド
 pub module HpfShiftUnsigned #(
     param DATA_WIDTH: u32 = 16, /// 入出力データ幅
     param SHIFT     : u32 = 4 , /// シフト量 (1以上)。大きいほど低いカットオフ周波数
@@ -113,14 +113,14 @@ pub module HpfShiftUnsigned #(
     }
 }
 
-/// 可変シフト量に対応したHPF (符号なし版)
-/// 実行時にシフト量を変更可能
+/// 可変シフト量に対応したHPF (符号なし版)。
+/// 実行時にシフト量を変更できる。
 ///
 /// 伝達関数:
-///   y[n] = x[n] - lpf[n]
-///   ここで lpf[n] = lpf[n-1] + (x[n] - lpf[n-1]) >> shift
+///   y[n] = x[n] - lpf[n]。
+///   ここで lpf[n] = lpf[n-1] + (x[n] - lpf[n-1]) >> shift。
 ///
-/// 注意: x < lpf_outの場合、出力はラップアラウンドする。
+/// 注意: x < lpf_outの場合、出力はラップアラウンド
 pub module HpfShiftVariableUnsigned #(
     param DATA_WIDTH: u32 = 16                   , /// 入出力データ幅
     param MAX_SHIFT : u32 = 16                   , /// 最大シフト量
@@ -176,8 +176,8 @@ module test_hpf_shift_basic {
     inst dut: HpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
-        enable     = false;
-        x          = 0;
+        enable = false;
+        x      = 0;
         rst.assert();
 
         // リセット直後は出力ゼロ
@@ -187,26 +187,26 @@ module test_hpf_shift_basic {
         x      = 16'sd1000;
         enable = true;
 
-        clk.next (1);
+        clk.next(1);
         y_initial = y;
-        $display ("HPF y initial = %d (expected ~1000)", y_initial);
-        $assert  (y_initial >: 16'sd800, "HPFのステップ応答が小さすぎます");
+        $display("HPF y initial = %d (expected ~1000)", y_initial);
+        $assert(y_initial >: 16'sd800, "HPFのステップ応答が小さすぎます");
 
         // 定常状態ではHPF出力がゼロに近づく (DC成分を除去)
         clk.next(1000);
         $display("HPF y steady = %d (expected ~0)", y);
-        $assert (y <: 16'sd16 && y >: -16'sd16, "HPFがDC入力に収束していません");
+        $assert(y <: 16'sd16 && y >: -16'sd16, "HPFがDC入力に収束していません");
 
         // 負のステップ入力: 過渡応答を確認
-        x        = -16'sd500;
+        x = -16'sd500;
         clk.next(5);
         $display("HPF y after negative step = %d", y);
-        $assert (y <: 16'sd0, "負のステップに対するHPF出力が負になっていません");
+        $assert(y <: 16'sd0, "負のステップに対するHPF出力が負になっていません");
 
         // 再び定常状態に収束
         clk.next(1000);
         $display("HPF y steady negative = %d (expected ~0)", y);
-        $assert (y <: 16'sd16 && y >: -16'sd16, "負のDC入力に対してHPFが収束していません");
+        $assert(y <: 16'sd16 && y >: -16'sd16, "負のDC入力に対してHPFが収束していません");
 
         $finish();
     }
@@ -228,25 +228,25 @@ module test_hpf_shift_ac {
     inst dut: HpfShiftSigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
-        enable     = false;
-        x          = 0;
+        enable = false;
+        x      = 0;
         rst.assert();
 
         // 交番信号を入力してHPFが通過することを確認
-        enable   = true;
-        x        = 16'sd1000;
+        enable = true;
+        x      = 16'sd1000;
         clk.next(1);
         $display("AC step 1: y = %d", y);
 
-        x        = -16'sd1000;
+        x = -16'sd1000;
         clk.next(1);
         $display("AC step 2: y = %d", y);
 
-        x        = 16'sd1000;
+        x = 16'sd1000;
         clk.next(1);
         $display("AC step 3: y = %d", y);
 
-        x        = -16'sd1000;
+        x = -16'sd1000;
         clk.next(1);
         $display("AC step 4: y = %d", y);
 
@@ -274,8 +274,8 @@ module test_hpf_shift_unsigned_basic {
     inst dut: HpfShiftUnsigned #( DATA_WIDTH, SHIFT ) ( clk, rst, enable, x, y );
 
     initial {
-        enable     = false;
-        x          = 0;
+        enable = false;
+        x      = 0;
         rst.assert();
 
         // リセット直後は出力ゼロ
@@ -285,14 +285,14 @@ module test_hpf_shift_unsigned_basic {
         x      = 16'd50000;
         enable = true;
 
-        clk.next (1);
+        clk.next(1);
         y_initial = y;
-        $display ("unsigned HPF y initial = %d (expected ~50000)", y_initial);
+        $display("unsigned HPF y initial = %d (expected ~50000)", y_initial);
 
         // 定常状態ではHPF出力がゼロに近づく
         clk.next(1000);
         $display("unsigned HPF y steady = %d (expected ~0)", y);
-        $assert (y <: 16'd16, "符号なしHPFがDC入力に収束していません");
+        $assert(y <: 16'd16, "符号なしHPFがDC入力に収束していません");
 
         $finish();
     }
@@ -316,9 +316,9 @@ module test_hpf_shift_variable {
     inst dut: HpfShiftVariableSigned #( DATA_WIDTH, MAX_SHIFT, SHIFT_BITS ) ( clk, rst, enable, shift, x, y );
 
     initial {
-        enable     = false;
-        shift      = 4;
-        x          = 0;
+        enable = false;
+        shift  = 4;
+        x      = 0;
         rst.assert();
 
         // 定常DC入力 → HPF出力はゼロに収束
@@ -327,18 +327,18 @@ module test_hpf_shift_variable {
 
         clk.next(1000);
         $display("variable HPF y steady = %d (expected ~0)", y);
-        $assert (y <: 16'sd16 && y >: -16'sd16, "可変HPFがDC入力に収束していません");
+        $assert(y <: 16'sd16 && y >: -16'sd16, "可変HPFがDC入力に収束していません");
 
         // 入力をゼロに戻す → 過渡応答 (LPFがまだ追従中なので負の値が出る)
-        x        = 16'sd0;
+        x = 16'sd0;
         clk.next(5);
         $display("variable HPF y transient = %d (expected < 0)", y);
-        $assert (y <: 16'sd0, "可変HPFの過渡応答が負になっていません");
+        $assert(y <: 16'sd0, "可変HPFの過渡応答が負になっていません");
 
         // 再び定常状態に収束
         clk.next(1000);
         $display("variable HPF y re-steady = %d (expected ~0)", y);
-        $assert (y <: 16'sd16 && y >: -16'sd16, "可変HPFの過渡応答が収束していません");
+        $assert(y <: 16'sd16 && y >: -16'sd16, "可変HPFの過渡応答が収束していません");
 
         $finish();
     }
