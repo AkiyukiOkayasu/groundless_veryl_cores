@@ -46,8 +46,7 @@ import Types::AdatFamily;
 ///
 /// User bitはU3からU0、各channelの24bit PCMはD23からD0のMSB-firstで伝送される。
 /// 4bitごとにseparator=1が続き、NRZI信号に同期用の遷移を作る。
-/// `channels[0..7]` は物理スロットであり、S/MUXの論理channel再構成は
-/// `Smux2Unpacker`などの別moduleまたは利用側の回路で行う。
+/// `channels[0..7]` は物理スロットであり、S/MUXの論理channel再構成は`Smux2Unpacker`などの別moduleまたは利用側の回路で行う。
 ///
 /// 伝送位置と内部ベクタ添字を含む詳細図はpackage READMEを参照。
 ///

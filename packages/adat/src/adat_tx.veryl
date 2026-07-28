@@ -5,8 +5,7 @@ import Types::AdatFamily;
 /// 8ch 24bit PCMをADATフレームへ変換し、NRZI信号として出力する。
 ///
 /// # 実機確認状況
-/// 実機動作は未確認。現時点ではNative testと、RTL内部で接続した
-/// `AdatTx`→`AdatRx` loopback testだけを確認している。
+/// 実機動作は未確認。現時点ではNative testと、RTL内部で接続した`AdatTx`→`AdatRx` loopback testだけを確認している。
 /// 外部ADAT機器との相互接続、光送信回路を含む電気的条件、実機上のタイミングは未検証。
 ///
 /// 送信パイプラインは以下の3段で構成される。
@@ -21,8 +20,7 @@ import Types::AdatFamily;
 ///
 /// # 公開インターフェースの概念タイミング
 ///
-/// 次図は縮尺なし。`frame_clk`の立ち上がりで`channels`を取り込み、
-/// 256bitのNRZI送信が完了すると`frame_done`をシステムクロック1周期だけHighにする。
+/// 次図は縮尺なし。`frame_clk`の立ち上がりで`channels`を取り込み、256bitのNRZI送信が完了すると`frame_done`をシステムクロック1周期だけHighにする。
 /// `adat`の遷移パターンはPCM値によって変わる。
 ///
 /// ```wavedrom

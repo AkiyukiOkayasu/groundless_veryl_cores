@@ -28,10 +28,8 @@
 /// # シリアル伝送順とビット有意性の注意
 /// - `bits` は bit_decoder からの LSB-aligned 符号化表現
 ///   例: 5bit間隔（"00001"）は `bits=5'b10000`（`bits[4]=1`）。
-/// - 本モジュールは `bits[0]` から順に shift へ取り込むため、
-///   取り込み時点では nibble 内ビット並びが反転して見える。
-/// - ただし抽出位置を固定して24bit語へ再構成するため、最終 `data` の
-///   ビット有意性は `data[23]` がMSB、`data[0]` がLSBで一定。
+/// - 本モジュールは `bits[0]` から順に shift へ取り込むため、取り込み時点では nibble 内ビット並びが反転して見える。
+/// - ただし抽出位置を固定して24bit語へ再構成するため、最終 `data` のビット有意性は `data[23]` がMSB、`data[0]` がLSBで一定。
 /// - `data` は24bit単一ベクタであり、byte order（エンディアン）依存はない
 module FrameParser (
     /// システムクロック
@@ -179,8 +177,8 @@ module test_adat_frame_parser {
         bits      = value;
         bit_count = count;
         valid     = 1'b1;
-        clk.next(1);
-        valid = 1'b0;
+        clk.next (1);
+        valid     = 1'b0;
     }
 
     function push_channel_123456 () {
@@ -193,22 +191,22 @@ module test_adat_frame_parser {
     }
 
     initial {
-        bits      = 5'd0;
-        bit_count = 3'd0;
-        valid     = 1'b0;
-        sync      = 1'b1;
+        bits       = 5'd0;
+        bit_count  = 3'd0;
+        valid      = 1'b0;
+        sync       = 1'b1;
         rst.assert();
 
         // User=0xA。先頭のseparatorを含む反転済み入力。
         push_bits(5'b10101, 3'd5);
-        $assert(user_bits == 4'hA, "user bits mismatch");
+        $assert  (user_bits == 4'hA, "user bits mismatch");
 
         // 同じPCM値を全8チャンネルへ送り、チャンネル抽出と番号を検証する。
         for i in 0..8 {
             push_channel_123456();
-            $assert(data_valid == 1'b1, "channel data should be valid");
-            $assert(channel == (i as 3), "channel index mismatch");
-            $assert(data == 24'h123456, "PCM data mismatch");
+            $assert            (data_valid == 1'b1, "channel data should be valid");
+            $assert            (channel == (i as 3), "channel index mismatch");
+            $assert            (data == 24'h123456, "PCM data mismatch");
         }
 
         $finish();

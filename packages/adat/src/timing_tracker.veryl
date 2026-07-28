@@ -10,8 +10,8 @@
 /// 4. 同期→同期間の時間をフレーム時間として記録
 ///
 /// # SYNC検出の原理
-/// ADATのSYNCパターンは10個の連続'0'で、これはフレーム内で唯一の
-/// 長時間無遷移期間（約814ns）となる。通常データは最大5ビット連続まで。
+/// ADATのSYNCパターンは10個の連続'0'で、これはフレーム内で唯一の長時間無遷移期間（約814ns）となる。
+/// 通常データは最大5ビット連続まで。
 module TimingTracker (
     /// システムクロック
     clk: input clock,
@@ -131,9 +131,9 @@ module test_adat_timing_tracker {
         gap_cycles: input logic<12>,
     ) {
         edge_pulse = 1'b0;
-        clk.next(gap_cycles);
+        clk.next  (gap_cycles);
         edge_pulse = 1'b1;
-        clk.next(1);
+        clk.next  (1);
         edge_pulse = 1'b0;
     }
 
@@ -143,16 +143,16 @@ module test_adat_timing_tracker {
 
         // 短いエッジ間隔はデータ期間として扱う。
         pulse_edge(12'd4);
-        $assert(sync_detect == 1'b1, "short interval should be data");
+        $assert   (sync_detect == 1'b1, "short interval should be data");
 
         // 長いエッジ間隔はSYNC期間として扱う。
         pulse_edge(12'd40);
-        $assert(sync_detect == 1'b0, "long interval should be sync");
+        $assert   (sync_detect == 1'b0, "long interval should be sync");
 
         // SYNC後にデータ期間へ復帰する。
         pulse_edge(12'd4);
-        $assert(sync_detect == 1'b1, "data should resume after sync");
-        $assert(frame_time == 12'd1042, "initial frame time should be 1042");
+        $assert   (sync_detect == 1'b1, "data should resume after sync");
+        $assert   (frame_time == 12'd1042, "initial frame time should be 1042");
 
         $finish();
     }

@@ -1,8 +1,7 @@
 /// CIC（Cascaded Integrator-Comb）フィルタ群
 ///
 /// CICは係数乗算器を使わず、加算器・減算器・遅延器だけでレート変換を行う。
-/// 音声帯域の最終補間器としては通過帯域 droop が大きいが、
-/// ADAT/I2S周辺の粗いレート変換や後段FIRの前段として有用である。
+/// 音声帯域の最終補間器としては通過帯域 droop が大きいが、ADAT/I2S周辺の粗いレート変換や後段FIRの前段として有用である。
 
 /// CIC間引きフィルタ
 ///
@@ -100,15 +99,13 @@ pub module CicDecimator #(
 
 /// CIC補間フィルタ
 ///
-/// 入力サンプルをSTAGES段の櫛形フィルタへ通し、その結果を
-/// INTERPOLATION倍のゼロ挿入列としてSTAGES段の積分器へ入力する。
+/// 入力サンプルをSTAGES段の櫛形フィルタへ通し、その結果をINTERPOLATION倍のゼロ挿入列としてSTAGES段の積分器へ入力する。
 /// `output_valid`は動作中、クロックごとにHighになる。
-/// 定常ゲインの補正は行わないため、倍率と段数に応じたスケーリングは
-/// 利用側で行う。通過帯域のdroop補正もこのモジュールの責務外とする。
+/// 定常ゲインの補正は行わないため、倍率と段数に応じたスケーリングは利用側で行う。
+/// 通過帯域のdroop補正もこのモジュールの責務外とする。
 ///
-/// 1入力を`input_valid && input_ready`で受理すると、`INTERPOLATION`個の
-/// 出力を連続生成する。burst最終cycleでは`input_ready`もHighとなるため、
-/// 次入力を同時受理すれば`output_valid`を途切れさせず次burstへ移れる。
+/// 1入力を`input_valid && input_ready`で受理すると、`INTERPOLATION`個の出力を連続生成する。
+/// burst最終cycleでは`input_ready`もHighとなるため、次入力を同時受理すれば`output_valid`を途切れさせず次burstへ移れる。
 ///
 /// ```wavedrom
 /// {
@@ -241,19 +238,19 @@ module test_cic_decimator {
     initial {
         input_valid  = false;
         input_sample = 16'sd1;
-        rst.assert();
-        clk.next(1);
+        rst.assert  ();
+        clk.next    (1);
 
         input_valid = true;
-        clk.next(1);
-        $assert(!output_valid, "CIC decimator emitted too early");
-        clk.next(1);
-        $assert(output_valid && output_sample == 16'sd2, "CIC decimator first output mismatch");
-        clk.next(1);
-        $assert(!output_valid, "CIC decimator output valid width mismatch");
-        clk.next(1);
-        $assert(output_valid && output_sample == 16'sd2, "CIC decimator second output mismatch");
-        $finish();
+        clk.next   (1);
+        $assert    (!output_valid, "CIC decimator emitted too early");
+        clk.next   (1);
+        $assert    (output_valid && output_sample == 16'sd2, "CIC decimator first output mismatch");
+        clk.next   (1);
+        $assert    (!output_valid, "CIC decimator output valid width mismatch");
+        clk.next   (1);
+        $assert    (output_valid && output_sample == 16'sd2, "CIC decimator second output mismatch");
+        $finish    ();
     }
 }
 
@@ -287,18 +284,18 @@ module test_cic_interpolator {
     initial {
         input_valid  = false;
         input_sample = 16'sd1;
-        rst.assert();
-        clk.next(1);
+        rst.assert  ();
+        clk.next    (1);
 
         input_valid = true;
-        $assert(input_ready, "CIC interpolator must accept the first sample");
-        clk.next(1);
+        $assert    (input_ready, "CIC interpolator must accept the first sample");
+        clk.next   (1);
         input_valid = false;
-        $assert(output_valid && output_sample == 16'sd1, "CIC interpolator first output mismatch");
-        clk.next(1);
-        $assert(output_valid && output_sample == 16'sd1, "CIC interpolator zero-stuff output mismatch");
-        clk.next(1);
-        $assert(!output_valid, "CIC interpolator output valid width mismatch");
-        $finish();
+        $assert    (output_valid && output_sample == 16'sd1, "CIC interpolator first output mismatch");
+        clk.next   (1);
+        $assert    (output_valid && output_sample == 16'sd1, "CIC interpolator zero-stuff output mismatch");
+        clk.next   (1);
+        $assert    (!output_valid, "CIC interpolator output valid width mismatch");
+        $finish    ();
     }
 }

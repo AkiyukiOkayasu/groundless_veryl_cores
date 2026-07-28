@@ -1,13 +1,12 @@
 /// 2倍補間用の固定係数halfband FIR
 ///
 /// `COEFFICIENT_SET`は1段目（103tap）または2段目（39tap）を選ぶ。
-/// 係数はQ2.(COEFFICIENT_WIDTH - 2)、入力と出力はQ1.(SAMPLE_WIDTH - 1)
-/// とする。halfbandの対称性を使い、非ゼロ係数の対称tapを1回の積和へ
-/// まとめる。もう一方のpolyphaseは中心係数が1なので、遅延入力をそのまま出力する。
+/// 係数はQ2.(COEFFICIENT_WIDTH - 2)、入力と出力はQ1.(SAMPLE_WIDTH - 1)とする。
+/// halfbandの対称性を使い、非ゼロ係数の対称tapを1回の積和へまとめる。
+/// もう一方のpolyphaseは中心係数が1なので、遅延入力をそのまま出力する。
 ///
-/// `input_valid && input_ready`で1入力を受理し、MAC完了後にeven、oddの順で
-/// 2出力を生成する。`output_valid && !output_ready`の間は同じpayloadを保持し、
-/// 2出力目が受理されるまで次の入力を受け付けない。
+/// `input_valid && input_ready`で1入力を受理し、MAC完了後にeven、oddの順で2出力を生成する。
+/// `output_valid && !output_ready`の間は同じpayloadを保持し、2出力目が受理されるまで次の入力を受け付けない。
 ///
 /// ```wavedrom
 /// {
@@ -228,41 +227,41 @@ module test_halfband_interpolator2x_stream {
         input_valid  = false;
         input_sample = 16'sd1000;
         output_ready = false;
-        rst.assert();
+        rst.assert  ();
 
-        $assert(input_ready, "halfband must accept input while idle");
+        $assert    (input_ready, "halfband must accept input while idle");
         input_valid = true;
-        clk.next(1);
+        clk.next   (1);
         input_valid = false;
 
         // 10個の対称係数を1クロックずつ積算する。
-        clk.next(10);
-        $assert(output_valid, "halfband must emit the first output");
-        $assert(output_sample == 16'sd0, "zero-padded history must produce a zero even output");
+        clk.next   (10);
+        $assert    (output_valid, "halfband must emit the first output");
+        $assert    (output_sample == 16'sd0, "zero-padded history must produce a zero even output");
         let held_sample: signed logic<16> = output_sample;
-        clk.next(2);
-        $assert(output_valid && output_sample == held_sample, "output must hold while stalled");
+        clk.next   (2);
+        $assert    (output_valid && output_sample == held_sample, "output must hold while stalled");
 
         output_ready = true;
-        clk.next(1);
-        $assert(output_valid, "halfband must emit the second output consecutively");
-        $assert(output_sample == 16'sd0, "zero-padded history must produce a zero odd output");
-        clk.next(1);
-        $assert(!output_valid && input_ready, "halfband must return idle after the burst");
+        clk.next    (1);
+        $assert     (output_valid, "halfband must emit the second output consecutively");
+        $assert     (output_sample == 16'sd0, "zero-padded history must produce a zero odd output");
+        clk.next    (1);
+        $assert     (!output_valid && input_ready, "halfband must return idle after the burst");
 
         // 窓が入力値で満たされた後は、2つのpolyphase出力ともDCゲイン1になる。
         for sample_index in 0..19 {
             input_valid  = true;
             input_sample = 16'sd1000;
-            clk.next(1);
-            input_valid = false;
-            clk.next(10);
-            $assert(output_valid, "halfband must emit each DC burst");
+            clk.next    (1);
+            input_valid  = false;
+            clk.next    (10);
+            $assert     (output_valid, "halfband must emit each DC burst");
             if sample_index == 18 {
                 $assert(output_sample == 16'sd1000, "DC input must preserve the even output");
             }
             clk.next(1);
-            $assert(output_valid, "halfband must emit the odd phase");
+            $assert (output_valid, "halfband must emit the odd phase");
             if sample_index == 18 {
                 $assert(output_sample == 16'sd1000, "DC input must preserve the odd output");
             }
