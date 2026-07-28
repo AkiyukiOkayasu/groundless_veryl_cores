@@ -3,6 +3,28 @@
 /// 入力1サンプルから論理的に4サンプルを生成し、後段のSTD FIFOへburstで
 /// 受け渡す。FIFOの読み出しと50MHz出力の位相進行は`ContinuousLinearAsrc`
 /// が担当するため、HBF自身は入力受理と2サンプルburstのready/validだけを扱う。
+///
+/// ```text
+/// input → Halfband 2x (stage 1) → Halfband 2x (stage 2)
+///       → 4-sample burst → FIFO → continuous linear ASRC → output
+/// ```
+///
+/// HBFのburstでFIFOを`STARTUP_LEVEL`まで満たしてから`output_active`になる。
+/// 以後は毎クロック補間値を出し、`advance`時だけFIFOから次の窓を補充する。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'input transfer', wave: '010.....10........' },
+///     { name: 'stage 1 burst',  wave: '0..1.0....1.0.....' },
+///     { name: 'stage 2 burst',  wave: '0....1...0..1...0.' },
+///     { name: 'input_level',    wave: '2....3456.........', data: ['0', '1', '2', '4', 'startup'] },
+///     { name: 'output_active',  wave: '0........1........' },
+///     { name: 'output_sample',  wave: 'x........3456....', data: ['O0', 'O1', 'O2', 'O3'] }
+///   ],
+///   head: { text: '4x burst pipeline and continuous-output startup (not to scale)' }
+/// }
+/// ```
 pub module FourXHalfbandAsrc #(
     param SAMPLE_WIDTH: u32 = 32,
     param PHASE_WIDTH : u32 = 32,

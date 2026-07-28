@@ -7,6 +7,24 @@
 /// FILTER_SHIFTが大きいほど追従は遅くなるが、valid時刻の量子化や
 /// サンプル間ジッターを位相増分へ伝えにくくなる。
 /// `filtered_period`はPERIOD_WIDTH.FRACTION_WIDTHの固定小数点値である。
+///
+/// 最初の`sample_valid`は基準時刻を記録するだけで、次の到着から
+/// `measured_period`を更新して`period_valid`を1クロックだけHighにする。
+/// 有効な測定が`LOCK_COUNT`回に達すると`locked`を保持する。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'sample_valid',    wave: '010...10...10...10.' },
+///     { name: 'measurement',     wave: 'x.3...4....5....6..', data: ['start', 'P0', 'P1', 'P2'] },
+///     { name: 'measured_period', wave: 'x.....3....4....5..', data: ['P0', 'P1', 'P2'] },
+///     { name: 'period_valid',    wave: '0.....10...10...10.' },
+///     { name: 'filtered_period', wave: 'x.....3....4....5..', data: ['F0', 'F1', 'F2'] },
+///     { name: 'locked',          wave: '0..............|1..' }
+///   ],
+///   head: { text: 'Period measurement and lock acquisition (LOCK_COUNT interval abbreviated)' }
+/// }
+/// ```
 pub module SampleRateTracker #(
     param PERIOD_WIDTH  : u32 = 16,
     param FRACTION_WIDTH: u32 = 8 ,

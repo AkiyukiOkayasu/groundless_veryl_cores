@@ -5,6 +5,26 @@
 /// Q(整数3bit).PHASE_WIDTHで表す。例えば96kHz入力から48kHzを作る場合は
 /// `2 << PHASE_WIDTH`、96kHz入力から44.1kHzを作る場合は
 /// `96_000 / 44_100 << PHASE_WIDTH`相当を設定する。
+///
+/// 起動時はFIFOから2サンプル窓を作るまで`output_ready`がLowになる。
+/// `output_tick && output_ready`で出力し、位相進行が入力境界を越えた場合は
+/// 必要数だけFIFOから窓を補充する。補充中の`output_tick`は受理されない。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'input_valid',  wave: '01110.........' },
+///     { name: 'input_ready',  wave: '1.............' },
+///     { name: 'input_sample', wave: 'x345..........', data: ['S0', 'S1', 'S2'] },
+///     { name: 'window',       wave: 'x..6..........', data: ['S0,S1'] },
+///     { name: 'output_ready', wave: '0...1..0.1....' },
+///     { name: 'output_tick',  wave: '0....10.......' },
+///     { name: 'output_valid', wave: '0....10.......' },
+///     { name: 'output_sample', wave: 'x....7........', data: ['lerp(S0,S1)'] },
+///     { name: 'refill',       wave: '0......1.0....' }
+///   ]
+/// }
+/// ```
 pub module LinearAsrc #(
     param SAMPLE_WIDTH: u32 = 32,
     param PHASE_WIDTH : u32 = 32,
@@ -129,6 +149,22 @@ pub module LinearAsrc #(
 /// `output_active`をfalseにして0を出力する。burst入力ではこの値を大きくして、
 /// 出力開始前にFIFOへ余裕を持たせる。
 /// 動作開始後は、入力不足を`underflow`へstickyに記録しながら出力を止めない。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'input_valid',   wave: '0111110........' },
+///     { name: 'input_ready',   wave: '1..............' },
+///     { name: 'input_level',   wave: '23456........0.', data: ['0', '1', '2', 'startup', 'buffered', 'empty'] },
+///     { name: 'window primed', wave: '0....1.........' },
+///     { name: 'output_active', wave: '0....1.........' },
+///     { name: 'phase',         wave: 'x....345.......', data: ['P0', 'P1', 'P2'] },
+///     { name: 'advance',       wave: '0......10..10..' },
+///     { name: 'underflow',     wave: '0..........1...' }
+///   ],
+///   head: { text: 'Startup, continuous output, and sticky underflow' }
+/// }
+/// ```
 pub module ContinuousLinearAsrc #(
     param SAMPLE_WIDTH : u32 = 32,
     param PHASE_WIDTH  : u32 = 32,

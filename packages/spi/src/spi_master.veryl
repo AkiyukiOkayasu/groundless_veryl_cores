@@ -1,7 +1,44 @@
 /// SPI共通型をimport
 import Spi::SpiMode;
 /// SPI Master モジュール
-/// Mode 0 (CPOL=0, CPHA=0) 固定
+///
+/// `start`はidle中に1クロックだけHighにし、同じcycleの`tx_data`を保持する。
+/// 受理後は`busy`と`cs_n`をアサートし、全bitの転送とCS High保持時間が
+/// 終わると`done`を1クロックだけHighにする。転送はMSB-first。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'start',   wave: '010.............' },
+///     { name: 'tx_data', wave: 'x3..............', data: ['word N'] },
+///     { name: 'busy',    wave: '01..........0...' },
+///     { name: 'cs_n',    wave: '1.0........1....' },
+///     { name: 'sclk',    wave: '0..p.....|p..0..' },
+///     { name: 'done',    wave: '0...........10..' }
+///   ],
+///   head: { text: 'SPI transaction (transfer interval abbreviated)' }
+/// }
+/// ```
+///
+/// CPOLはidle level、CPHAは最初のedgeがshiftかsampleかを決める。
+/// Mode 0/2はleading edgeでsample、Mode 1/3はleading edgeでshiftする。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     ['CPHA=0',
+///       { name: 'Mode 0 SCLK', wave: '0.P.N.P.N.0' },
+///       { name: 'Mode 2 SCLK', wave: '1.N.P.N.P.1' },
+///       { name: 'action',      wave: 'x.3.4.3.4.x', data: ['sample', 'shift', 'sample', 'shift'] }
+///     ],
+///     ['CPHA=1',
+///       { name: 'Mode 1 SCLK', wave: '0.P.N.P.N.0' },
+///       { name: 'Mode 3 SCLK', wave: '1.N.P.N.P.1' },
+///       { name: 'action',      wave: 'x.4.3.4.3.x', data: ['shift', 'sample', 'shift', 'sample'] }
+///     ]
+///   ]
+/// }
+/// ```
 pub module SpiMaster::<MODE: SpiMode = SpiMode::Mode0> #(
     param DATA_WIDTH: u16 = 8 , /// 通信ビット数 (8, 16, 24, 32など)
     param CLK_DIV   : u16 = 50, /// 分周比 (50MHz入力で50なら1MHzのSCLK)

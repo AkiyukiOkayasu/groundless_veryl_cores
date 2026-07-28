@@ -4,6 +4,25 @@
 /// 係数はQ2.(COEFFICIENT_WIDTH - 2)、入力と出力はQ1.(SAMPLE_WIDTH - 1)
 /// とする。halfbandの対称性を使い、非ゼロ係数の対称tapを1回の積和へ
 /// まとめる。もう一方のpolyphaseは中心係数が1なので、遅延入力をそのまま出力する。
+///
+/// `input_valid && input_ready`で1入力を受理し、MAC完了後にeven、oddの順で
+/// 2出力を生成する。`output_valid && !output_ready`の間は同じpayloadを保持し、
+/// 2出力目が受理されるまで次の入力を受け付けない。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'input_valid',  wave: '010...........' },
+///     { name: 'input_ready',  wave: '10..........1.' },
+///     { name: 'input_sample', wave: 'x3............', data: ['sample N'] },
+///     { name: 'MAC',          wave: '0.1....0.......' },
+///     { name: 'output_valid', wave: '0......1....0..' },
+///     { name: 'output_ready', wave: '1......0..1....' },
+///     { name: 'output_sample', wave: 'x......4..5...', data: ['even N', 'odd N'] }
+///   ],
+///   head: { text: '2x output burst with backpressure' }
+/// }
+/// ```
 pub module HalfbandInterpolator2x #(
     param SAMPLE_WIDTH     : u32 = 32                                  ,
     param COEFFICIENT_WIDTH: u32 = 18                                  ,

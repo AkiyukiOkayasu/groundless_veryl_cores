@@ -9,6 +9,19 @@
 /// 入力側でSTAGES段の積分器を毎`input_valid`時に更新し、
 /// DECIMATION個ごとにSTAGES段の櫛形フィルタを通して出力する。
 /// 出力にはCIC固有のゲイン DECIMATION^STAGES が含まれる。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'input_valid',   wave: '0101010101010' },
+///     { name: 'input_sample',  wave: 'x3456789.....', data: ['S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'] },
+///     { name: 'decim count',   wave: 'x3.4.3.4.3.4.', data: ['0', '1', '0', '1', '0', '1'] },
+///     { name: 'output_valid',  wave: '0...10..10..1' },
+///     { name: 'output_sample', wave: 'x...3...4...5', data: ['Y0', 'Y1', 'Y2'] }
+///   ],
+///   head: { text: 'DECIMATION=2 example; only valid inputs advance the counter' }
+/// }
+/// ```
 pub module CicDecimator #(
     param INPUT_WIDTH      : u32 = 16,
     param ACCUMULATOR_WIDTH: u32 = 32,
@@ -92,6 +105,23 @@ pub module CicDecimator #(
 /// `output_valid`は動作中、クロックごとにHighになる。
 /// 定常ゲインの補正は行わないため、倍率と段数に応じたスケーリングは
 /// 利用側で行う。通過帯域のdroop補正もこのモジュールの責務外とする。
+///
+/// 1入力を`input_valid && input_ready`で受理すると、`INTERPOLATION`個の
+/// 出力を連続生成する。burst最終cycleでは`input_ready`もHighとなるため、
+/// 次入力を同時受理すれば`output_valid`を途切れさせず次burstへ移れる。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'input_valid',   wave: '010..1......' },
+///     { name: 'input_ready',   wave: '10..1...1...' },
+///     { name: 'input_sample',  wave: 'x3...4......', data: ['S0', 'S1'] },
+///     { name: 'output_valid',  wave: '0.1...1...0.' },
+///     { name: 'output_sample', wave: 'x.345.678...', data: ['Y0.0', 'Y0.1', 'Y0.2', 'Y1.0', 'Y1.1', 'Y1.2'] }
+///   ],
+///   head: { text: 'INTERPOLATION=3 output bursts' }
+/// }
+/// ```
 pub module CicInterpolator #(
     param INPUT_WIDTH      : u32 = 16,
     param ACCUMULATOR_WIDTH: u32 = 32,

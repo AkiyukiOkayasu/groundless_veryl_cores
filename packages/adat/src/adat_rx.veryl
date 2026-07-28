@@ -16,6 +16,8 @@ import Adat::AdatFamily;
 ///
 /// # S/MUX時のチャンネルマッピング（別moduleまたは利用側で実装）
 /// 本モジュールは `channels[0..7]` を物理スロットとして出力し、S/MUXの論理チャンネル再構成は行わない。
+/// S/MUX2受信では、出力を `Smux2Unpacker`へ接続して4chの高速sample列へ戻す。
+/// `Smux2Packer`は送信側で4ch sample列を8物理スロットへ並べるmoduleであり、受信後の再構成には使用しない。
 ///
 /// - S/MUX2 (96kHz / 88.2kHz, 4ch)
 ///   - Logical CH0 <= `channels[0]` + `channels[1]`

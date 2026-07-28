@@ -3,6 +3,20 @@
 /// `CLK_FREQ`と`BAUD_RATE`から1ビットのクロック数を計算し、スタートビット、
 /// `DATA_WIDTH`ビットのデータ、ストップビットを順にサンプリングする。
 /// 1バイトの受信完了時に`valid`を1クロックだけアサートする。
+/// data bitはLSB-firstで、各bitの中央をサンプリングする。stop bitがLowなら
+/// framing errorとして破棄し、`valid`をアサートしない。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'rx',     wave: '1.0.3.4.5...6.1.', data: ['start', 'D0', 'D1', 'D2..D6', 'D7', 'stop'] },
+///     { name: 'sample', wave: '0..101010|10.10.' },
+///     { name: 'data',   wave: 'x...........7..', data: ['D7..D0'] },
+///     { name: 'valid',  wave: '0...........10.' }
+///   ],
+///   head: { text: 'UART receive (bit periods abbreviated)' }
+/// }
+/// ```
 pub module UartRx #(
     param CLK_FREQ  : u32 = 50_000_000,
     param BAUD_RATE : u32 = 31250     ,

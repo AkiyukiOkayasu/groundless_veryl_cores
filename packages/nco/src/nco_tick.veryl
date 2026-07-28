@@ -2,6 +2,25 @@
 ///
 /// phaseはDDSの位相ではなく、modulus未満の剰余を保持する。
 /// そのため、tickの平均周波数はincrement / modulus * clkになる。
+///
+/// 同じクロックで複数の制御がHighの場合、優先順位は
+/// `update` > `restart` > `!enable` > 通常の位相加算となる。
+/// `update`と`restart`はphaseを0へ戻して`tick`を抑止し、disable中も
+/// phaseを保持して`tick`だけをLowにする。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'update',     wave: '010...........' },
+///     { name: 'restart',    wave: '010....10.....' },
+///     { name: 'enable',     wave: '1.....0..1....' },
+///     { name: 'phase',      wave: 'x3.456.3..45..', data: ['0', 'I', '2I', '3I', 'hold', '0', 'I', '2I'] },
+///     { name: 'tick',       wave: '0....10.......' },
+///     { name: 'configured', wave: '01............' }
+///   ],
+///   head: { text: 'Control priority: update > restart > disable > accumulate' }
+/// }
+/// ```
 pub module NcoTick #(
     param WIDTH: u32 = 32,
 ) (

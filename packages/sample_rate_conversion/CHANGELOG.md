@@ -9,3 +9,5 @@
 - `FarrowAsrc`を`CubicLagrangeAsrc`へ改名
 - 補間、phase accumulator、halfbandを依存packageへ分離
 - 補間kernelのdefault nearest ties to even変更に合わせ、cubic統合goldenを更新
+- Linear ASRCの起動・窓補充・underflowと4倍HBF経路のburstを示すWavedromを追加
+- `SampleRateTracker`の測定開始、`period_valid`、lock獲得を示すWavedromを追加

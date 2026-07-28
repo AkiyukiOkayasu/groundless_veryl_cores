@@ -56,6 +56,9 @@
 - ADAT RX/TXの実機確認範囲をREADMEとmodule documentationへ明記
 - ADAT RXのmodule documentationを簡潔化し、NRZI復号後の詳細frame図をpackage READMEへ移動
 - ADAT TXとS/MUX2のmodule documentationへ公開信号の時間順序を示すWavedromを追加
+- SPI、UART、filter、sample-rate converter、NCO、IEC60958の公開契約へWavedromを追加
+- `MidiRx`から共通UART frame timing documentationを参照
+- `AdatRx`のS/MUX2受信案内を`Smux2Unpacker`へ明確化
 - ADAT内部の送信helperから`Tx` prefixを外し、各unit testを対応する実装ファイルへ移動
 - ASRC専用の`asrc` packageを、同期・非同期sample-rate converterをまとめる`sample_rate_conversion` packageへ改名
 - 公開RTLを12個のinner projectへ分割し、ルートをpackage横断integration／benchmark専用projectへ整理

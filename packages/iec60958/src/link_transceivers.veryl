@@ -6,6 +6,25 @@ import Iec60958::SampleRate;
 /// PCM stereo sampleを受け取り、channel statusを自動生成してBMC lineへ出す。
 /// channel statusの詳細設定を明示的に受け取るため、用途に応じて固定値を
 /// 上位で管理できる。
+///
+/// `sample_valid && sample_ready`でstereo sampleを受理し、payloadを内部保持して
+/// A（left）、B（right）の順にsubframeを送る。B subframeを受理するまでは
+/// `sample_ready`がLowとなり、`busy`はBMC送信完了までHighを含み得る。
+/// 64cellの詳細は省略し、`line_valid`区間として示す。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'sample_valid', wave: '010...............' },
+///     { name: 'sample_ready', wave: '10............1...' },
+///     { name: 'stereo PCM',   wave: 'x3................', data: ['L,R'] },
+///     { name: 'subframe',     wave: 'x..4.....5........', data: ['A (left)', 'B (right)'] },
+///     { name: 'line_valid',   wave: '0..1..0..1..0.....' },
+///     { name: 'busy',         wave: '0.1..........0....' }
+///   ],
+///   head: { text: 'IEC60958 stereo TX (subframe intervals abbreviated)' }
+/// }
+/// ```
 pub module SpdifTransmitter (
     clk                 : input  clock         ,
     rst                 : input  reset         ,
@@ -98,6 +117,24 @@ pub module SpdifTransmitter (
 /// S/PDIF consumer receiver。
 ///
 /// 共通stereo receiverをS/PDIF向けの公開APIとして提供する薄いラッパー。
+/// A subframeを保持し、続くB subframeと組み合わせてstereo sampleを出力する。
+/// `sample_valid && !sample_ready`の間はPCM、invalid、user、statusを保持し、
+/// line側にもbackpressureを伝えて次の完成subframeを受理しない。
+/// `block_start`と`error`はイベントを示す1クロックpulseであり、stall中は保持しない。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'received subframe', wave: 'x3.....4..........', data: ['A (left)', 'B (right)'] },
+///     { name: 'sample_valid',      wave: '0.......1.....0...' },
+///     { name: 'sample_ready',      wave: '1........0..1.....' },
+///     { name: 'stereo PCM',        wave: 'x.......5.........', data: ['L,R (held while stalled)'] },
+///     { name: 'block_start',       wave: '0.......10........' },
+///     { name: 'error',             wave: '0.................' }
+///   ],
+///   head: { text: 'IEC60958 stereo RX with output backpressure' }
+/// }
+/// ```
 pub module SpdifReceiver (
     clk          : input  clock      ,
     rst          : input  reset      ,
@@ -141,6 +178,8 @@ pub module SpdifReceiver (
 /// AES3 professional transmitter。
 ///
 /// status mapperとblock CRCを内蔵し、AES3のC bitを自動生成する。
+/// stereo sampleの受理、A/B subframe送信、`busy`の契約は
+/// `SpdifTransmitter`のIEC60958 stereo TX timingと同じ。
 pub module Aes3Transmitter (
     clk          : input  clock               ,
     rst          : input  reset               ,
@@ -202,6 +241,8 @@ pub module Aes3Transmitter (
 /// AES3 professional receiver。
 ///
 /// 共通stereo receiverをAES3向けの公開APIとして提供する薄いラッパー。
+/// A/B subframeの組み立てとoutput backpressureの契約は
+/// `SpdifReceiver`のIEC60958 stereo RX timingと同じ。
 pub module Aes3Receiver (
     clk          : input  clock      ,
     rst          : input  reset      ,

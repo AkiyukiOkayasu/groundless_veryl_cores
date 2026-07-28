@@ -4,6 +4,8 @@
 /// `valid`を1クロックだけアサートする。
 ///
 /// `CLK_FREQ`は入力クロック周波数をHzで指定する。
+/// 8N1 frame、LSB-first、中央samplingのタイミングは`uart::UartRx`の
+/// Wavedromを参照。本moduleではその前段に2段synchronizerが加わる。
 pub module MidiRx #(
     param CLK_FREQ: u32 = 50_000_000,
 ) (

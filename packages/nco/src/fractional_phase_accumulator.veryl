@@ -7,6 +7,23 @@
 ///
 /// 初期仕様では`phase_increment`を0以上1未満に限定する。したがって、
 /// 1クロックで発生するwrapは最大1回である。
+///
+/// `advance`は現在の`phase + phase_increment`が次の立ち上がりでwrapすることを
+/// 組み合わせで予告する。wrapする立ち上がりの後、`phase`には剰余が現れ、
+/// `advance`は次回の加算がwrapしない限りLowへ戻る。
+///
+/// ```wavedrom
+/// {
+///   signal: [
+///     { name: 'clk',       wave: 'p.....' },
+///     { name: 'enable',    wave: '1.....' },
+///     { name: 'phase',     wave: '3456..', data: ['P', 'P+I', 'near wrap', 'remainder'] },
+///     { name: 'advance',   wave: '0.10..' },
+///     { name: 'wrap edge', wave: '0..10.' }
+///   ],
+///   head: { text: 'advance predicts the next phase update' }
+/// }
+/// ```
 pub module FractionalPhaseAccumulator #(
     param WIDTH: u32 = 32,
 ) (
