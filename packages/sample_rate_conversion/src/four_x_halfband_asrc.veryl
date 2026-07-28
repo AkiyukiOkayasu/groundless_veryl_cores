@@ -158,20 +158,20 @@ module test_four_x_halfband_asrc {
         input_valid     = false;
         input_sample    = 16'sd1000;
         phase_increment = 0;
-        rst.assert     ();
+        rst.assert();
 
         // 位相を止めた状態で2入力分の4サンプルburstをFIFOへ蓄積する
-        $assert    (input_ready, "4x ASRC must accept the first input");
+        $assert(input_ready, "4x ASRC must accept the first input");
         input_valid = true;
-        clk.next   (1);
+        clk.next(1);
         input_valid = false;
-        clk.next   (80);
+        clk.next(80);
 
-        $assert    (input_ready, "4x ASRC must accept the second input");
+        $assert(input_ready, "4x ASRC must accept the second input");
         input_valid = true;
-        clk.next   (1);
+        clk.next(1);
         input_valid = false;
-        clk.next   (80);
+        clk.next(80);
 
         $assert(output_active, "4x ASRC must become active after HBF bursts");
         $assert(input_level == 4'd6, "two HBF bursts must leave six FIFO samples after prefill");
@@ -179,9 +179,9 @@ module test_four_x_halfband_asrc {
 
         // 192kHz / 50MHzのQ0.32進行へ切り替え、短時間の連続出力を確認する
         phase_increment = 32'd16492674;
-        clk.next       (520);
-        $assert        (output_active, "4x ASRC must keep its output active");
-        $assert        (!underflow, "4x ASRC must not underflow from the buffered burst");
-        $finish        ();
+        clk.next(520);
+        $assert(output_active, "4x ASRC must keep its output active");
+        $assert(!underflow, "4x ASRC must not underflow from the buffered burst");
+        $finish();
     }
 }

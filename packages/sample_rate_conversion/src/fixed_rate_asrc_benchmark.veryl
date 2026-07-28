@@ -1,4 +1,4 @@
-/// 48kHz入力を直接線形補間した経路と、4倍HBF後に線形補間した経路の比較
+/// sample_rate_conversion packageの固定レートASRC経路を比較するベンチマーク
 ///
 /// 50MHzクロック上で48kHzの入力validを分数位相アキュムレータから生成し、同じ入力正弦波を2経路へ与える。CSV生成は長時間のためignored testとし、出力は4クロックに1回だけ記録して外部の標準Python解析へ渡す
 #[test(fixed_rate_asrc_benchmark)]
@@ -72,7 +72,7 @@ module fixed_rate_asrc_benchmark {
         advance        : direct_advance        ,
     );
 
-    inst direct_asrc: sample_rate_conversion::ContinuousLinearAsrc #(
+    inst direct_asrc: ContinuousLinearAsrc #(
         SAMPLE_WIDTH: SAMPLE_WIDTH,
         PHASE_WIDTH : PHASE_WIDTH ,
         INPUT_DEPTH : 8           ,
@@ -90,7 +90,7 @@ module fixed_rate_asrc_benchmark {
         underflow    : direct_underflow    ,
     );
 
-    inst four_asrc: sample_rate_conversion::FourXHalfbandAsrc #(
+    inst four_asrc: FourXHalfbandAsrc #(
         SAMPLE_WIDTH: SAMPLE_WIDTH,
         PHASE_WIDTH : PHASE_WIDTH ,
         INPUT_DEPTH : 8           ,

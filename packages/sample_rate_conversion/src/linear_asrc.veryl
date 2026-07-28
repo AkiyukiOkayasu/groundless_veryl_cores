@@ -324,37 +324,37 @@ module test_linear_asrc {
         input_sample = 0;
         output_tick  = 0;
         ratio        = 0;
-        clk.next    (1);
-        $assert     (interpolated == 16'sd1000, "linear interpolation phase zero mismatch");
-        phase        = 4'd8;
-        clk.next    (1);
-        $assert     (interpolated == 16'sd2000, "linear interpolation midpoint mismatch");
+        clk.next(1);
+        $assert(interpolated == 16'sd1000, "linear interpolation phase zero mismatch");
+        phase = 4'd8;
+        clk.next(1);
+        $assert(interpolated == 16'sd2000, "linear interpolation midpoint mismatch");
 
         input_sample = 16'sd100;
         input_valid  = 1;
         ratio        = 6'd24;
-        rst.assert  ();
-        clk.next    (1);
+        rst.assert();
+        clk.next(1);
         input_sample = 16'sd200;
-        clk.next    (1);
+        clk.next(1);
         input_sample = 16'sd300;
-        clk.next    (1);
-        input_valid  = 0;
-        clk.next    (3);
-        $assert     (output_ready, "ASRC must become ready after two input samples");
+        clk.next(1);
+        input_valid = 0;
+        clk.next(3);
+        $assert(output_ready, "ASRC must become ready after two input samples");
 
         output_tick = 1;
-        clk.next   (1);
+        clk.next(1);
         output_tick = 0;
-        $assert    (output_valid && output_sample == 16'sd100, "ASRC first sample mismatch");
-        clk.next   (1);
-        $assert    (output_ready, "ASRC must refill one sample after a 1.5x advance");
+        $assert(output_valid && output_sample == 16'sd100, "ASRC first sample mismatch");
+        clk.next(1);
+        $assert(output_ready, "ASRC must refill one sample after a 1.5x advance");
 
         output_tick = 1;
-        clk.next   (1);
+        clk.next(1);
         output_tick = 0;
-        $assert    (output_valid && output_sample == 16'sd250, "ASRC interpolated sample mismatch");
-        $finish    ();
+        $assert(output_valid && output_sample == 16'sd250, "ASRC interpolated sample mismatch");
+        $finish();
     }
 }
 
@@ -413,19 +413,19 @@ module test_continuous_linear_asrc {
         input_sample = 0;
         phase_enable = true;
         phase_inc    = 4'd4;
-        rst.assert  ();
+        rst.assert();
 
         // 0, 100, 200, 300を連続投入し、窓を初期化する
         input_valid  = true;
         input_sample = 16'sd0;
-        clk.next    (1);
+        clk.next(1);
         input_sample = 16'sd100;
-        clk.next    (1);
+        clk.next(1);
         input_sample = 16'sd200;
-        clk.next    (1);
+        clk.next(1);
         input_sample = 16'sd300;
-        clk.next    (1);
-        input_valid  = false;
+        clk.next(1);
+        input_valid = false;
 
         $assert(output_active, "continuous ASRC must become active after priming");
         $assert(output_sample == 16'sd0, "continuous ASRC must hold the initial window while priming");
@@ -433,14 +433,14 @@ module test_continuous_linear_asrc {
         $assert(input_level == 4'd2, "priming sample and unused burst sample must remain in the FIFO");
 
         clk.next(1);
-        $assert (output_sample == 16'sd25, "continuous ASRC quarter phase mismatch");
+        $assert(output_sample == 16'sd25, "continuous ASRC quarter phase mismatch");
         clk.next(1);
-        $assert (output_sample == 16'sd50, "continuous ASRC midpoint phase mismatch");
+        $assert(output_sample == 16'sd50, "continuous ASRC midpoint phase mismatch");
         clk.next(1);
-        $assert (output_sample == 16'sd75, "continuous ASRC three-quarter phase mismatch");
+        $assert(output_sample == 16'sd75, "continuous ASRC three-quarter phase mismatch");
         clk.next(1);
-        $assert (output_sample == 16'sd100, "continuous ASRC second window mismatch");
-        $assert (!underflow, "continuous ASRC must keep the buffered stream running");
-        $finish ();
+        $assert(output_sample == 16'sd100, "continuous ASRC second window mismatch");
+        $assert(!underflow, "continuous ASRC must keep the buffered stream running");
+        $finish();
     }
 }

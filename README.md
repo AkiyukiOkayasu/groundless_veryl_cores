@@ -22,7 +22,7 @@ Verylで記述した、オーディオ信号処理・デジタルオーディオ
 | `iec60958` | S/PDIF/AES3 transceiver | IEC 60958 link |
 
 各packageは`packages/<name>/`の独立Veryl projectです。依存方向はleafから上位へ一方向で、
-rootはpackage横断benchmarkとintegration testだけを所有します。各packageの責務、型、
+rootはpackage横断integration testを、数値benchmarkは対象packageを所有します。各packageの責務、型、
 signedness、latency、reset、転送契約は対応するREADMEとdoc commentに記載しています。
 
 当面のADAT→50MHz差動PDMと将来のI2S出力の実装計画は、[AUDIO_PIPELINE_PLAN.md](AUDIO_PIPELINE_PLAN.md)にまとめています。
@@ -80,7 +80,7 @@ python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.cs
 直接線形補間と4倍HBF＋線形補間の振幅を標準Pythonだけで解析します。
 
 ```text
-cd ../..
+cd packages/sample_rate_conversion
 veryl test --ignored -t fixed_rate_asrc_benchmark
 python3 tools/analyze_fixed_rate_asrc.py target/fixed_rate_asrc_benchmark.csv
 ```

@@ -85,6 +85,7 @@ jobs:
           veryl test --ignored -t interpolator_benchmark
           python3 tools/analyze_interpolator_benchmark.py target/interpolator_benchmark.csv --format json
       - name: Fixed-rate ASRC benchmark
+        working-directory: packages/sample_rate_conversion
         run: |
           veryl test --ignored -t fixed_rate_asrc_benchmark
           python3 tools/analyze_fixed_rate_asrc.py target/fixed_rate_asrc_benchmark.csv
